@@ -8,6 +8,7 @@ use sdl2::Sdl;
 use sdl2::rect::Rect;
 use std::path::PathBuf;
 use std::time::Duration;
+use fs_extra::file::move_file;
 
 pub struct Program {
     sdl_context: Sdl,
@@ -47,6 +48,9 @@ impl Program {
     }
 
     pub fn render(&mut self) -> Result<(), String> {
+        if self.images.len() == 0 {
+            return Ok(());
+        }
         let texture = self
             .texture_creator
             .load_texture(&self.images[self.index])?;
@@ -59,21 +63,38 @@ impl Program {
         Ok(())
     }
 
-    fn increment(&mut self) -> Result<(), String> {
+    fn increment(&mut self, step: usize) -> Result<(), String> {
         if self.images.len() == 0 || self.images.len() == 1 {
             return Ok(());
         }
-        if self.index <= self.images.len() - 2 {
-            self.index += 1;
+        if self.index <= self.images.len() - (1+step) {
+            self.index += step;
         }
         self.render()?;
         Ok(())
     }
 
-    fn decrement(&mut self) -> Result<(), String> {
-        if self.index > 0 {
+    fn decrement(&mut self, step: usize) -> Result<(), String> {
+        if self.index > step - 1 {
+            self.index -= step;
+        }
+        self.render()?;
+        Ok(())
+    }
+
+    fn keep(&mut self) -> Result<(), String> {
+        let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
+        std::fs::create_dir(current_dir.join("keep"));
+        let keep = PathBuf::new();
+        let keep = keep.join(current_dir).join("keep");
+        let filepath = self.images.remove(self.index);
+        if self.index >= self.images.len() && self.images.len() != 0 {
             self.index -= 1;
         }
+        let filename = filepath.file_name().unwrap();
+        let newname = keep.join(filename);
+        let opt = &fs_extra::file::CopyOptions::new();
+        move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()?;
         Ok(())
     }
@@ -88,16 +109,39 @@ impl Program {
                     | Event::KeyDown {
                         keycode: Option::Some(Keycode::Escape),
                         ..
+                    }
+                    | Event::KeyDown {
+                        keycode: Option::Some(Keycode::Q),
+                        ..
                     } => break 'mainloop,
                     Event::KeyDown {
                         keycode: Some(Keycode::Left),
                         ..
-                    } => self.decrement()?,
+                    } => self.decrement(1)?,
                     Event::KeyDown {
                         keycode: Some(Keycode::Right),
                         ..
-                    } => self.increment()?,
-
+                    } => self.increment(1)?,
+                     Event::KeyDown {
+                        keycode: Some(Keycode::P),
+                        ..
+                    } => self.decrement(10)?,
+                     Event::KeyDown {
+                        keycode: Some(Keycode::L),
+                        ..
+                    } => self.decrement(100)?,
+                    Event::KeyDown {
+                        keycode: Some(Keycode::N),
+                        ..
+                    } => self.increment(10)?,
+                    Event::KeyDown {
+                        keycode: Some(Keycode::Semicolon),
+                        ..
+                    } => self.increment(100)?,
+                    Event::KeyDown {
+                        keycode: Some(Keycode::K),
+                        ..
+                    } => self.keep()?,
                     _ => {}
                 }
             }
