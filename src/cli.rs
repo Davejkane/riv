@@ -20,7 +20,7 @@ pub fn cli() -> Result<Vec<PathBuf>, String> {
         match path {
             Ok(p) => {
                 if let Some(ext) = p.extension() {
-                    if ext == "jpg" || ext == "png" {
+                    if ext == "jpg" || ext == "png" || ext == "bmp" {
                         files.push(p)
                     }
                 }
