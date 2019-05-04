@@ -67,7 +67,7 @@ impl Program {
         if self.images.len() == 0 || self.images.len() == 1 {
             return Ok(());
         }
-        if self.index <= self.images.len() - (1+step) {
+        if self.index < self.images.len() - step {
             self.index += step;
         }
         self.render()?;
@@ -75,7 +75,7 @@ impl Program {
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
-        if self.index > step - 1 {
+        if self.index >= step {
             self.index -= step;
         }
         self.render()?;
