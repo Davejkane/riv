@@ -1,15 +1,21 @@
+//! # Program
+//!
+//! Program contains the program struct, which contains all information needed to run the
+//! event loop and render the images to screen
+
 use crate::cli;
+use fs_extra::file::move_file;
 use sdl2::event::Event;
 use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
+use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
-use sdl2::rect::Rect;
 use std::path::PathBuf;
 use std::time::Duration;
-use fs_extra::file::move_file;
 
+/// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program {
     sdl_context: Sdl,
     canvas: WindowCanvas,
@@ -19,15 +25,19 @@ pub struct Program {
 }
 
 impl Program {
+    /// init scaffolds the program, by making a call to the cli module to parse the command line arguments,
+    /// sets up the sdl context, creates the window, the canvas and the texture creator.
     pub fn init() -> Result<Program, String> {
         let images = cli::cli()?;
         let sdl_context = sdl2::init()?;
         let video = sdl_context.video()?;
         let _image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
         let window = video
-            .window("rust-sdl2 demo: Video", 
-            video.display_bounds(0).unwrap().width(), 
-            video.display_bounds(0).unwrap().height())
+            .window(
+                "rust-sdl2 demo: Video",
+                video.display_bounds(0).unwrap().width(),
+                video.display_bounds(0).unwrap().height(),
+            )
             .position_centered()
             .build()
             .map_err(|e| e.to_string())?;
@@ -47,24 +57,32 @@ impl Program {
         })
     }
 
+    /// render loads the image at the path in the images path vector located at the index and renders to screen
     pub fn render(&mut self) -> Result<(), String> {
-        if self.images.len() == 0 {
+        if self.images.is_empty() {
             return Ok(());
         }
-        let texture = self
-            .texture_creator
-            .load_texture(&self.images[self.index])?;
+        let texture = match self.texture_creator.load_texture(&self.images[self.index]) {
+            Ok(t) => t,
+            Err(e) => {
+                eprintln!("failed to render image {}", e);
+                return Ok(());
+            }
+        };
         let query = texture.query();
         let target = self.canvas.viewport();
         let dest = make_dst(query.width, query.height, target.width(), target.height());
         self.canvas.clear();
-        self.canvas.copy(&texture, None, dest)?;
+        if let Err(e) = self.canvas.copy(&texture, None, dest) {
+            eprintln!("Failed to copy image to screen {}", e);
+            return Ok(());
+        }
         self.canvas.present();
         Ok(())
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
-        if self.images.len() == 0 || self.images.len() == 1 {
+        if self.images.is_empty() || self.images.len() == 1 {
             return Ok(());
         }
         if self.index < self.images.len() - step {
@@ -84,11 +102,16 @@ impl Program {
 
     fn keep(&mut self) -> Result<(), String> {
         let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
-        std::fs::create_dir(current_dir.join("keep"));
+        match std::fs::create_dir(current_dir.join("keep")) {
+            Ok(_) => (),
+            Err(e) => {
+                eprintln!("{}", e);
+            }
+        };
         let keep = PathBuf::new();
         let keep = keep.join(current_dir).join("keep");
         let filepath = self.images.remove(self.index);
-        if self.index >= self.images.len() && self.images.len() != 0 {
+        if self.index >= self.images.len() && !self.images.is_empty() {
             self.index -= 1;
         }
         let filename = filepath.file_name().unwrap();
@@ -99,6 +122,7 @@ impl Program {
         Ok(())
     }
 
+    /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
         self.render()?;
 
@@ -107,11 +131,11 @@ impl Program {
                 match event {
                     Event::Quit { .. }
                     | Event::KeyDown {
-                        keycode: Option::Some(Keycode::Escape),
+                        keycode: Some(Keycode::Escape),
                         ..
                     }
                     | Event::KeyDown {
-                        keycode: Option::Some(Keycode::Q),
+                        keycode: Some(Keycode::Q),
                         ..
                     } => break 'mainloop,
                     Event::KeyDown {
@@ -122,11 +146,11 @@ impl Program {
                         keycode: Some(Keycode::Right),
                         ..
                     } => self.increment(1)?,
-                     Event::KeyDown {
+                    Event::KeyDown {
                         keycode: Some(Keycode::P),
                         ..
                     } => self.decrement(10)?,
-                     Event::KeyDown {
+                    Event::KeyDown {
                         keycode: Some(Keycode::L),
                         ..
                     } => self.decrement(100)?,
@@ -145,42 +169,35 @@ impl Program {
                     _ => {}
                 }
             }
-            std::thread::sleep(Duration::from_millis(10));
+            std::thread::sleep(Duration::from_millis(0));
         }
 
         Ok(())
     }
 }
 
+/// make dst determines the parameters of a rectangle required to place an image correctly in
+/// the window
 fn make_dst(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    match src_x > src_y {
-        true => {
-            match src_x > dst_x {
-                true => {
-                    let height = ((src_y as f32 / src_x as f32) * dst_x as f32) as u32;
-                    let y = ((dst_y - height) as f32/2.0) as i32;
-                    Rect::new(0, y, dst_x, height)
-                },
-                false => {
-                    let y = ((dst_y - src_y) as f32/2.0) as i32;
-                    let x = ((dst_x - src_x) as f32/2.0) as i32;
-                    Rect::new(x, y, src_x, src_y)
-                },
-            }
-        },
-        false => {
-            match src_y > dst_y {
-                true => {
-                    let width = ((src_y as f32 / src_x as f32) * dst_y as f32) as u32;
-                    let x = ((dst_x - width) as f32/2.0) as i32;
-                    Rect::new(x, 0, width, dst_y)
-                },
-                false => {
-                    let y = ((dst_y - src_y) as f32/2.0) as i32;
-                    let x = ((dst_x - src_x) as f32/2.0) as i32;
-                    Rect::new(x, y, src_x, src_y)
-                },
-            }
+    if src_x > src_y {
+        if src_x > dst_x {
+            let height = ((src_y as f32 / src_x as f32) * dst_x as f32) as u32;
+            let y = ((dst_y - height) as f32 / 2.0) as i32;
+            Rect::new(0, y, dst_x, height)
+        } else {
+            let y = ((dst_y - src_y) as f32 / 2.0) as i32;
+            let x = ((dst_x - src_x) as f32 / 2.0) as i32;
+            Rect::new(x, y, src_x, src_y)
+        }
+    } else {
+        if src_y > dst_y {
+            let width = ((src_y as f32 / src_x as f32) * dst_y as f32) as u32;
+            let x = ((dst_x - width) as f32 / 2.0) as i32;
+            Rect::new(x, 0, width, dst_y)
+        } else {
+            let y = ((dst_y - src_y) as f32 / 2.0) as i32;
+            let x = ((dst_x - src_x) as f32 / 2.0) as i32;
+            Rect::new(x, y, src_x, src_y)
         }
     }
 }
