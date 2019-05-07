@@ -23,6 +23,10 @@ As an optional second parameter you can add a glob in quotes
 
 Without any second parameter, riv will look for all images in the current directory.
 
+Set a destination folder for moving files with the `f` flag. The folder will be created if it doesn't exist.
+
+```$ riv -f ~/saved_images```
+
 ### Controls
 
 
@@ -34,7 +38,7 @@ Without any second parameter, riv will look for all images in the current direct
 | PageUp | Forward 10 Images |
 | P | Back 100 Images |
 | N | Forward 100 Images |
-| K | Move image to keep folder in current directory |
+| M | Move image to destination folder (default is ./keep)   |
 
 Once open, you can navigate through the images with the left and right arrows. PageUp and PageDown will move by 10 images, The N and P keys by 100. 
 

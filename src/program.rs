@@ -12,6 +12,7 @@ use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
+use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
 
@@ -21,6 +22,7 @@ pub struct Program {
     canvas: WindowCanvas,
     texture_creator: TextureCreator<WindowContext>,
     images: Vec<PathBuf>,
+    dest_folder: PathBuf,
     index: usize,
 }
 
@@ -28,7 +30,9 @@ impl Program {
     /// init scaffolds the program, by making a call to the cli module to parse the command line arguments,
     /// sets up the sdl context, creates the window, the canvas and the texture creator.
     pub fn init() -> Result<Program, String> {
-        let images = cli::cli()?;
+        let args = cli::cli()?;
+        let images = args.files;
+        let dest_folder = args.dest_folder;
         let sdl_context = sdl2::init()?;
         let video = sdl_context.video()?;
         let _image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
@@ -53,6 +57,7 @@ impl Program {
             canvas,
             texture_creator,
             images,
+            dest_folder,
             index: 0,
         })
     }
@@ -100,22 +105,23 @@ impl Program {
         Ok(())
     }
 
-    fn keep(&mut self) -> Result<(), String> {
-        let current_dir = std::env::current_dir().map_err(|e| e.to_string())?;
-        match std::fs::create_dir(current_dir.join("keep")) {
+    fn move_image(&mut self) -> Result<(), String> {
+        match std::fs::create_dir(&self.dest_folder) {
             Ok(_) => (),
-            Err(e) => {
-                eprintln!("{}", e);
-            }
+            Err(e) => match e.kind() {
+                ErrorKind::AlreadyExists => (),
+                _ => return Err(e.to_string()),
+            },
         };
-        let keep = PathBuf::new();
-        let keep = keep.join(current_dir).join("keep");
         let filepath = self.images.remove(self.index);
         if self.index >= self.images.len() && !self.images.is_empty() {
             self.index -= 1;
         }
-        let filename = filepath.file_name().unwrap();
-        let newname = keep.join(filename);
+        let filename = match filepath.file_name() {
+            Some(f) => f,
+            None => return Err("failed to read filename for current image".to_string()),
+        };
+        let newname = PathBuf::from(&self.dest_folder).join(filename);
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()?;
@@ -163,9 +169,12 @@ impl Program {
                         ..
                     } => self.increment(100)?,
                     Event::KeyDown {
-                        keycode: Some(Keycode::K),
+                        keycode: Some(Keycode::M),
                         ..
-                    } => self.keep()?,
+                    } => match self.move_image() {
+                        Ok(_) => (),
+                        Err(e) => println!("Failed to move file: {}", e),
+                    },
                     _ => {}
                 }
             }
