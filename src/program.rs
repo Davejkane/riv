@@ -5,7 +5,7 @@
 
 use crate::cli;
 use fs_extra::file::move_file;
-use sdl2::event::Event;
+use sdl2::event::{Event, WindowEvent};
 use sdl2::image::{InitFlag, LoadTexture};
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
@@ -43,6 +43,7 @@ impl Program {
                 video.display_bounds(0).unwrap().height(),
             )
             .position_centered()
+            .resizable()
             .build()
             .map_err(|e| e.to_string())?;
 
@@ -77,6 +78,7 @@ impl Program {
         let query = texture.query();
         let target = self.canvas.viewport();
         let dest = make_dst(query.width, query.height, target.width(), target.height());
+        println!("{:#?}", dest);
         self.canvas.clear();
         if let Err(e) = self.canvas.copy(&texture, None, dest) {
             eprintln!("Failed to copy image to screen {}", e);
@@ -144,6 +146,18 @@ impl Program {
                         keycode: Some(Keycode::Q),
                         ..
                     } => break 'mainloop,
+                    Event::Window {
+                        win_event: WindowEvent::Resized(_, _),
+                        ..
+                    }
+                    | Event::Window {
+                        win_event: WindowEvent::SizeChanged(_, _),
+                        ..
+                    }
+                    | Event::Window {
+                        win_event: WindowEvent::Maximized,
+                        ..
+                    } => self.render()?,
                     Event::KeyDown {
                         keycode: Some(Keycode::Left),
                         ..
@@ -188,25 +202,32 @@ impl Program {
 /// make dst determines the parameters of a rectangle required to place an image correctly in
 /// the window
 fn make_dst(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    if src_x > src_y {
-        if src_x > dst_x {
-            let height = ((src_y as f32 / src_x as f32) * dst_x as f32) as u32;
-            let y = ((dst_y - height) as f32 / 2.0) as i32;
-            Rect::new(0, y, dst_x, height)
-        } else {
-            let y = ((dst_y - src_y) as f32 / 2.0) as i32;
-            let x = ((dst_x - src_x) as f32 / 2.0) as i32;
-            Rect::new(x, y, src_x, src_y)
-        }
-    } else {
-        if src_y > dst_y {
-            let width = ((src_y as f32 / src_x as f32) * dst_y as f32) as u32;
-            let x = ((dst_x - width) as f32 / 2.0) as i32;
-            Rect::new(x, 0, width, dst_y)
-        } else {
-            let y = ((dst_y - src_y) as f32 / 2.0) as i32;
-            let x = ((dst_x - src_x) as f32 / 2.0) as i32;
-            Rect::new(x, y, src_x, src_y)
-        }
+    // case 1: both source dimensions smaller
+    if src_x < dst_x && src_y < dst_y {
+        return full_rect(src_x, src_y, dst_x, dst_y);
     }
+    // case 2: source aspect ratio is larger
+    if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
+        return fit_x_rect(src_x, src_y, dst_x, dst_y);
+    }
+    // case 3: source aspect ratio is smaller
+    fit_y_rect(src_x, src_y, dst_x, dst_y)
+}
+
+fn full_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
+    let y = ((dst_y - src_y) as f32 / 2.0) as i32;
+    let x = ((dst_x - src_x) as f32 / 2.0) as i32;
+    Rect::new(x, y, src_x, src_y)
+}
+
+fn fit_x_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
+    let height = ((src_y as f32 / src_x as f32) * dst_x as f32) as u32;
+    let y = ((dst_y - height) as f32 / 2.0) as i32;
+    Rect::new(0, y, dst_x, height)
+}
+
+fn fit_y_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
+    let width = ((src_x as f32 / src_y as f32) * dst_y as f32) as u32;
+    let x = ((dst_x - width) as f32 / 2.0) as i32;
+    Rect::new(x, 0, width, dst_y)
 }
