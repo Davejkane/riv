@@ -106,7 +106,7 @@ impl Program {
     }
 
     fn move_image(&mut self) -> Result<(), String> {
-        match std::fs::create_dir(&self.dest_folder) {
+        match std::fs::create_dir_all(&self.dest_folder) {
             Ok(_) => (),
             Err(e) => match e.kind() {
                 ErrorKind::AlreadyExists => (),
