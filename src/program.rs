@@ -6,7 +6,7 @@
 use crate::cli;
 use fs_extra::file::move_file;
 use sdl2::event::{Event, WindowEvent};
-use sdl2::image::{InitFlag, LoadTexture};
+use sdl2::image::LoadTexture;
 use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
@@ -35,7 +35,6 @@ impl Program {
         let dest_folder = args.dest_folder;
         let sdl_context = sdl2::init()?;
         let video = sdl_context.video()?;
-        let _image_context = sdl2::image::init(InitFlag::PNG | InitFlag::JPG)?;
         let window = video
             .window(
                 "rust-sdl2 demo: Video",
