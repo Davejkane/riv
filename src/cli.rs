@@ -44,8 +44,16 @@ pub fn cli() -> Result<Args, String> {
         match path {
             Ok(p) => {
                 if let Some(ext) = p.extension() {
-                    if ext == "jpg" || ext == "png" || ext == "bmp" {
-                        files.push(p)
+                    if let Some(ext_str) = ext.to_str() {
+                        let low = ext_str.to_string().to_lowercase();
+                        if low == "jpg"
+                            || low == "jpeg"
+                            || low == "png"
+                            || low == "bmp"
+                            || low == "webp"
+                        {
+                            files.push(p)
+                        }
                     }
                 }
             }
