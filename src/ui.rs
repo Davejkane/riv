@@ -19,6 +19,8 @@ pub enum Action {
     First,
     /// Last indicates the app should move to the last image in response to this event
     Last,
+    /// Copy indicates the app should copy the image in response to this event
+    Copy,
     /// Move indicates the app should move the image in response to this event
     Move,
     /// Noop indicates the app should not respond to this event
@@ -91,6 +93,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Home),
             ..
         } => Action::First,
+        Event::KeyDown {keycode: Some(Keycode::C), ..} => Action::Copy,
         Event::KeyDown {
             keycode: Some(Keycode::M),
             ..
