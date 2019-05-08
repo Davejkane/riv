@@ -32,15 +32,12 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 
 | Key | Action |
 |---|---|
-| Left Arrow | Previous Image |
-| Right Arrow | Next Image |
-| PageDown | Back 10 Images |
-| PageUp | Forward 10 Images |
-| P | Back 100 Images |
-| N | Forward 100 Images |
-| M | Move image to destination folder (default is ./keep)   |
-
-Once open, you can navigate through the images with the left and right arrows. PageUp and PageDown will move by 10 images, The N and P keys by 100. 
+| Esc OR q | Quit           |
+| Left Arrow OR k | Previous Image |
+| Right Arrow OR j | Next Image |
+| Home OR g | First Image |
+| End OR G | Last Image  |
+| m | Move image to destination folder (default is ./keep)   |
 
 ## Getting Started
 
