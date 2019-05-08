@@ -17,7 +17,7 @@ Start riv with
 
 ```$ riv```. 
 
-As an optional second parameter you can add a glob in quotes 
+As an optional second parameter you can add a glob in quotes.
 
 ```$ riv "**/*.png"```
 
@@ -70,7 +70,7 @@ You will also need sdl2_image and sdl2_ttf
 
 Hopefully you can figure it out from the above instructions. If you do, please make a PR for this README with the specific instructions.
 
-After that you can build with:-
+After that you can build with:
 
 ```cargo build```
 
@@ -78,13 +78,13 @@ After that you can build with:-
 
 I aim for this project to be a great place for people just starting with Rust and just starting with Open Source to get involved. I'm pretty green with Rust myself, so any code review, refactorings to idiomatic style, bug fixes and feature PRs are very much appreciated. I have purposely left some features unimplemented before open sourcing with the idea that someone can pick them up as a good first contribution. So please, join in. No developer is too green for this project.
 
-Need made a pull request before? Check out this [5 minute video](https://www.youtube.com/watch?v=rgbCcBNZcdQ) which explains a simple process. Remember to make pull requests against the development branch.
+Never made a pull request before? Check out this [5 minute video](https://www.youtube.com/watch?v=rgbCcBNZcdQ) which explains a simple process. Remember to make pull requests against the development branch.
 
 Not sure what to work on? Check out our issues.
 
 ## Versioning
 
-We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/davejkane/riv/tags). 
+We use [SemVer](http://semver.org/) for versioning. For the versions available, see the [tags on this repository](https://github.com/davejkane/riv/tags).
 
 ## Authors
 
