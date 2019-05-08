@@ -52,6 +52,24 @@ You will need to install Rust and the SDL2 libraries to work with this project.
 Go [here](https://www.rust-lang.org/) for instructions on installing rust.
 Go [here](https://github.com/Rust-SDL2/rust-sdl2) for instructions on installing SDL2.
 
+You will also need sdl2_image and sdl2_ttf
+
+#### Mac
+
+`brew install sdl sdl2_image sdl2_ttf`
+
+#### Arch
+
+`sudo pacman -S sdl2 sdl2_image sdl2_ttf`
+
+#### Ubuntu
+
+`sudo apt-get install libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev`
+
+#### Other distros
+
+Hopefully you can figure it out from the above instructions. If you do, please make a PR for this README with the specific instructions.
+
 After that you can build with:-
 
 ```cargo build```
