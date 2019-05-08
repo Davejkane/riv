@@ -4,10 +4,9 @@
 //! event loop and render the images to screen
 
 use crate::cli;
+use crate::ui::{self, Action};
 use fs_extra::file::move_file;
-use sdl2::event::{Event, WindowEvent};
 use sdl2::image::LoadTexture;
-use sdl2::keyboard::Keycode;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::video::WindowContext;
@@ -24,6 +23,7 @@ pub struct Program {
     images: Vec<PathBuf>,
     dest_folder: PathBuf,
     index: usize,
+    ui_state: ui::State,
 }
 
 impl Program {
@@ -52,6 +52,10 @@ impl Program {
             .build()
             .map_err(|e| e.to_string())?;
         let texture_creator = canvas.texture_creator();
+        let ui_state = ui::State {
+            left_shift: false,
+            right_shift: false,
+        };
         Ok(Program {
             sdl_context,
             canvas,
@@ -59,6 +63,7 @@ impl Program {
             images,
             dest_folder,
             index: 0,
+            ui_state,
         })
     }
 
@@ -94,16 +99,28 @@ impl Program {
         if self.index < self.images.len() - step {
             self.index += step;
         }
-        self.render()?;
-        Ok(())
+        self.render()
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
         if self.index >= step {
             self.index -= step;
         }
-        self.render()?;
-        Ok(())
+        self.render()
+    }
+
+    fn first(&mut self) -> Result<(), String> {
+        self.index = 0;
+        self.render()
+    }
+
+    fn last(&mut self) -> Result<(), String> {
+        if self.images.is_empty() {
+            self.index = 0;
+        } else {
+            self.index = self.images.len() - 1;
+        }
+        self.render()
     }
 
     fn move_image(&mut self) -> Result<(), String> {
@@ -125,8 +142,7 @@ impl Program {
         let newname = PathBuf::from(&self.dest_folder).join(filename);
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
-        self.render()?;
-        Ok(())
+        self.render()
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
@@ -135,60 +151,18 @@ impl Program {
 
         'mainloop: loop {
             for event in self.sdl_context.event_pump()?.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Q),
-                        ..
-                    } => break 'mainloop,
-                    Event::Window {
-                        win_event: WindowEvent::Resized(_, _),
-                        ..
-                    }
-                    | Event::Window {
-                        win_event: WindowEvent::SizeChanged(_, _),
-                        ..
-                    }
-                    | Event::Window {
-                        win_event: WindowEvent::Maximized,
-                        ..
-                    } => self.render()?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Left),
-                        ..
-                    } => self.decrement(1)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Right),
-                        ..
-                    } => self.increment(1)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::P),
-                        ..
-                    } => self.decrement(10)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::L),
-                        ..
-                    } => self.decrement(100)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::N),
-                        ..
-                    } => self.increment(10)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::Semicolon),
-                        ..
-                    } => self.increment(100)?,
-                    Event::KeyDown {
-                        keycode: Some(Keycode::M),
-                        ..
-                    } => match self.move_image() {
+                match ui::event_action(&mut self.ui_state, &event) {
+                    Action::Quit => break 'mainloop,
+                    Action::ReRender => self.render()?,
+                    Action::Next => self.increment(1)?,
+                    Action::Prev => self.decrement(1)?,
+                    Action::Move => match self.move_image() {
                         Ok(_) => (),
-                        Err(e) => println!("Failed to move file: {}", e),
+                        Err(e) => eprintln!("Failed to move file: {}", e),
                     },
-                    _ => {}
+                    Action::First => self.first()?,
+                    Action::Last => self.last()?,
+                    Action::Noop => {}
                 }
             }
             std::thread::sleep(Duration::from_millis(0));
