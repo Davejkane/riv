@@ -6,6 +6,7 @@
 use crate::cli;
 use crate::ui::{self, Action};
 use fs_extra::file::move_file;
+use fs_extra::file::copy;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
@@ -119,6 +120,28 @@ impl Program {
         } else {
             self.index = self.images.len() - 1;
         }
+        self.render()
+    }
+
+    fn copy_image(&mut self) -> Result<(), String> {
+        match std::fs::create_dir_all(&self.dest_folder) {
+            Ok(_) => (),
+            Err(e) => match e.kind() {
+                ErrorKind::AlreadyExists => (),
+                _ => return Err(e.to_string()),
+            },
+        };
+        let filepath = self.images.get(self.index)
+            .expect(&format!("image index {} < max image index {}",
+                             self.index,
+                             self.images.len()));
+        let filename = match filepath.file_name() {
+            Some(f) => f,
+            None => return Err("failed to read filename for current image".to_string()),
+        };
+        let newname = PathBuf::from(&self.dest_folder).join(filename);
+        let opt = &fs_extra::file::CopyOptions::new();
+        copy(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
     }
 
