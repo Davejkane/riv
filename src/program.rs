@@ -82,7 +82,6 @@ impl Program {
         let query = texture.query();
         let target = self.canvas.viewport();
         let dest = make_dst(query.width, query.height, target.width(), target.height());
-        println!("{:#?}", dest);
         self.canvas.clear();
         if let Err(e) = self.canvas.copy(&texture, None, dest) {
             eprintln!("Failed to copy image to screen {}", e);

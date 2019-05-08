@@ -36,7 +36,6 @@ pub struct State {
 /// event_action returns which action should be performed in response to this event
 pub fn event_action(state: &mut State, event: &Event) -> Action {
     match event {
-        // *** *** QUIT *** ***
         Event::Quit { .. }
         | Event::KeyDown {
             keycode: Some(Keycode::Escape),
@@ -46,7 +45,6 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Q),
             ..
         } => Action::Quit,
-        // *** *** RERENDER *** ***
         Event::Window {
             win_event: WindowEvent::Resized(_, _),
             ..
@@ -59,7 +57,6 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             win_event: WindowEvent::Maximized,
             ..
         } => Action::ReRender,
-        // *** *** NEXT *** ***
         Event::KeyDown {
             keycode: Some(Keycode::Right),
             ..
@@ -68,7 +65,6 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::K),
             ..
         } => Action::Next,
-        // *** *** PREV *** ***
         Event::KeyDown {
             keycode: Some(Keycode::Left),
             ..
@@ -77,7 +73,6 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::J),
             ..
         } => Action::Prev,
-        // *** *** LAST OR FIRST *** ***
         Event::KeyDown {
             keycode: Some(Keycode::G),
             ..
@@ -88,24 +83,18 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
                 Action::First
             }
         }
-        // *** *** LAST *** ***
         Event::KeyDown {
             keycode: Some(Keycode::End),
             ..
         } => Action::Last,
-        // *** *** FIRST *** ***
         Event::KeyDown {
             keycode: Some(Keycode::Home),
             ..
         } => Action::First,
-        // *** *** MOVE *** ***
         Event::KeyDown {
             keycode: Some(Keycode::M),
             ..
         } => Action::Move,
-        // ********************
-        // *** *** NOOP *** ***
-        // ********************
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..
