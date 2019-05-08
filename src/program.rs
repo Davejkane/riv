@@ -122,7 +122,8 @@ impl Program {
         }
         self.render()
     }
-
+    /// Copies currently rendered image to dest directory
+    /// TODO: Handle when file already exists in dest directory
     fn copy_image(&mut self) -> Result<(), String> {
         match std::fs::create_dir_all(&self.dest_folder) {
             Ok(_) => (),
