@@ -62,7 +62,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             ..
         }
         | Event::KeyDown {
-            keycode: Some(Keycode::K),
+            keycode: Some(Keycode::J),
             ..
         } => Action::Next,
         Event::KeyDown {
@@ -70,7 +70,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             ..
         }
         | Event::KeyDown {
-            keycode: Some(Keycode::J),
+            keycode: Some(Keycode::K),
             ..
         } => Action::Prev,
         Event::KeyDown {
