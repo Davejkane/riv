@@ -124,9 +124,8 @@ impl Program {
         }
         self.render()
     }
-    /// Copies currently rendered image to dest directory
-    /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<(), String> {
+
+    fn construct_dest_filepath(&self, src_path: &Pathbuf) -> Result<Pathbuf, String> {
         match std::fs::create_dir_all(&self.dest_folder) {
             Ok(_) => (),
             Err(e) => match e.kind() {
@@ -134,6 +133,19 @@ impl Program {
                 _ => return Err(e.to_string()),
             },
         };
+
+        let cur_filename = match src_path.file_name() {
+            Some(f) => f,
+            None => return Err("failed to read filename for current image".to_string()),
+        };
+        let newname = PathBuf::from(&self.dest_folder).join(cur_filename);
+        Ok(newname)
+    }
+
+    /// Copies currently rendered image to dest directory
+    /// TODO: Handle when file already exists in dest directory
+    fn copy_image(&mut self) -> Result<(), String> {
+        let opt = &fs_extra::file::CopyOptions::new();
         let filepath = self.images.get(self.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} < max image index {}",
@@ -141,33 +153,17 @@ impl Program {
                 self.images.len()
             ))
         });
-        let filename = match filepath.file_name() {
-            Some(f) => f,
-            None => return Err("failed to read filename for current image".to_string()),
-        };
-        let newname = PathBuf::from(&self.dest_folder).join(filename);
-        let opt = &fs_extra::file::CopyOptions::new();
+        let newname = self.construct_dest_filepath(filepath)?;
         copy(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
     }
 
     fn move_image(&mut self) -> Result<(), String> {
-        match std::fs::create_dir_all(&self.dest_folder) {
-            Ok(_) => (),
-            Err(e) => match e.kind() {
-                ErrorKind::AlreadyExists => (),
-                _ => return Err(e.to_string()),
-            },
-        };
         let filepath = self.images.remove(self.index);
         if self.index >= self.images.len() && !self.images.is_empty() {
             self.index -= 1;
         }
-        let filename = match filepath.file_name() {
-            Some(f) => f,
-            None => return Err("failed to read filename for current image".to_string()),
-        };
-        let newname = PathBuf::from(&self.dest_folder).join(filename);
+        let newname = self.construct_dest_filepath(filepath);
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
