@@ -4,6 +4,8 @@
 //! event loop and render the images to screen
 
 use crate::cli;
+use crate::paths::Paths;
+use crate::screen::Screen;
 use crate::ui::{self, Action};
 use core::cmp;
 use fs_extra::file::copy;
@@ -11,31 +13,14 @@ use fs_extra::file::move_file;
 use fs_extra::file::remove;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
-use sdl2::render::{TextureCreator, WindowCanvas};
-use sdl2::video::WindowContext;
-use sdl2::Sdl;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
 
-/// Compute increment of skips
-/// Does not account for overflow or underflow of vector
-fn compute_skip_size(images: &[PathBuf]) -> usize {
-    let chunks = 10usize;
-    let skip_size: usize = (images.len() as usize / chunks) as usize + 1usize;
-
-    // Skip increment must be at least 1
-    cmp::max(1usize, skip_size)
-}
-
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program {
-    sdl_context: Sdl,
-    canvas: WindowCanvas,
-    texture_creator: TextureCreator<WindowContext>,
-    images: Vec<PathBuf>,
-    dest_folder: PathBuf,
-    index: usize,
+    screen: Screen,
+    paths: Paths,
     ui_state: ui::State,
 }
 
@@ -47,6 +32,11 @@ impl Program {
         let args = cli::cli()?;
         let images = args.files;
         let dest_folder = args.dest_folder;
+        let glob = args.search;
+        let current_dir = match std::env::current_dir() {
+            Ok(c) => c,
+            Err(_) => PathBuf::new(),
+        };
         let sdl_context = sdl2::init()?;
         let video = sdl_context.video()?;
         let window = video
@@ -71,12 +61,18 @@ impl Program {
             right_shift: false,
         };
         Ok(Program {
-            sdl_context,
-            canvas,
-            texture_creator,
-            images,
-            dest_folder,
-            index: 0,
+            screen: Screen {
+                sdl_context,
+                canvas,
+                texture_creator,
+            },
+            paths: Paths {
+                images,
+                dest_folder,
+                index: 0,
+                glob,
+                current_dir,
+            },
             ui_state,
         })
     }
@@ -84,10 +80,14 @@ impl Program {
     /// render loads the image at the path in the images path vector located at the index and
     /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {
-        if self.images.is_empty() {
+        if self.paths.images.is_empty() {
             return self.render_blank();
         }
-        let texture = match self.texture_creator.load_texture(&self.images[self.index]) {
+        let texture = match self
+            .screen
+            .texture_creator
+            .load_texture(&self.paths.images[self.paths.index])
+        {
             Ok(t) => t,
             Err(e) => {
                 eprintln!("failed to render image {}", e);
@@ -95,76 +95,76 @@ impl Program {
             }
         };
         let query = texture.query();
-        let target = self.canvas.viewport();
+        let target = self.screen.canvas.viewport();
         let dest = make_dst(query.width, query.height, target.width(), target.height());
-        self.canvas.clear();
-        if let Err(e) = self.canvas.copy(&texture, None, dest) {
+        self.screen.canvas.clear();
+        if let Err(e) = self.screen.canvas.copy(&texture, None, dest) {
             eprintln!("Failed to copy image to screen {}", e);
             return Ok(());
         }
-        self.canvas.present();
+        self.screen.canvas.present();
         Ok(())
     }
 
     fn render_blank(&mut self) -> Result<(), String> {
-        self.canvas.clear();
-        self.canvas.present();
+        self.screen.canvas.clear();
+        self.screen.canvas.present();
         Ok(())
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
-        if self.images.is_empty() || self.images.len() == 1 {
+        if self.paths.images.is_empty() || self.paths.images.len() == 1 {
             return Ok(());
         }
-        if self.index < self.images.len() - step {
-            self.index += step;
+        if self.paths.index < self.paths.images.len() - step {
+            self.paths.index += step;
         }
         // Cap index at last image
         else {
-            self.index = self.images.len() - 1;
+            self.paths.index = self.paths.images.len() - 1;
         }
         self.render()
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
-        if self.index >= step {
-            self.index -= step;
+        if self.paths.index >= step {
+            self.paths.index -= step;
         }
         // Step sizes bigger than remaining index are set to first image.
         else {
-            self.index = 0;
+            self.paths.index = 0;
         }
         self.render()
     }
 
     /// Returns new index to advance to
     pub fn skip_forward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.images);
+        let skip_size = compute_skip_size(&self.paths.images);
         self.increment(skip_size)
     }
 
     /// Returns new index to skip back to
     fn skip_backward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.images);
+        let skip_size = compute_skip_size(&self.paths.images);
         self.decrement(skip_size)
     }
 
     fn first(&mut self) -> Result<(), String> {
-        self.index = 0;
+        self.paths.index = 0;
         self.render()
     }
 
     fn last(&mut self) -> Result<(), String> {
-        if self.images.is_empty() {
-            self.index = 0;
+        if self.paths.images.is_empty() {
+            self.paths.index = 0;
         } else {
-            self.index = self.images.len() - 1;
+            self.paths.index = self.paths.images.len() - 1;
         }
         self.render()
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
-        match std::fs::create_dir_all(&self.dest_folder) {
+        match std::fs::create_dir_all(&self.paths.dest_folder) {
             Ok(_) => (),
             Err(e) => match e.kind() {
                 ErrorKind::AlreadyExists => (),
@@ -176,7 +176,7 @@ impl Program {
             Some(f) => f,
             None => return Err("failed to read filename for current image".to_string()),
         };
-        let newname = PathBuf::from(&self.dest_folder).join(cur_filename);
+        let newname = PathBuf::from(&self.paths.dest_folder).join(cur_filename);
         Ok(newname)
     }
 
@@ -184,15 +184,15 @@ impl Program {
     /// TODO: Handle when file already exists in dest directory
     fn copy_image(&mut self) -> Result<(), String> {
         // Check if there are any images
-        if self.images.is_empty() {
+        if self.paths.images.is_empty() {
             return Err("No image to copy".to_string());
         }
         let opt = &fs_extra::file::CopyOptions::new();
-        let filepath = self.images.get(self.index).unwrap_or_else(|| {
+        let filepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.index,
-                self.images.len()
+                self.paths.index,
+                self.paths.images.len()
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
@@ -203,16 +203,16 @@ impl Program {
     /// Moves image currently being viewed to destination folder
     fn move_image(&mut self) -> Result<(), String> {
         // Check if there is an image to move
-        if self.images.is_empty() {
+        if self.paths.images.is_empty() {
             return Err("no images to move".to_string());
         }
         // Retrieve current image
-        assert!(self.index < self.images.len());
-        let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
+        assert!(self.paths.index < self.paths.images.len());
+        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.index,
-                self.images.len()
+                self.paths.index,
+                self.paths.images.len()
             ))
         });
 
@@ -229,7 +229,7 @@ impl Program {
         }
 
         // Only if successful, remove image from tracked images
-        self.images.remove(self.index);
+        self.paths.images.remove(self.paths.index);
 
         // Adjust our view
         self.decrement(1)
@@ -238,17 +238,17 @@ impl Program {
     /// Deletes image currently being viewed
     fn delete_image(&mut self) -> Result<(), String> {
         // Check if there is an image to delete
-        if self.images.is_empty() {
+        if self.paths.images.is_empty() {
             return Err("no images to delete".to_string());
         }
 
         // Retrieve current image
-        assert!(self.index < self.images.len());
-        let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
+        assert!(self.paths.index < self.paths.images.len());
+        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.index,
-                self.images.len()
+                self.paths.index,
+                self.paths.images.len()
             ))
         });
 
@@ -263,7 +263,7 @@ impl Program {
         // If we've reached past here, there was no error deleting the image
 
         // Only if successful, remove image from tracked images
-        self.images.remove(self.index);
+        self.paths.images.remove(self.paths.index);
 
         // Adjust our view
         self.decrement(1)
@@ -274,7 +274,7 @@ impl Program {
         self.render()?;
 
         'mainloop: loop {
-            for event in self.sdl_context.event_pump()?.poll_iter() {
+            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
                     Action::ReRender => self.render()?,
@@ -337,4 +337,14 @@ fn fit_y_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
     let width = ((src_x as f32 / src_y as f32) * dst_y as f32) as u32;
     let x = ((dst_x - width) as f32 / 2.0) as i32;
     Rect::new(x, 0, width, dst_y)
+}
+
+/// Compute increment of skips
+/// Does not account for overflow or underflow of vector
+fn compute_skip_size(images: &[PathBuf]) -> usize {
+    let chunks = 10usize;
+    let skip_size: usize = (images.len() as usize / chunks) as usize + 1usize;
+
+    // Skip increment must be at least 1
+    cmp::max(1usize, skip_size)
 }
