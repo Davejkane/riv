@@ -85,7 +85,7 @@ impl Program {
     /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {
         if self.images.is_empty() {
-            return Ok(());
+            return self.render_blank();
         }
         let texture = match self.texture_creator.load_texture(&self.images[self.index]) {
             Ok(t) => t,
@@ -102,6 +102,12 @@ impl Program {
             eprintln!("Failed to copy image to screen {}", e);
             return Ok(());
         }
+        self.canvas.present();
+        Ok(())
+    }
+
+    fn render_blank(&mut self) -> Result<(), String> {
+        self.canvas.clear();
         self.canvas.present();
         Ok(())
     }
