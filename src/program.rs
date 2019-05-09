@@ -133,9 +133,8 @@ impl Program {
             },
         };
         let filepath = self.images.get(self.index)
-            .expect(&format!("image index {} < max image index {}",
-                             self.index,
-                             self.images.len()));
+            .unwrap_or_else(|| panic!(format!("image index {} < max image index {}",
+                                 self.index, self.images.len())));
         let filename = match filepath.file_name() {
             Some(f) => f,
             None => return Err("failed to read filename for current image".to_string()),
