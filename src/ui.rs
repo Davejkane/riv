@@ -9,7 +9,8 @@ use sdl2::keyboard::Keycode;
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
-    /// ReRender indicates the app should re-render in response to this event (such as a window resize)
+    /// ReRender indicates the app should re-render in response to this event (such as a window
+    /// resize)
     ReRender,
     /// Next indicates the app should move to the next image in response to this event
     Next,
@@ -93,7 +94,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Home),
             ..
         } => Action::First,
-        Event::KeyDown {keycode: Some(Keycode::C), ..} => Action::Copy,
+        Event::KeyDown {
+            keycode: Some(Keycode::C),
+            ..
+        } => Action::Copy,
         Event::KeyDown {
             keycode: Some(Keycode::M),
             ..

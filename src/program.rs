@@ -5,8 +5,8 @@
 
 use crate::cli;
 use crate::ui::{self, Action};
-use fs_extra::file::move_file;
 use fs_extra::file::copy;
+use fs_extra::file::move_file;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
@@ -28,8 +28,9 @@ pub struct Program {
 }
 
 impl Program {
-    /// init scaffolds the program, by making a call to the cli module to parse the command line arguments,
-    /// sets up the sdl context, creates the window, the canvas and the texture creator.
+    /// init scaffolds the program, by making a call to the cli module to parse the command line
+    /// arguments, sets up the sdl context, creates the window, the canvas and the texture
+    /// creator.
     pub fn init() -> Result<Program, String> {
         let args = cli::cli()?;
         let images = args.files;
@@ -68,7 +69,8 @@ impl Program {
         })
     }
 
-    /// render loads the image at the path in the images path vector located at the index and renders to screen
+    /// render loads the image at the path in the images path vector located at the index and
+    /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {
         if self.images.is_empty() {
             return Ok(());
@@ -132,9 +134,13 @@ impl Program {
                 _ => return Err(e.to_string()),
             },
         };
-        let filepath = self.images.get(self.index)
-            .unwrap_or_else(|| panic!(format!("image index {} < max image index {}",
-                                 self.index, self.images.len())));
+        let filepath = self.images.get(self.index).unwrap_or_else(|| {
+            panic!(format!(
+                "image index {} < max image index {}",
+                self.index,
+                self.images.len()
+            ))
+        });
         let filename = match filepath.file_name() {
             Some(f) => f,
             None => return Err("failed to read filename for current image".to_string()),

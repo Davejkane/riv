@@ -1,6 +1,7 @@
 //! # RIV
 //!
-//! The riv library exposes all the functionality required to run the riv command line image viewer app
+//! The riv library exposes all the functionality required to run the riv command line image viewer
+//! app
 
 #![deny(
     missing_docs,
