@@ -184,7 +184,10 @@ impl Program {
                     Action::ReRender => self.render()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
-                    Action::Copy => self.copy_image()?,
+                    Action::Copy => match self.copy_image() {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("Failed to copy file: {}", e),
+                    },
                     Action::Move => match self.move_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),
