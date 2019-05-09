@@ -100,6 +100,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         Event::KeyDown {
             keycode: Some(Keycode::D),
             ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::Delete),
+            ..
         } => Action::Delete,
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
