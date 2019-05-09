@@ -156,7 +156,7 @@ impl Program {
         assert!(self.index < self.images.len());
         let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
             panic!(format!(
-                "image index {} < max image index {}",
+                "image index {} > max image index {}",
                 self.index,
                 self.images.len()
             ))
@@ -170,16 +170,13 @@ impl Program {
                 e.to_string()
             ));
         }
-        // If we've reached past here, there was no error deleted the image
+        // If we've reached past here, there was no error deleting the image
 
         // Only if successful, remove image from tracked images
         self.images.remove(self.index);
 
         // Adjust our view
-        self.decrement(1)?;
-
-        // Image successfully deleted, we're done
-        Ok(())
+        self.decrement(1)
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
