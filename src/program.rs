@@ -145,6 +145,10 @@ impl Program {
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
     fn copy_image(&mut self) -> Result<(), String> {
+        // Check if there are any images
+        if self.images.is_empty() {
+            return Err("No image to copy".to_string());
+        }
         let opt = &fs_extra::file::CopyOptions::new();
         let filepath = self.images.get(self.index).unwrap_or_else(|| {
             panic!(format!(
