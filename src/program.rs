@@ -113,12 +113,20 @@ impl Program {
         if self.index < self.images.len() - step {
             self.index += step;
         }
+        // Cap index at last image
+        else {
+            self.index = self.images.len() - 1;
+        }
         self.render()
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
         if self.index >= step {
             self.index -= step;
+        }
+        // Step sizes bigger than remaining index are set to first image.
+        else {
+            self.index = 0;
         }
         self.render()
     }
