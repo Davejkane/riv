@@ -6,6 +6,7 @@
 use crate::cli;
 use crate::ui::{self, Action};
 use fs_extra::file::move_file;
+use fs_extra::file::remove;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
@@ -144,6 +145,40 @@ impl Program {
         self.render()
     }
 
+    /// Deletes image currently being viewed
+    fn delete_image(&mut self) -> Result<(), String> {
+        // Check if there is an image to delete
+        if self.images.is_empty() {
+            return Err("no images to delete".to_string());
+        }
+
+        // Retrieve current image
+        assert!(self.index < self.images.len());
+        let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
+            panic!(format!(
+                "image index {} > max image index {}",
+                self.index,
+                self.images.len()
+            ))
+        });
+
+        // Attempt to remove image
+        if let Err(e) = remove(&current_imagepath) {
+            return Err(format!(
+                "Failed to remove image `{:?}`: {}",
+                current_imagepath,
+                e.to_string()
+            ));
+        }
+        // If we've reached past here, there was no error deleting the image
+
+        // Only if successful, remove image from tracked images
+        self.images.remove(self.index);
+
+        // Adjust our view
+        self.decrement(1)
+    }
+
     /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
         self.render()?;
@@ -158,6 +193,10 @@ impl Program {
                     Action::Move => match self.move_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),
+                    },
+                    Action::Delete => match self.delete_image() {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("{}", e),
                     },
                     Action::First => self.first()?,
                     Action::Last => self.last()?,
