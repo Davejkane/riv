@@ -41,7 +41,7 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 | End OR G | Last Image  |
 | m | Move image to destination folder (default is ./keep)   |
 | c | Copy image to destination folder (default is ./keep) |
-| d | Delete image from it's location |
+| Delete OR d | Delete image from it's location |
 
 ## Getting Started
 
