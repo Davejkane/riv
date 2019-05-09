@@ -126,17 +126,13 @@ impl Program {
     /// Returns new index to advance to
     pub fn skip_forward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.images);
-        self.increment(skip_size)?;
-        self.render()?;
-        Ok(())
+        self.increment(skip_size)
     }
 
     /// Returns new index to skip back to
     fn skip_backward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.images);
-        self.decrement(skip_size)?;
-        self.render()?;
-        Ok(())
+        self.decrement(skip_size)
     }
 
     fn first(&mut self) -> Result<(), String> {
