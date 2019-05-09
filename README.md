@@ -35,6 +35,8 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 | Esc OR q | Quit           |
 | Left Arrow OR k | Previous Image |
 | Right Arrow OR j | Next Image |
+| PageUp OR w | Forward 10% of images |
+| PageDown OR b | Backward 10% of images |
 | Home OR g | First Image |
 | End OR G | Last Image  |
 | m | Move image to destination folder (default is ./keep)   |

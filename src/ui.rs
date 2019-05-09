@@ -21,6 +21,11 @@ pub enum Action {
     Last,
     /// Move indicates the app should move the image in response to this event
     Move,
+
+    /// SkipForward advances the list of images by x%
+    SkipForward,
+    /// SkipBack rewinds the list of images by x%
+    SkipBack,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
@@ -95,6 +100,22 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::M),
             ..
         } => Action::Move,
+        Event::KeyDown {
+            keycode: Some(Keycode::W),
+            ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::PageUp),
+            ..
+        } => Action::SkipForward,
+        Event::KeyDown {
+            keycode: Some(Keycode::B),
+            ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::PageDown),
+            ..
+        } => Action::SkipBack,
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..
