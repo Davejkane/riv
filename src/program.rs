@@ -159,6 +159,10 @@ impl Program {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),
                     },
+                    Action::Delete => match self.delete_image() {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("{}", e),
+                    },
                     Action::First => self.first()?,
                     Action::Last => self.last()?,
                     Action::Noop => {}
