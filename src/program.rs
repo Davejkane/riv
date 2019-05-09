@@ -5,6 +5,7 @@
 
 use crate::cli;
 use crate::ui::{self, Action};
+use core::cmp;
 use fs_extra::file::move_file;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
@@ -14,6 +15,16 @@ use sdl2::Sdl;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
+
+/// Compute increment of skips
+/// Does not account for overflow or underflow of vector
+fn compute_skip_size(images: &[PathBuf]) -> usize {
+    let chunks = 10usize;
+    let skip_size: usize = (images.len() as usize / chunks) as usize + 1usize;
+
+    // Skip increment must be at least 1
+    cmp::max(1usize, skip_size)
+}
 
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program {
@@ -108,6 +119,22 @@ impl Program {
         self.render()
     }
 
+    /// Returns new index to advance to
+    pub fn skip_forward(&mut self) -> Result<(), String> {
+        let skip_size = compute_skip_size(&self.images);
+        self.increment(skip_size)?;
+        self.render()?;
+        Ok(())
+    }
+
+    /// Returns new index to skip back to
+    fn skip_backward(&mut self) -> Result<(), String> {
+        let skip_size = compute_skip_size(&self.images);
+        self.decrement(skip_size)?;
+        self.render()?;
+        Ok(())
+    }
+
     fn first(&mut self) -> Result<(), String> {
         self.index = 0;
         self.render()
@@ -159,6 +186,8 @@ impl Program {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),
                     },
+                    Action::SkipForward => self.skip_forward()?,
+                    Action::SkipBack => self.skip_backward()?,
                     Action::First => self.first()?,
                     Action::Last => self.last()?,
                     Action::Noop => {}
