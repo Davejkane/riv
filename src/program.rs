@@ -5,6 +5,7 @@
 
 use crate::cli;
 use crate::ui::{self, Action};
+use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
 use sdl2::image::LoadTexture;
@@ -28,8 +29,9 @@ pub struct Program {
 }
 
 impl Program {
-    /// init scaffolds the program, by making a call to the cli module to parse the command line arguments,
-    /// sets up the sdl context, creates the window, the canvas and the texture creator.
+    /// init scaffolds the program, by making a call to the cli module to parse the command line
+    /// arguments, sets up the sdl context, creates the window, the canvas and the texture
+    /// creator.
     pub fn init() -> Result<Program, String> {
         let args = cli::cli()?;
         let images = args.files;
@@ -68,7 +70,8 @@ impl Program {
         })
     }
 
-    /// render loads the image at the path in the images path vector located at the index and renders to screen
+    /// render loads the image at the path in the images path vector located at the index and
+    /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {
         if self.images.is_empty() {
             return Ok(());
@@ -123,7 +126,7 @@ impl Program {
         self.render()
     }
 
-    fn move_image(&mut self) -> Result<(), String> {
+    fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
         match std::fs::create_dir_all(&self.dest_folder) {
             Ok(_) => (),
             Err(e) => match e.kind() {
@@ -131,15 +134,41 @@ impl Program {
                 _ => return Err(e.to_string()),
             },
         };
+
+        let cur_filename = match src_path.file_name() {
+            Some(f) => f,
+            None => return Err("failed to read filename for current image".to_string()),
+        };
+        let newname = PathBuf::from(&self.dest_folder).join(cur_filename);
+        Ok(newname)
+    }
+
+    /// Copies currently rendered image to dest directory
+    /// TODO: Handle when file already exists in dest directory
+    fn copy_image(&mut self) -> Result<(), String> {
+        // Check if there are any images
+        if self.images.is_empty() {
+            return Err("No image to copy".to_string());
+        }
+        let opt = &fs_extra::file::CopyOptions::new();
+        let filepath = self.images.get(self.index).unwrap_or_else(|| {
+            panic!(format!(
+                "image index {} > max image index {}",
+                self.index,
+                self.images.len()
+            ))
+        });
+        let newname = self.construct_dest_filepath(filepath)?;
+        copy(filepath, newname, opt).map_err(|e| e.to_string())?;
+        Ok(())
+    }
+
+    fn move_image(&mut self) -> Result<(), String> {
         let filepath = self.images.remove(self.index);
         if self.index >= self.images.len() && !self.images.is_empty() {
             self.index -= 1;
         }
-        let filename = match filepath.file_name() {
-            Some(f) => f,
-            None => return Err("failed to read filename for current image".to_string()),
-        };
-        let newname = PathBuf::from(&self.dest_folder).join(filename);
+        let newname = self.construct_dest_filepath(&filepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
@@ -190,6 +219,10 @@ impl Program {
                     Action::ReRender => self.render()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
+                    Action::Copy => match self.copy_image() {
+                        Ok(_) => (),
+                        Err(e) => eprintln!("Failed to copy file: {}", e),
+                    },
                     Action::Move => match self.move_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),

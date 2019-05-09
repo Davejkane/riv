@@ -9,7 +9,8 @@ use sdl2::keyboard::Keycode;
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
-    /// ReRender indicates the app should re-render in response to this event (such as a window resize)
+    /// ReRender indicates the app should re-render in response to this event (such as a window
+    /// resize)
     ReRender,
     /// Next indicates the app should move to the next image in response to this event
     Next,
@@ -19,6 +20,8 @@ pub enum Action {
     First,
     /// Last indicates the app should move to the last image in response to this event
     Last,
+    /// Copy indicates the app should copy the image in response to this event
+    Copy,
     /// Move indicates the app should move the image in response to this event
     Move,
     /// Delete indicates the app should delete the image in response to this event
@@ -93,6 +96,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Home),
             ..
         } => Action::First,
+        Event::KeyDown {
+            keycode: Some(Keycode::C),
+            ..
+        } => Action::Copy,
         Event::KeyDown {
             keycode: Some(Keycode::M),
             ..
