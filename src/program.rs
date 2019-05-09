@@ -163,15 +163,39 @@ impl Program {
         Ok(())
     }
 
+    /// Moves image currently being viewed to destination folder
     fn move_image(&mut self) -> Result<(), String> {
-        let filepath = self.images.remove(self.index);
-        if self.index >= self.images.len() && !self.images.is_empty() {
-            self.index -= 1;
+        // Check if there is an image to move
+        if self.images.is_empty() {
+            return Err("no images to move".to_string());
         }
-        let newname = self.construct_dest_filepath(&filepath)?;
+        // Retrieve current image
+        assert!(self.index < self.images.len());
+        let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
+            panic!(format!(
+                "image index {} > max image index {}",
+                self.index,
+                self.images.len()
+            ))
+        });
+
+        let newname = self.construct_dest_filepath(&current_imagepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
-        move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
-        self.render()
+
+        // Attempt to move image
+        if let Err(e) = move_file(current_imagepath, newname, opt) {
+            return Err(format!(
+                "Failed to remove image `{:?}`: {}",
+                current_imagepath,
+                e.to_string()
+            ));
+        }
+
+        // Only if successful, remove image from tracked images
+        self.images.remove(self.index);
+
+        // Adjust our view
+        self.decrement(1)
     }
 
     /// Deletes image currently being viewed
