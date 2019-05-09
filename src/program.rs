@@ -152,7 +152,7 @@ impl Program {
         let opt = &fs_extra::file::CopyOptions::new();
         let filepath = self.images.get(self.index).unwrap_or_else(|| {
             panic!(format!(
-                "image index {} < max image index {}",
+                "image index {} > max image index {}",
                 self.index,
                 self.images.len()
             ))
