@@ -9,7 +9,8 @@ use sdl2::keyboard::Keycode;
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
-    /// ReRender indicates the app should re-render in response to this event (such as a window resize)
+    /// ReRender indicates the app should re-render in response to this event (such as a window
+    /// resize)
     ReRender,
     /// Next indicates the app should move to the next image in response to this event
     Next,
@@ -19,13 +20,16 @@ pub enum Action {
     First,
     /// Last indicates the app should move to the last image in response to this event
     Last,
+    /// Copy indicates the app should copy the image in response to this event
+    Copy,
     /// Move indicates the app should move the image in response to this event
     Move,
-
     /// SkipForward advances the list of images by x%
     SkipForward,
     /// SkipBack rewinds the list of images by x%
     SkipBack,
+    /// Delete indicates the app should delete the image in response to this event
+    Delete,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
@@ -97,6 +101,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             ..
         } => Action::First,
         Event::KeyDown {
+            keycode: Some(Keycode::C),
+            ..
+        } => Action::Copy,
+        Event::KeyDown {
             keycode: Some(Keycode::M),
             ..
         } => Action::Move,
@@ -116,6 +124,14 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::PageDown),
             ..
         } => Action::SkipBack,
+        Event::KeyDown {
+            keycode: Some(Keycode::D),
+            ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::Delete),
+            ..
+        } => Action::Delete,
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..
