@@ -125,7 +125,7 @@ impl Program {
         self.render()
     }
 
-    fn construct_dest_filepath(&self, src_path: &Pathbuf) -> Result<Pathbuf, String> {
+    fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
         match std::fs::create_dir_all(&self.dest_folder) {
             Ok(_) => (),
             Err(e) => match e.kind() {
@@ -163,7 +163,7 @@ impl Program {
         if self.index >= self.images.len() && !self.images.is_empty() {
             self.index -= 1;
         }
-        let newname = self.construct_dest_filepath(filepath);
+        let newname = self.construct_dest_filepath(&filepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
