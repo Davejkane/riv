@@ -24,6 +24,8 @@ pub enum Action {
     Copy,
     /// Move indicates the app should move the image in response to this event
     Move,
+    /// Delete indicates the app should delete the image in response to this event
+    Delete,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
@@ -102,6 +104,14 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::M),
             ..
         } => Action::Move,
+        Event::KeyDown {
+            keycode: Some(Keycode::D),
+            ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::Delete),
+            ..
+        } => Action::Delete,
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..
