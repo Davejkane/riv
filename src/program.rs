@@ -164,8 +164,11 @@ impl Program {
 
         // Attempt to remove image
         if let Err(e) = remove(&current_imagepath) {
-            return Err(format!("Failed to remove image `{:?}`: {}",
-            current_imagepath, e.to_string()));
+            return Err(format!(
+                "Failed to remove image `{:?}`: {}",
+                current_imagepath,
+                e.to_string()
+            ));
         }
         // If we've reached past here, there was no error deleted the image
 
