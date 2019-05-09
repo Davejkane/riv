@@ -159,7 +159,7 @@ impl Program {
         });
         let newname = self.construct_dest_filepath(filepath)?;
         copy(filepath, newname, opt).map_err(|e| e.to_string())?;
-        self.render()
+        Ok(())
     }
 
     fn move_image(&mut self) -> Result<(), String> {
