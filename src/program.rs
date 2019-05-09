@@ -6,6 +6,7 @@
 use crate::cli;
 use crate::ui::{self, Action};
 use fs_extra::file::move_file;
+use fs_extra::file::remove;
 use sdl2::image::LoadTexture;
 use sdl2::rect::Rect;
 use sdl2::render::{TextureCreator, WindowCanvas};
@@ -142,6 +143,40 @@ impl Program {
         let opt = &fs_extra::file::CopyOptions::new();
         move_file(filepath, newname, opt).map_err(|e| e.to_string())?;
         self.render()
+    }
+
+    /// Deletes image currently being viewed
+    fn delete_image(&mut self) -> Result<(), String> {
+        // Check if there is an image to delete
+        if self.images.is_empty() {
+            return Err("no images to delete".to_string());
+        }
+
+        // Retrieve current image
+        assert!(self.index < self.images.len());
+        let current_imagepath = self.images.get(self.index).unwrap_or_else(|| {
+            panic!(format!(
+                "image index {} < max image index {}",
+                self.index,
+                self.images.len()
+            ))
+        });
+
+        // Attempt to remove image
+        if let Err(e) = remove(&current_imagepath) {
+            return Err(format!("Failed to remove image `{:?}`: {}",
+            current_imagepath, e.to_string()));
+        }
+        // If we've reached past here, there was no error deleted the image
+
+        // Only if successful, remove image from tracked images
+        self.images.remove(self.index);
+
+        // Adjust our view
+        self.decrement(1)?;
+
+        // Image successfully deleted, we're done
+        Ok(())
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
