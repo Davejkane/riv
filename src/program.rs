@@ -126,6 +126,21 @@ impl Program {
         self.render()
     }
 
+    /// Removes an image from tracked images.
+    /// Upholds that the index should always be less than index of last image.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` passed is past `self.images` len.
+    fn remove_image(&mut self, index: usize) {
+        // Remove image
+        self.images.remove(index);
+        // Adjust index if past bounds
+        if index >= self.images.len() && self.index != 0 {
+            self.index -= 1;
+        }
+    }
+
     fn decrement(&mut self, step: usize) -> Result<(), String> {
         if self.index >= step {
             self.index -= step;
@@ -229,7 +244,7 @@ impl Program {
         }
 
         // Only if successful, remove image from tracked images
-        self.images.remove(self.index);
+        self.remove_image(self.index);
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
@@ -264,7 +279,7 @@ impl Program {
         // If we've reached past here, there was no error deleting the image
 
         // Only if successful, remove image from tracked images
-        self.images.remove(self.index);
+        self.remove_image(self.index);
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
