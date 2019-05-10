@@ -127,13 +127,14 @@ impl Program {
     }
 
     /// Removes an image from tracked images.
-    /// Upholds that the index should always be less than index of last image.
+    /// Upholds that the index should always be <= index of last image.
     ///
     /// # Panics
     ///
     /// Panics if `index` tries to access past `self.images` bounds
     fn remove_image(&mut self, index: usize) {
         // Remove image
+        // Panics if index is past bounds of vec
         self.images.remove(index);
         // Adjust index if past bounds
         if index >= self.images.len() && self.index != 0 {
