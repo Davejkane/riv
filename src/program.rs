@@ -131,7 +131,7 @@ impl Program {
     ///
     /// # Panics
     ///
-    /// Panics if `index` passed is past `self.images` len.
+    /// Panics if `index` tries to access past `self.images` bounds
     fn remove_image(&mut self, index: usize) {
         // Remove image
         self.images.remove(index);
