@@ -231,8 +231,9 @@ impl Program {
         // Only if successful, remove image from tracked images
         self.images.remove(self.index);
 
-        // Adjust our view
-        self.decrement(1)
+        // Moving the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.render()
     }
 
     /// Deletes image currently being viewed
@@ -265,8 +266,9 @@ impl Program {
         // Only if successful, remove image from tracked images
         self.images.remove(self.index);
 
-        // Adjust our view
-        self.decrement(1)
+        // Removing the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.render()
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
