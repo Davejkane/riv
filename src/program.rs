@@ -59,6 +59,7 @@ impl Program {
         let ui_state = ui::State {
             left_shift: false,
             right_shift: false,
+            render_infobar: true,
         };
         Ok(Program {
             screen: Screen {
