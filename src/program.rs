@@ -280,6 +280,10 @@ impl Program {
                     Action::ReRender => self.render()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
+                    Action::First => self.first()?,
+                    Action::Last => self.last()?,
+                    Action::SkipForward => self.skip_forward()?,
+                    Action::SkipBack => self.skip_backward()?,
                     Action::Copy => match self.copy_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to copy file: {}", e),
@@ -288,14 +292,11 @@ impl Program {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to move file: {}", e),
                     },
-                    Action::SkipForward => self.skip_forward()?,
-                    Action::SkipBack => self.skip_backward()?,
                     Action::Delete => match self.delete_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("{}", e),
                     },
-                    Action::First => self.first()?,
-                    Action::Last => self.last()?,
+                    Action::ToggleInfoBar => self.render()?,
                     Action::Noop => {}
                 }
             }
