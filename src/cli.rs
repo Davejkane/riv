@@ -19,9 +19,9 @@ pub struct Args {
 /// cli sets up the command line app and parses the arguments, using clap.
 pub fn cli() -> Result<Args, String> {
     let mut files = Vec::new();
-    let matches = App::new("clive")
+    let matches = App::new("riv")
         .version("0.1.0")
-        .about("A simple Command Line Image Viewer Executable")
+        .about("The command line image viewer")
         .arg(
             Arg::with_name("path")
                 .required(true)
