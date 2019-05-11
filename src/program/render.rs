@@ -1,4 +1,10 @@
-impl Program {
+use crate::program::{Program, make_dst};
+use crate::infobar;
+use sdl2::image::LoadTexture;
+use sdl2::pixels::Color;
+use sdl2::rect::Rect;
+
+impl<'a> Program<'a> {
     /// render loads the image at the path in the images path vector located at the index and
     /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {

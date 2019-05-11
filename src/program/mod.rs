@@ -3,8 +3,9 @@
 //! Program contains the program struct, which contains all information needed to run the
 //! event loop and render the images to screen
 
+mod render;
+pub use self::render::*;
 use crate::cli;
-use crate::infobar;
 use crate::paths::Paths;
 use crate::screen::Screen;
 use crate::ui::{self, Action};
@@ -12,8 +13,6 @@ use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
-use sdl2::image::LoadTexture;
-use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::ttf::Sdl2TtfContext;
