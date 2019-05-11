@@ -42,7 +42,7 @@ impl<'a> Program<'a> {
     }
 
     fn set_image_texture(&mut self) -> Result<(), String> {
-        if self.paths.index == self.screen.last_index && !self.screen.last_texture.is_none() {
+        if self.paths.index == self.screen.last_index && self.screen.last_texture.is_some() {
             return Ok(());
         }
         let texture = match self

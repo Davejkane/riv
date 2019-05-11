@@ -57,7 +57,7 @@ impl<'a> Program<'a> {
             screen: Screen {
                 sdl_context,
                 canvas,
-                texture_creator: texture_creator,
+                texture_creator,
                 font,
                 last_index: 0,
                 last_texture: None,
