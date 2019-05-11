@@ -42,7 +42,10 @@ impl<'a> Program<'a> {
     }
 
     fn set_image_texture(&mut self) -> Result<(), String> {
-        if self.paths.index == self.screen.last_index && self.screen.last_texture.is_some() {
+        if self.paths.index == self.screen.last_index
+            && self.screen.last_texture.is_some()
+            && !self.screen.dirty
+        {
             return Ok(());
         }
         let texture = match self
@@ -60,6 +63,7 @@ impl<'a> Program<'a> {
             }
         };
         self.screen.last_texture = Some(texture);
+        self.screen.dirty = false;
         Ok(())
     }
 

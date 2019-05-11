@@ -61,6 +61,7 @@ impl<'a> Program<'a> {
                 font,
                 last_index: 0,
                 last_texture: None,
+                dirty: false,
             },
             paths: Paths {
                 images,
@@ -195,6 +196,7 @@ impl<'a> Program<'a> {
 
         // Only if successful, remove image from tracked images
         self.paths.images.remove(self.paths.index);
+        self.screen.dirty = true;
 
         // Adjust our view
         self.decrement(1)
@@ -229,6 +231,7 @@ impl<'a> Program<'a> {
 
         // Only if successful, remove image from tracked images
         self.paths.images.remove(self.paths.index);
+        self.screen.dirty = true;
 
         // Adjust our view
         self.decrement(1)

@@ -20,4 +20,6 @@ pub struct Screen<'a> {
     pub last_index: usize,
     /// last_texture is the last image texture rendered
     pub last_texture: Option<sdl2::render::Texture<'a>>,
+    /// dirty, if true indicates that last texture must be discarded
+    pub dirty: bool,
 }
