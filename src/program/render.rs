@@ -4,6 +4,8 @@ use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 
+const PADDING: i32 = 30;
+
 impl<'a> Program<'a> {
     /// render loads the image at the path in the images path vector located at the index and
     /// renders to screen
@@ -103,19 +105,14 @@ impl<'a> Program<'a> {
             .map_err(|e| e.to_string())?;
         let context_dimensions = context_texture.query();
         // Draw the Bar
-        self.screen.canvas.set_draw_color(Color::RGB(243, 134, 48));
-        let height = filename_dimensions.height;
-        let width = self.screen.canvas.viewport().width();
-        let x = 0;
-        let y = (self.screen.canvas.viewport().height() - height) as i32;
-        if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, width, height)) {
-            eprintln!("Failed to draw bar {}", e);
-        }
+        let dims = (index_dimensions.height, context_dimensions.width, index_dimensions.width, filename_dimensions.width);
+        self.render_bar(dims)?;
         // Copy the text textures
+        let y = (self.screen.canvas.viewport().height() - index_dimensions.height) as i32;
         if let Err(e) = self.screen.canvas.copy(
             &context_texture,
             None,
-            Rect::new(30, y, context_dimensions.width, context_dimensions.height),
+            Rect::new(PADDING, y, context_dimensions.width, context_dimensions.height),
         ) {
             eprintln!("Failed to copy text to screen {}", e);
         }
@@ -123,7 +120,7 @@ impl<'a> Program<'a> {
             &index_texture,
             None,
             Rect::new(
-                (context_dimensions.width + 60) as i32,
+                (context_dimensions.width + PADDING as u32 * 2) as i32,
                 y,
                 index_dimensions.width,
                 index_dimensions.height,
@@ -135,7 +132,7 @@ impl<'a> Program<'a> {
             &filename_texture,
             None,
             Rect::new(
-                (context_dimensions.width + index_dimensions.width + 90) as i32,
+                (context_dimensions.width + index_dimensions.width + PADDING as u32 * 3) as i32,
                 y,
                 filename_dimensions.width,
                 filename_dimensions.height,
@@ -143,6 +140,38 @@ impl<'a> Program<'a> {
         ) {
             eprintln!("Failed to copy text to screen {}", e);
             return Ok(());
+        }
+        Ok(())
+    }
+
+    fn render_bar(&mut self, dims: (u32, u32, u32, u32)) -> Result<(), String> {
+        let height = dims.0;
+        let padding = 15;
+        let width = self.screen.canvas.viewport().width();
+        let y = (self.screen.canvas.viewport().height() - height) as i32;
+        let mut x = 0;
+        let mut w = dims.1 + padding * 3;
+        self.screen.canvas.set_draw_color(Color::RGB(255, 69, 58));
+        if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
+            eprintln!("Failed to draw bar {}", e);
+        }
+        x += w as i32;
+        w = dims.2 + padding * 2;
+        self.screen.canvas.set_draw_color(Color::RGB(255, 159, 10));
+        if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
+            eprintln!("Failed to draw bar {}", e);
+        }
+        x += w as i32;
+        w = dims.3 + padding * 2;
+        self.screen.canvas.set_draw_color(Color::RGB(50, 215, 75));
+        if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
+            eprintln!("Failed to draw bar {}", e);
+        }
+        x += w as i32;
+        w = width;
+        self.screen.canvas.set_draw_color(Color::RGB(152, 152, 157));
+        if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
+            eprintln!("Failed to draw bar {}", e);
         }
         Ok(())
     }
