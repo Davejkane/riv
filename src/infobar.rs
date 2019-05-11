@@ -23,14 +23,18 @@ impl From<&Paths> for Text {
                 Some(name) => name.to_string(),
                 None => "No file".to_string(),
             },
-            None => "No file".to_string(),
+            None => "No file selected".to_string(),
         };
         let current_dir = match p.current_dir.to_str() {
             Some(dir) => dir.to_string(),
             None => "Unknown directory".to_string(),
         };
         let glob = p.glob.clone();
-        let index = format!("{} of {}", p.index + 1, p.images.len());
+        let index = if p.images.is_empty() {
+            "No files in path".to_string()
+        } else {
+            format!("{} of {}", p.index + 1, p.images.len())
+        };
         Text {
             current_image,
             current_dir,

@@ -49,8 +49,7 @@ impl<'a> Program<'a> {
             Ok(c) => c,
             Err(_) => PathBuf::new(),
         };
-        let font_path =
-            PathBuf::from("/Users/davejkane/Downloads/Roboto/Roboto-Black.ttf");
+        let font_path = PathBuf::from("/Users/davejkane/Downloads/Roboto/Roboto-Black.ttf");
         let font = match ttf_context.load_font(font_path, 18) {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
@@ -114,8 +113,7 @@ impl<'a> Program<'a> {
     }
 
     fn set_image_texture(&mut self) -> Result<(), String> {
-        if self.paths.index == self.screen.last_index &&
-        !self.screen.last_texture.is_none() {
+        if self.paths.index == self.screen.last_index && !self.screen.last_texture.is_none() {
             return Ok(());
         }
         let texture = match self
@@ -199,6 +197,9 @@ impl<'a> Program<'a> {
 
     fn render_blank(&mut self) -> Result<(), String> {
         self.screen.canvas.clear();
+        if self.ui_state.render_infobar {
+            self.render_infobar()?;
+        }
         self.screen.canvas.present();
         Ok(())
     }
@@ -391,7 +392,7 @@ impl<'a> Program<'a> {
                     Action::Noop => {}
                 }
             }
-            std::thread::sleep(Duration::from_millis(1000/60));
+            std::thread::sleep(Duration::from_millis(1000 / 60));
         }
 
         Ok(())
