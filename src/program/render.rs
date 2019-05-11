@@ -1,5 +1,5 @@
-use crate::program::{Program, make_dst};
 use crate::infobar;
+use crate::program::{make_dst, Program};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -105,14 +105,24 @@ impl<'a> Program<'a> {
             .map_err(|e| e.to_string())?;
         let context_dimensions = context_texture.query();
         // Draw the Bar
-        let dims = (index_dimensions.height, context_dimensions.width, index_dimensions.width, filename_dimensions.width);
+        let dims = (
+            index_dimensions.height,
+            context_dimensions.width,
+            index_dimensions.width,
+            filename_dimensions.width,
+        );
         self.render_bar(dims)?;
         // Copy the text textures
         let y = (self.screen.canvas.viewport().height() - index_dimensions.height) as i32;
         if let Err(e) = self.screen.canvas.copy(
             &context_texture,
             None,
-            Rect::new(PADDING, y, context_dimensions.width, context_dimensions.height),
+            Rect::new(
+                PADDING,
+                y,
+                context_dimensions.width,
+                context_dimensions.height,
+            ),
         ) {
             eprintln!("Failed to copy text to screen {}", e);
         }

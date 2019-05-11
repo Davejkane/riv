@@ -77,7 +77,6 @@ impl<'a> Program<'a> {
         })
     }
 
-
     fn increment(&mut self, step: usize) -> Result<(), String> {
         if self.paths.images.is_empty() || self.paths.images.len() == 1 {
             return Ok(());
