@@ -43,7 +43,7 @@ pub struct State {
     /// right_shift tracks whether or not the right shift key is pressed.
     pub right_shift: bool,
     /// render_infobar determines whether or not the info bar should be rendered.
-    pub render_infobar: bool, 
+    pub render_infobar: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -142,7 +142,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         } => {
             state.render_infobar = !state.render_infobar;
             Action::ToggleInfoBar
-        },
+        }
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..

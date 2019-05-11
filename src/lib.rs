@@ -12,6 +12,7 @@
     unused_must_use
 )]
 pub mod cli;
+pub mod infobar;
 pub mod paths;
 pub mod program;
 pub mod screen;
