@@ -391,7 +391,7 @@ impl<'a> Program<'a> {
                     Action::Noop => {}
                 }
             }
-            std::thread::sleep(Duration::from_millis(0));
+            std::thread::sleep(Duration::from_millis(1000/60));
         }
 
         Ok(())
