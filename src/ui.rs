@@ -12,6 +12,8 @@ pub enum Action {
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
+    /// ToggleFit toggles image fit to window or actual size
+    ToggleFit,
     /// Next indicates the app should move to the next image in response to this event
     Next,
     /// Prev indicates the app should move to the previous image in response to this event
@@ -40,6 +42,18 @@ pub struct State {
     pub left_shift: bool,
     /// right_shift tracks whether or not the right shift key is pressed
     pub right_shift: bool,
+    /// Viewport displays image with no scaling or adjustment
+    pub actual_size: bool,
+}
+
+impl Default for State {
+    fn default() -> Self {
+        Self {
+            left_shift: false,
+            right_shift: false,
+            actual_size: false,
+        }
+    }
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -66,6 +80,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             win_event: WindowEvent::Maximized,
             ..
         } => Action::ReRender,
+        Event::KeyDown {
+            keycode: Some(Keycode::Z),
+            ..
+        } => Action::ToggleFit,
         Event::KeyDown {
             keycode: Some(Keycode::Right),
             ..

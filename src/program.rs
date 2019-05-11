@@ -10,8 +10,8 @@ use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
 use sdl2::image::LoadTexture;
-use sdl2::rect::Rect;
-use sdl2::render::{TextureCreator, WindowCanvas};
+use sdl2::rect::{Point, Rect};
+use sdl2::render::{TextureCreator, TextureQuery, WindowCanvas};
 use sdl2::video::WindowContext;
 use sdl2::Sdl;
 use std::io::ErrorKind;
@@ -67,8 +67,7 @@ impl Program {
             .map_err(|e| e.to_string())?;
         let texture_creator = canvas.texture_creator();
         let ui_state = ui::State {
-            left_shift: false,
-            right_shift: false,
+            ..Default::default()
         };
         Ok(Program {
             sdl_context,
@@ -79,6 +78,11 @@ impl Program {
             index: 0,
             ui_state,
         })
+    }
+
+    ///Toggle whether the viewport uses the actual size of the image
+    pub fn toggle_fit(&mut self) {
+        self.ui_state.actual_size = !self.ui_state.actual_size;
     }
 
     /// render loads the image at the path in the images path vector located at the index and
@@ -94,13 +98,41 @@ impl Program {
                 return Ok(());
             }
         };
-        let query = texture.query();
+        let query: TextureQuery = texture.query();
+        // Target: Place to render
         let target = self.canvas.viewport();
-        let dest = make_dst(query.width, query.height, target.width(), target.height());
+        let src_slice = compute_center_rectangle_view(query.width, query.height, target);
+
+        dbg!(src_slice);
+        //
+
+        // Dest: Portion of target to render on
+        let dest = if self.ui_state.actual_size {
+            make_dst(
+                src_slice.width(),
+                src_slice.height(),
+                target.width(),
+                target.height(),
+            )
+        } else {
+            make_dst(query.width, query.height, target.width(), target.height())
+        };
+        dbg!(query);
+        dbg!(target);
+        dbg!(dest);
         self.canvas.clear();
-        if let Err(e) = self.canvas.copy(&texture, None, dest) {
-            eprintln!("Failed to copy image to screen {}", e);
-            return Ok(());
+        dbg!(self.ui_state.actual_size);
+        if self.ui_state.actual_size {
+            // Copy only portion of texture which fits inside view
+            if let Err(e) = self.canvas.copy(&texture, src_slice, dest) {
+                eprintln!("Failed to copy image to screen {}", e);
+                return Ok(());
+            }
+        } else {
+            if let Err(e) = self.canvas.copy(&texture, None, dest) {
+                eprintln!("Failed to copy image to screen {}", e);
+                return Ok(());
+            }
         }
         self.canvas.present();
         Ok(())
@@ -111,7 +143,36 @@ impl Program {
         self.canvas.present();
         Ok(())
     }
+}
 
+fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: Rect) -> Rect {
+    let tex_center = calculate_texture_center(src_width, src_height);
+
+    // create centered rectangle for texture
+    // Don't extend past max dimentions of src texture
+    let target_width = target_rect.width();
+    let target_height = target_rect.height();
+    let copy_width_boundry = if src_width > target_width {
+        target_width
+    } else {
+        src_width
+    };
+    let copy_height_boundry = if src_height > target_height {
+        target_height
+    } else {
+        src_height
+    };
+
+    let center_texture_rect =
+        Rect::from_center(tex_center, copy_width_boundry, copy_height_boundry);
+    center_texture_rect
+}
+
+fn calculate_texture_center(src_x: u32, src_y: u32) -> Point {
+    Rect::new(0, 0, src_x, src_y).center()
+}
+
+impl Program {
     fn increment(&mut self, step: usize) -> Result<(), String> {
         if self.images.is_empty() || self.images.len() == 1 {
             return Ok(());
@@ -296,6 +357,10 @@ impl Program {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
                     Action::ReRender => self.render()?,
+                    Action::ToggleFit => {
+                        self.toggle_fit();
+                        self.render()?
+                    }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::Copy => match self.copy_image() {
@@ -329,14 +394,16 @@ impl Program {
 fn make_dst(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
     // case 1: both source dimensions smaller
     if src_x < dst_x && src_y < dst_y {
-        return full_rect(src_x, src_y, dst_x, dst_y);
+        full_rect(src_x, src_y, dst_x, dst_y)
     }
     // case 2: source aspect ratio is larger
-    if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
-        return fit_x_rect(src_x, src_y, dst_x, dst_y);
+    else if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
+        fit_x_rect(src_x, src_y, dst_x, dst_y)
     }
     // case 3: source aspect ratio is smaller
-    fit_y_rect(src_x, src_y, dst_x, dst_y)
+    else {
+        fit_y_rect(src_x, src_y, dst_x, dst_y)
+    }
 }
 
 fn full_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
@@ -355,4 +422,43 @@ fn fit_y_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
     let width = ((src_x as f32 / src_y as f32) * dst_y as f32) as u32;
     let x = ((dst_x - width) as f32 / 2.0) as i32;
     Rect::new(x, 0, width, dst_y)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Point;
+    use super::Rect;
+    use crate::program::compute_center_rectangle_view;
+
+    #[test]
+    fn test_center_content_same_area_both() {
+        let src_texture_rect = Rect::new(0, 0, 1000, 1000);
+        let target_area = Rect::new(0, 0, 1000, 1000);
+
+        let src_slice = compute_center_rectangle_view(
+            src_texture_rect.width(),
+            src_texture_rect.height(),
+            target_area,
+        );
+        let src_slice_center = src_slice.center();
+        assert_eq!(src_slice_center, Point::new(500, 500));
+        assert_eq!(src_slice.width(), 1000);
+        assert_eq!(src_slice.height(), 1000);
+    }
+
+    #[test]
+    fn test_center_content_texture_xdim_bigger_than_viewport_x() {
+        let src_texture_rect = Rect::new(0, 0, 2000, 1000);
+        let target_area = Rect::new(0, 0, 1000, 1000);
+
+        let src_slice = compute_center_rectangle_view(
+            src_texture_rect.width(),
+            src_texture_rect.height(),
+            target_area,
+        );
+        let src_slice_center = src_slice.center();
+        assert_eq!(src_slice_center, Point::new(500, 1000));
+        assert_eq!(src_slice.width(), 1000);
+        assert_eq!(src_slice.height(), 1000);
+    }
 }
