@@ -92,6 +92,22 @@ impl<'a> Program<'a> {
         self.render()
     }
 
+    /// Removes an image from tracked images.
+    /// Upholds that the index should always be <= index of last image.
+    ///
+    /// # Panics
+    ///
+    /// Panics if `index` tries to access past `self.images` bounds
+    fn remove_image(&mut self, index: usize) {
+        // Remove image
+        // Panics if index is past bounds of vec
+        self.paths.images.remove(index);
+        // Adjust index if past bounds
+        if index >= self.paths.images.len() && self.paths.index != 0 {
+            self.paths.index -= 1;
+        }
+    }
+
     fn decrement(&mut self, step: usize) -> Result<(), String> {
         if self.paths.index >= step {
             self.paths.index -= step;
@@ -195,11 +211,12 @@ impl<'a> Program<'a> {
         }
 
         // Only if successful, remove image from tracked images
-        self.paths.images.remove(self.paths.index);
+        self.remove_image(self.paths.index);
         self.screen.dirty = true;
 
-        // Adjust our view
-        self.decrement(1)
+        // Moving the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.render()
     }
 
     /// Deletes image currently being viewed
@@ -230,11 +247,12 @@ impl<'a> Program<'a> {
         // If we've reached past here, there was no error deleting the image
 
         // Only if successful, remove image from tracked images
-        self.paths.images.remove(self.paths.index);
+        self.remove_image(self.paths.index);
         self.screen.dirty = true;
 
-        // Adjust our view
-        self.decrement(1)
+        // Removing the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.render()
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
