@@ -200,9 +200,7 @@ impl<'a> Program<'a> {
     }
 }
 
-
-
-fn dark_grey() -> Color{
+fn dark_grey() -> Color {
     Color::RGB(45, 45, 45)
 }
 
