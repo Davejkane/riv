@@ -8,3 +8,17 @@ cpy_bin:
 
 cpy_ttf:
 	cp ./resources/Roboto-Medium.ttf /usr/local/share/Roboto-Medium.ttf
+
+check: fmt ccheck test clippy
+
+fmt:
+	cargo fmt --all -- --check
+
+ccheck:
+	cargo check
+
+test:
+	cargo test --all
+
+clippy:
+	cargo clippy

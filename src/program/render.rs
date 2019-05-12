@@ -5,6 +5,7 @@ use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 
 const PADDING: i32 = 30;
+const HALF_PAD: i32 = 15;
 
 impl<'a> Program<'a> {
     /// render loads the image at the path in the images path vector located at the index and
@@ -160,23 +161,22 @@ impl<'a> Program<'a> {
 
     fn render_bar(&mut self, dims: (u32, u32, u32, u32)) -> Result<(), String> {
         let height = dims.0;
-        let padding = 15;
         let width = self.screen.canvas.viewport().width();
         let y = (self.screen.canvas.viewport().height() - height) as i32;
         let mut x = 0;
-        let mut w = dims.1 + padding * 3;
+        let mut w = dims.1 + HALF_PAD as u32 * 3;
         self.screen.canvas.set_draw_color(red());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
-        w = dims.2 + padding * 2;
+        w = dims.2 + PADDING as u32;
         self.screen.canvas.set_draw_color(orange());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
-        w = dims.3 + padding * 2;
+        w = dims.3 + PADDING as u32;
         self.screen.canvas.set_draw_color(green());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
