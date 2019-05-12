@@ -48,7 +48,7 @@ impl<'a> Program<'a> {
             Ok(c) => c,
             Err(_) => PathBuf::new(),
         };
-        let font_path = PathBuf::from("/Users/davejkane/Downloads/Roboto/Roboto-Black.ttf");
+        let font_path = PathBuf::from("/usr/local/share/Roboto-Medium.ttf");
         let font = match ttf_context.load_font(font_path, 18) {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
