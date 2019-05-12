@@ -165,25 +165,25 @@ impl<'a> Program<'a> {
         let y = (self.screen.canvas.viewport().height() - height) as i32;
         let mut x = 0;
         let mut w = dims.1 + HALF_PAD as u32 * 3;
-        self.screen.canvas.set_draw_color(red());
+        self.screen.canvas.set_draw_color(light_blue());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.2 + PADDING as u32;
-        self.screen.canvas.set_draw_color(orange());
+        self.screen.canvas.set_draw_color(blue());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.3 + PADDING as u32;
-        self.screen.canvas.set_draw_color(green());
+        self.screen.canvas.set_draw_color(dark_blue());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = width;
-        self.screen.canvas.set_draw_color(light_grey());
+        self.screen.canvas.set_draw_color(grey());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
@@ -204,22 +204,22 @@ fn dark_grey() -> Color {
     Color::RGB(45, 45, 45)
 }
 
-fn red() -> Color {
-    Color::RGB(255, 69, 58)
-}
-
-fn orange() -> Color {
-    Color::RGB(255, 159, 10)
-}
-
-fn green() -> Color {
-    Color::RGB(50, 215, 75)
-}
-
-fn light_grey() -> Color {
-    Color::RGB(152, 152, 157)
-}
-
 fn text_color() -> Color {
-    Color::RGBA(255, 228, 204, 255)
+    Color::RGBA(52, 56, 56, 255)
+}
+
+fn light_blue() -> Color {
+    Color::RGB(0, 223, 252)
+}
+
+fn blue() -> Color {
+    Color::RGB(0, 180, 204)
+}
+
+fn dark_blue() -> Color {
+    Color::RGB(0, 140, 158)
+}
+
+fn grey() -> Color {
+    Color::RGB(52, 56, 56)
 }
