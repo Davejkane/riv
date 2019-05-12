@@ -15,12 +15,15 @@ use fs_extra::file::move_file;
 use fs_extra::file::remove;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
+use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
+
+const FONT_SIZE: u16 = 18;
 
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
@@ -48,8 +51,12 @@ impl<'a> Program<'a> {
             Ok(c) => c,
             Err(_) => PathBuf::new(),
         };
-        let font_path = PathBuf::from("/usr/local/share/Roboto-Medium.ttf");
-        let font = match ttf_context.load_font(font_path, 18) {
+        let font_bytes = include_bytes!("../../resources/Roboto-Medium.ttf");
+        let font_bytes = match RWops::from_bytes(font_bytes) {
+            Ok(b) => b,
+            Err(e) => panic!("Failed to load font {}", e),
+        };
+        let font = match ttf_context.load_font_from_rwops(font_bytes, FONT_SIZE) {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
         };
