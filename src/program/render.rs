@@ -10,7 +10,7 @@ impl<'a> Program<'a> {
     /// render loads the image at the path in the images path vector located at the index and
     /// renders to screen
     pub fn render(&mut self) -> Result<(), String> {
-        self.screen.canvas.set_draw_color(Color::RGB(45, 45, 45));
+        self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
             return self.render_blank();
         }
@@ -74,7 +74,7 @@ impl<'a> Program<'a> {
             .screen
             .font
             .render(&text.current_image)
-            .blended(Color::RGBA(224, 228, 204, 255))
+            .blended(text_color())
             .map_err(|e| e.to_string())?;
         let filename_texture = self
             .screen
@@ -87,7 +87,7 @@ impl<'a> Program<'a> {
             .screen
             .font
             .render(&text.index)
-            .blended(Color::RGBA(255, 228, 204, 255))
+            .blended(text_color())
             .map_err(|e| e.to_string())?;
         let index_texture = self
             .screen
@@ -100,7 +100,7 @@ impl<'a> Program<'a> {
             .screen
             .font
             .render(&text.context)
-            .blended(Color::RGBA(255, 228, 204, 255))
+            .blended(text_color())
             .map_err(|e| e.to_string())?;
         let context_texture = self
             .screen
@@ -165,25 +165,25 @@ impl<'a> Program<'a> {
         let y = (self.screen.canvas.viewport().height() - height) as i32;
         let mut x = 0;
         let mut w = dims.1 + padding * 3;
-        self.screen.canvas.set_draw_color(Color::RGB(255, 69, 58));
+        self.screen.canvas.set_draw_color(red());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.2 + padding * 2;
-        self.screen.canvas.set_draw_color(Color::RGB(255, 159, 10));
+        self.screen.canvas.set_draw_color(orange());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.3 + padding * 2;
-        self.screen.canvas.set_draw_color(Color::RGB(50, 215, 75));
+        self.screen.canvas.set_draw_color(green());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = width;
-        self.screen.canvas.set_draw_color(Color::RGB(152, 152, 157));
+        self.screen.canvas.set_draw_color(light_grey());
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
@@ -198,4 +198,30 @@ impl<'a> Program<'a> {
         self.screen.canvas.present();
         Ok(())
     }
+}
+
+
+
+fn dark_grey() -> Color{
+    Color::RGB(45, 45, 45)
+}
+
+fn red() -> Color {
+    Color::RGB(255, 69, 58)
+}
+
+fn orange() -> Color {
+    Color::RGB(255, 159, 10)
+}
+
+fn green() -> Color {
+    Color::RGB(50, 215, 75)
+}
+
+fn light_grey() -> Color {
+    Color::RGB(152, 152, 157)
+}
+
+fn text_color() -> Color {
+    Color::RGBA(255, 228, 204, 255)
 }

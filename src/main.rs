@@ -6,7 +6,7 @@ fn main() -> Result<(), String> {
     let video = sdl_context.video()?;
     let window = video
         .window(
-            "rust-sdl2 demo: Video",
+            "riv",
             video.display_bounds(0).unwrap().width(),
             video.display_bounds(0).unwrap().height(),
         )
