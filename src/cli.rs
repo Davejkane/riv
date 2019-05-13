@@ -23,6 +23,7 @@ pub fn cli() -> Result<Args, String> {
             Arg::with_name("paths")
                 .required(true)
                 .multiple(true)
+                // TODO Change this to allow for empty. If empty, use glob (*).
                 .min_values(1)
                 .help("The directory or files to search for image files. A glob can be used here."),
         )
