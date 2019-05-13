@@ -8,9 +8,8 @@ const PADDING: i32 = 30;
 const HALF_PAD: i32 = 15;
 
 impl<'a> Program<'a> {
-    /// render loads the image at the path in the images path vector located at the index and
-    /// renders to screen
-    pub fn render(&mut self) -> Result<(), String> {
+    /// render_screen is the main render function that delegates rendering every thing that needs be rendered
+    pub fn render_screen(&mut self) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
             return self.render_blank();

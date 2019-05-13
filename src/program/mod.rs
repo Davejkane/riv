@@ -96,7 +96,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = self.paths.images.len() - 1;
         }
-        self.render()
+        self.render_screen()
     }
 
     /// Removes an image from tracked images.
@@ -123,7 +123,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = 0;
         }
-        self.render()
+        self.render_screen()
     }
 
     /// Returns new index to advance to
@@ -140,7 +140,7 @@ impl<'a> Program<'a> {
 
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
-        self.render()
+        self.render_screen()
     }
 
     fn last(&mut self) -> Result<(), String> {
@@ -149,7 +149,7 @@ impl<'a> Program<'a> {
         } else {
             self.paths.index = self.paths.images.len() - 1;
         }
-        self.render()
+        self.render_screen()
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
@@ -223,7 +223,7 @@ impl<'a> Program<'a> {
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render()
+        self.render_screen()
     }
 
     /// Deletes image currently being viewed
@@ -259,18 +259,18 @@ impl<'a> Program<'a> {
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render()
+        self.render_screen()
     }
 
     /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
-        self.render()?;
+        self.render_screen()?;
 
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
-                    Action::ReRender => self.render()?,
+                    Action::ReRender => self.render_screen()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
@@ -289,7 +289,7 @@ impl<'a> Program<'a> {
                         Ok(_) => (),
                         Err(e) => eprintln!("{}", e),
                     },
-                    Action::ToggleInfoBar => self.render()?,
+                    Action::ToggleInfoBar => self.render_screen()?,
                     Action::Noop => {}
                 }
             }
