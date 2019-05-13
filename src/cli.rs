@@ -12,14 +12,16 @@ pub struct Args {
     pub files: Vec<PathBuf>,
     /// dest_folder is the supplied or default folder for moving files
     pub dest_folder: PathBuf,
+    /// glob is the glob used in the image search
+    pub search: String,
 }
 
 /// cli sets up the command line app and parses the arguments, using clap.
 pub fn cli() -> Result<Args, String> {
     let mut files = Vec::new();
-    let matches = App::new("clive")
-        .version("0.1.0")
-        .about("A simple Command Line Image Viewer Executable")
+    let matches = App::new("riv")
+        .version("0.2.0")
+        .about("The command line image viewer")
         .arg(
             Arg::with_name("path")
                 .required(true)
@@ -64,5 +66,10 @@ pub fn cli() -> Result<Args, String> {
         Some(f) => PathBuf::from(f),
         None => return Err("failed to determine destintation folder".to_string()),
     };
-    Ok(Args { files, dest_folder })
+    let search = glob_value.to_owned();
+    Ok(Args {
+        files,
+        dest_folder,
+        search,
+    })
 }

@@ -42,6 +42,7 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 | m | Move image to destination folder (default is ./keep)   |
 | c | Copy image to destination folder (default is ./keep) |
 | Delete OR d | Delete image from it's location |
+| t | Toggle information bar |
 
 ## Getting Started
 
@@ -92,7 +93,8 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 ## Authors
 
-* **Dave Kane** - *Initial Implementation* - [Dave Kane](https://github.com/Davejkane)
+* **[Dave Kane](https://github.com/Davejkane)** - *Initial Implementation*
+* **[Alex Gurganus](https://github.com/gurgalex)** - *Implementing core features since 0.1.0*
 
 See also the list of [contributors](https://github.com/davejkane/riv/contributors) who participated in this project.
 

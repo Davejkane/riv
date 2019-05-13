@@ -20,26 +20,30 @@ pub enum Action {
     First,
     /// Last indicates the app should move to the last image in response to this event
     Last,
-    /// Copy indicates the app should copy the image in response to this event
-    Copy,
-    /// Move indicates the app should move the image in response to this event
-    Move,
     /// SkipForward advances the list of images by x%
     SkipForward,
     /// SkipBack rewinds the list of images by x%
     SkipBack,
+    /// Copy indicates the app should copy the image in response to this event
+    Copy,
+    /// Move indicates the app should move the image in response to this event
+    Move,
     /// Delete indicates the app should delete the image in response to this event
     Delete,
+    /// ToggleInfoBar indicates that the app should toggle rendering of the infobar
+    ToggleInfoBar,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
 
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
 pub struct State {
-    /// left_shift tracks whether or not the left shift key is pressed
+    /// left_shift tracks whether or not the left shift key is pressed.
     pub left_shift: bool,
-    /// right_shift tracks whether or not the right shift key is pressed
+    /// right_shift tracks whether or not the right shift key is pressed.
     pub right_shift: bool,
+    /// render_infobar determines whether or not the info bar should be rendered.
+    pub render_infobar: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -132,6 +136,13 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Delete),
             ..
         } => Action::Delete,
+        Event::KeyDown {
+            keycode: Some(Keycode::T),
+            ..
+        } => {
+            state.render_infobar = !state.render_infobar;
+            Action::ToggleInfoBar
+        }
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
             ..
