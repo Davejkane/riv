@@ -45,7 +45,6 @@ impl<'a> Program<'a> {
         let args = cli::cli()?;
         let images = args.files;
         let dest_folder = args.dest_folder;
-        let glob = args.search;
 
         let current_dir = match std::env::current_dir() {
             Ok(c) => c,
@@ -74,7 +73,6 @@ impl<'a> Program<'a> {
                 images,
                 dest_folder,
                 index: 0,
-                glob,
                 current_dir,
             },
             ui_state: ui::State {

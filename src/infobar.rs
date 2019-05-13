@@ -8,8 +8,6 @@ use crate::paths::Paths;
 pub struct Text {
     /// current image is the string of the current image path
     pub current_image: String,
-    /// context is the string of the current directory + the glob from where the program was launched
-    pub context: String,
     /// index is the string represention of the index.
     pub index: String,
 }
@@ -27,8 +25,6 @@ impl From<&Paths> for Text {
             Some(dir) => dir.to_string(),
             None => "Unknown directory".to_string(),
         };
-        let glob = p.glob.clone();
-        let context = current_dir + "/" + &glob;
         let index = if p.images.is_empty() {
             "No files in path".to_string()
         } else {
@@ -36,7 +32,6 @@ impl From<&Paths> for Text {
         };
         Text {
             current_image,
-            context,
             index,
         }
     }
