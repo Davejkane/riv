@@ -30,8 +30,6 @@ pub enum Action {
     Move,
     /// Delete indicates the app should delete the image in response to this event
     Delete,
-    /// ToggleInfoBar indicates that the app should toggle rendering of the infobar
-    ToggleInfoBar,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
@@ -44,6 +42,8 @@ pub struct State {
     pub right_shift: bool,
     /// render_infobar determines whether or not the info bar should be rendered.
     pub render_infobar: bool,
+    /// render_help determines whether or not the help info should be rendered.
+    pub render_help: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -141,7 +141,14 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             ..
         } => {
             state.render_infobar = !state.render_infobar;
-            Action::ToggleInfoBar
+            Action::ReRender
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::H),
+            ..
+        } => {
+            state.render_help = !state.render_help;
+            Action::ReRender
         }
         Event::KeyDown {
             keycode: Some(Keycode::LShift),

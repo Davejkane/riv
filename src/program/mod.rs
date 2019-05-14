@@ -59,12 +59,22 @@ impl<'a> Program<'a> {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
         };
+        let mono_font_bytes = include_bytes!("../../resources/RobotoMono-Medium.ttf");
+        let mono_font_bytes = match RWops::from_bytes(mono_font_bytes) {
+            Ok(b) => b,
+            Err(e) => panic!("Failed to load font {}", e),
+        };
+        let mono_font = match ttf_context.load_font_from_rwops(mono_font_bytes, FONT_SIZE) {
+            Ok(f) => f,
+            Err(e) => panic!("Failed to load font {}", e),
+        };
         Ok(Program {
             screen: Screen {
                 sdl_context,
                 canvas,
                 texture_creator,
                 font,
+                mono_font,
                 last_index: 0,
                 last_texture: None,
                 dirty: false,
@@ -79,6 +89,7 @@ impl<'a> Program<'a> {
                 left_shift: false,
                 right_shift: false,
                 render_infobar: true,
+                render_help: false,
             },
         })
     }
@@ -287,7 +298,6 @@ impl<'a> Program<'a> {
                         Ok(_) => (),
                         Err(e) => eprintln!("{}", e),
                     },
-                    Action::ToggleInfoBar => self.render_screen()?,
                     Action::Noop => {}
                 }
             }
