@@ -11,7 +11,8 @@ const LINE_HEIGHT: i32 = 22;
 const LINE_PADDING: i32 = 5;
 
 impl<'a> Program<'a> {
-    /// render_screen is the main render function that delegates rendering every thing that needs be rendered
+    /// render_screen is the main render function that delegates rendering every thing that needs be
+    /// rendered
     pub fn render_screen(&mut self) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
@@ -69,7 +70,7 @@ impl<'a> Program<'a> {
         {
             return Ok(());
         }
-        let texture = match self
+        let texture: Texture = match self
             .screen
             .texture_creator
             .load_texture(&self.paths.images[self.paths.index])
