@@ -12,6 +12,9 @@ pub enum Action {
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
+    /// The app should switch its current image viewing preference of fitting the
+    /// image to screen or displaying the actual size as actual size
+    ToggleFit,
     /// Next indicates the app should move to the next image in response to this event
     Next,
     /// Prev indicates the app should move to the previous image in response to this event
@@ -44,6 +47,8 @@ pub struct State {
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
     pub render_help: bool,
+    /// Should the image shown be shown in actual pixel dimensions
+    pub actual_size: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -70,6 +75,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             win_event: WindowEvent::Maximized,
             ..
         } => Action::ReRender,
+        Event::KeyDown {
+            keycode: Some(Keycode::Z),
+            ..
+        } => Action::ToggleFit,
         Event::KeyDown {
             keycode: Some(Keycode::Right),
             ..

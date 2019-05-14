@@ -1,9 +1,9 @@
 use crate::infobar;
-use crate::program::{make_dst, Program};
+use crate::program::{compute_center_rectangle_view, make_dst, Program};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::BlendMode;
+use sdl2::render::{BlendMode, Texture, TextureQuery};
 
 const PADDING: i32 = 30;
 const HALF_PAD: i32 = 15;
@@ -37,12 +37,27 @@ impl<'a> Program<'a> {
             Some(_) => (),
             None => return Ok(()),
         };
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let query = tex.query();
+        let tex: &Texture = self.screen.last_texture.as_ref().unwrap();
+        let query: TextureQuery = tex.query();
+        // Area to render other rectangle on
         let target = self.screen.canvas.viewport();
-        let dest = make_dst(query.width, query.height, target.width(), target.height());
-        if let Err(e) = self.screen.canvas.copy(tex, None, dest) {
-            eprintln!("Failed to copy image to screen {}", e);
+        if self.ui_state.actual_size {
+            // Get slice of texture to place on screen
+            let content_slice = compute_center_rectangle_view(query.width, query.height, &target);
+            let dest = make_dst(
+                content_slice.width(),
+                content_slice.height(),
+                target.width(),
+                target.height(),
+            );
+            if let Err(e) = self.screen.canvas.copy(&tex, content_slice, dest) {
+                eprintln!("Failed to copy image to screen {}", e);
+            }
+        } else {
+            let dest = make_dst(query.width, query.height, target.width(), target.height());
+            if let Err(e) = self.screen.canvas.copy(&tex, None, dest) {
+                eprintln!("Failed to copy image to screen {}", e);
+            }
         }
         Ok(())
     }
@@ -68,9 +83,24 @@ impl<'a> Program<'a> {
                 return Ok(());
             }
         };
+
+        // Set the default state for viewing of the image
+        let query: TextureQuery = texture.query();
+        let src = Rect::new(0, 0, query.width, query.height);
+        let dest = self.screen.canvas.viewport();
+        self.ui_state.actual_size = Program::default_actual_size(&src, &dest);
+
         self.screen.last_texture = Some(texture);
         self.screen.dirty = false;
         Ok(())
+    }
+
+    /// Computes the default state of actual_size for each image
+    pub fn default_actual_size(src_dims: &Rect, dest_dims: &Rect) -> bool {
+        // If any dimension of the src image is bigger than the destination
+        // dimensions, use scaled size.
+        let src_bigger: bool = src_dims.x > dest_dims.x || src_dims.y > dest_dims.y;
+        src_bigger
     }
 
     fn render_infobar(&mut self) -> Result<(), String> {

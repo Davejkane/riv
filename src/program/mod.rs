@@ -13,6 +13,7 @@ use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
+use sdl2::rect::Point;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::rwops::RWops;
@@ -90,8 +91,14 @@ impl<'a> Program<'a> {
                 right_shift: false,
                 render_infobar: true,
                 render_help: false,
+                actual_size: false,
             },
         })
+    }
+
+    /// Toggle whether actual size or scaled image is rendered.
+    pub fn toggle_fit(&mut self) {
+        self.ui_state.actual_size = !self.ui_state.actual_size;
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
@@ -280,6 +287,10 @@ impl<'a> Program<'a> {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
                     Action::ReRender => self.render_screen()?,
+                    Action::ToggleFit => {
+                        self.toggle_fit();
+                        self.render_screen()?
+                    }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
@@ -349,4 +360,30 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
+}
+
+fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &Rect) -> Rect {
+    let tex_center = calculate_texture_center(src_width, src_height);
+
+    // create centered rectangle for texture
+    // Don't extend past max dimentions of src texture
+    let target_width = target_rect.width();
+    let target_height = target_rect.height();
+    let copy_width_boundry = if src_width > target_width {
+        target_width
+    } else {
+        src_width
+    };
+    let copy_height_boundry = if src_height > target_height {
+        target_height
+    } else {
+        src_height
+    };
+
+    // Centered slice which fits within destination boundries
+    Rect::from_center(tex_center, copy_width_boundry, copy_height_boundry)
+}
+
+fn calculate_texture_center(src_x: u32, src_y: u32) -> Point {
+    Rect::new(0, 0, src_x, src_y).center()
 }
