@@ -140,23 +140,25 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
-    /// Returns new index to advance to
+    /// Skips forward by the default skip increment and render that image
     pub fn skip_forward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.increment(skip_size)
     }
 
-    /// Returns new index to skip back to
+    /// Skips backward by the default skip increment and render that image
     fn skip_backward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.decrement(skip_size)
     }
 
+    /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
         self.render_screen()
     }
 
+    /// Go to and render last image in list
     fn last(&mut self) -> Result<(), String> {
         if self.paths.images.is_empty() {
             self.paths.index = 0;
@@ -360,6 +362,9 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
     cmp::max(1usize, skip_size)
 }
 
+/// Creates a rectangle which is centered on the src dimensions.
+/// For each src dimension, if the src is larger than the destination dimension, the
+/// rectangle is capped at the destination dimension.
 fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &Rect) -> Rect {
     let tex_center = calculate_texture_center(src_width, src_height);
 
@@ -382,6 +387,9 @@ fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &
     Rect::from_center(tex_center, copy_width_boundry, copy_height_boundry)
 }
 
+/// Primarily used for finding the center of a Texture.
+/// Computes the center of a rectangle, given the x and y points
+/// of the top-right corner of the rectangle.
 fn calculate_texture_center(src_x: u32, src_y: u32) -> Point {
     Rect::new(0, 0, src_x, src_y).center()
 }
