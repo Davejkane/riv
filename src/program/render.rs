@@ -3,7 +3,7 @@ use crate::program::{compute_center_rectangle_view, make_dst, Program};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::render::{BlendMode, Texture, TextureQuery};
+use sdl2::render::BlendMode;
 
 const PADDING: i32 = 30;
 const HALF_PAD: i32 = 15;
