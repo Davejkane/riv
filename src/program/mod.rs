@@ -369,7 +369,7 @@ fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &
     let tex_center = calculate_texture_center(src_width, src_height);
 
     // create centered rectangle for texture
-    // Don't extend past max dimentions of src texture
+    // Don't extend past max dimensions of src texture
     let target_width = target_rect.width();
     let target_height = target_rect.height();
     let copy_width_boundry = if src_width > target_width {
