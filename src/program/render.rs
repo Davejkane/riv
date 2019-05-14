@@ -143,7 +143,7 @@ impl<'a> Program<'a> {
         let total_height = LINE_HEIGHT * text.len() as i32 + LINE_PADDING * (text.len() as i32 - 1);
         let mut y = (self.screen.canvas.viewport().height() as f32 / 2.0
             - total_height as f32 / 2.0) as i32;
-        let  w = {
+        let w = {
             let surface = self
                 .screen
                 .mono_font
