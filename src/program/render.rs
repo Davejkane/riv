@@ -100,8 +100,7 @@ impl<'a> Program<'a> {
     pub fn default_actual_size(src_dims: &Rect, dest_dims: &Rect) -> bool {
         // If any dimension of the src image is bigger than the destination
         // dimensions, use scaled size.
-        let src_bigger: bool = src_dims.x > dest_dims.x || src_dims.y > dest_dims.y;
-        src_bigger
+        src_dims.x > dest_dims.x || src_dims.y > dest_dims.y
     }
 
     fn render_infobar(&mut self) -> Result<(), String> {
