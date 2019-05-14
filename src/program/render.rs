@@ -70,7 +70,7 @@ impl<'a> Program<'a> {
         {
             return Ok(());
         }
-        let texture: Texture = match self
+        let texture = match self
             .screen
             .texture_creator
             .load_texture(&self.paths.images[self.paths.index])
