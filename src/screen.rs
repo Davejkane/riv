@@ -16,6 +16,8 @@ pub struct Screen<'a> {
     pub texture_creator: &'a TextureCreator<WindowContext>,
     /// font is used for printing text
     pub font: Font<'a, 'static>,
+    /// mono_font is used for printing mono spaced text
+    pub mono_font: Font<'a, 'static>,
     /// last_index is the index of the last texture rendered
     pub last_index: usize,
     /// last_texture is the last image texture rendered
