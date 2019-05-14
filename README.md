@@ -7,9 +7,9 @@ Generally the options are:-
 * Preview - Clunky and really only good for viewing one image at a time
 * Others that require a GUI folder browser
 
-Riv on the other hand runs from the command line, and accepts a glob in quotes. For example:-
+Riv on the other hand runs from the command line, and accepts a glob. For example:-
 
-```$ riv "**/*.jpg"```
+```$ riv **/*.jpg```
 
 ## Manual
 
@@ -17,9 +17,9 @@ Start riv with
 
 ```$ riv```. 
 
-As an optional second parameter you can add a glob in quotes.
+As an optional second parameter you can add a glob, space separated filepaths or even a single filepath.
 
-```$ riv "**/*.png"```
+```$ riv **/*.png```
 
 Without any second parameter, riv will look for all images in the current directory.
 

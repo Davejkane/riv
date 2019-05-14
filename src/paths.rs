@@ -10,8 +10,6 @@ pub struct Paths {
     pub dest_folder: PathBuf,
     /// current_dir is the path of the current directory where the program was launched from
     pub current_dir: PathBuf,
-    /// glob is the glob used in the path search. Default is "*".
-    pub glob: String,
     /// index is the index of the images vector of the current image to be displayed.
     pub index: usize,
 }
