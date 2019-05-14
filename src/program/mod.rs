@@ -140,13 +140,13 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
-    /// Skips forward by the default skip increment and render that image
+    /// Skips forward by the default skip increment and renders the image
     pub fn skip_forward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.increment(skip_size)
     }
 
-    /// Skips backward by the default skip increment and render that image
+    /// Skips backward by the default skip increment and renders the image
     fn skip_backward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.decrement(skip_size)
