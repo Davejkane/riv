@@ -4,6 +4,7 @@
 
 use sdl2::event::{Event, WindowEvent};
 use sdl2::keyboard::Keycode;
+use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
 pub enum Action {
@@ -77,6 +78,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         } => Action::ReRender,
         Event::KeyDown {
             keycode: Some(Keycode::Z),
+            ..
+        }
+        | Event::MouseButtonUp {
+            mouse_btn: MouseButton::Left,
             ..
         } => Action::ToggleFit,
         Event::KeyDown {
