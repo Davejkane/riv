@@ -38,8 +38,8 @@ impl<'a> Program<'a> {
             Some(_) => (),
             None => return Ok(()),
         };
-        let tex: &Texture = self.screen.last_texture.as_ref().unwrap();
-        let query: TextureQuery = tex.query();
+        let tex = self.screen.last_texture.as_ref().unwrap();
+        let query = tex.query();
         // Area to render other rectangle on
         let target = self.screen.canvas.viewport();
         if self.ui_state.actual_size {
@@ -86,7 +86,7 @@ impl<'a> Program<'a> {
         };
 
         // Set the default state for viewing of the image
-        let query: TextureQuery = texture.query();
+        let query = texture.query();
         let src = Rect::new(0, 0, query.width, query.height);
         let dest = self.screen.canvas.viewport();
         self.ui_state.actual_size = Program::default_actual_size(&src, &dest);
