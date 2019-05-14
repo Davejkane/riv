@@ -183,10 +183,6 @@ fn blue() -> Color {
     Color::RGB(0, 180, 204)
 }
 
-fn dark_blue() -> Color {
-    Color::RGB(0, 140, 158)
-}
-
 fn grey() -> Color {
     Color::RGB(52, 56, 56)
 }

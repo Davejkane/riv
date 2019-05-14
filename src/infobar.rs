@@ -21,10 +21,6 @@ impl From<&Paths> for Text {
             },
             None => "No file selected".to_string(),
         };
-        let current_dir = match p.current_dir.to_str() {
-            Some(dir) => dir.to_string(),
-            None => "Unknown directory".to_string(),
-        };
         let index = if p.images.is_empty() {
             "No files in path".to_string()
         } else {

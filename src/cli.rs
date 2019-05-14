@@ -21,10 +21,7 @@ pub fn cli() -> Result<Args, String> {
         .about("The command line image viewer")
         .arg(
             Arg::with_name("paths")
-                .required(true)
                 .multiple(true)
-                // TODO Change this to allow for empty. If empty, use glob (*).
-                .min_values(1)
                 .help("The directory or files to search for image files. A glob can be used here."),
         )
         .arg(
@@ -36,27 +33,39 @@ pub fn cli() -> Result<Args, String> {
                 .takes_value(true),
         )
         .get_matches();
-    let path_matches = match matches.values_of("paths") {
-        Some(v) => v,
-        None => return Err("Failed to determine path value(s)".to_string()),
-    };
-    for path in path_matches {
-        let p = PathBuf::from(path);
-        if let Some(ext) = p.extension() {
-            if let Some(ext_str) = ext.to_str() {
-                let low = ext_str.to_string().to_lowercase();
-                if low == "jpg" || low == "jpeg" || low == "png" || low == "bmp" || low == "webp" {
-                    files.push(p)
+    match matches.values_of("paths") {
+        Some(path_matches) => {
+            for path in path_matches {
+                push_image_path(&mut files, PathBuf::from(path));
+            }
+        }
+        None => {
+            let path_matches = glob::glob("*").map_err(|e| e.to_string())?;
+            for path in path_matches {
+                match path {
+                    Ok(p) => {
+                        push_image_path(&mut files, p);
+                    }
+                    Err(e) => eprintln!("Unexpected path {}", e),
                 }
             }
         }
     }
+
     let dest_folder = match matches.value_of("dest-folder") {
         Some(f) => PathBuf::from(f),
         None => return Err("failed to determine destintation folder".to_string()),
     };
-    Ok(Args {
-        files,
-        dest_folder,
-    })
+    Ok(Args { files, dest_folder })
+}
+
+fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
+    if let Some(ext) = p.extension() {
+        if let Some(ext_str) = ext.to_str() {
+            let low = ext_str.to_string().to_lowercase();
+            if low == "jpg" || low == "jpeg" || low == "png" || low == "bmp" || low == "webp" {
+                v.push(p)
+            }
+        }
+    }
 }
