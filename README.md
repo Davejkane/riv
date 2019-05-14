@@ -44,6 +44,7 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 | Delete OR d      | Delete image from it's location                        |
 | t                | Toggle information bar                                 |
 | h                | Toggle help box                                        |
+| z                | Toggle actual size vs scaled image                     |
 
 ## Getting Started
 

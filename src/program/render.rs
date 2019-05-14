@@ -312,6 +312,7 @@ fn help_text() -> Vec<&'static str> {
         "| Delete OR d      | Delete image from it's location                        |",
         "| t                | Toggle information bar                                 |",
         "| h                | Toggle help box                                        |",
+        "| z                | Toggle actual size vs scaled image                     |",
         "+------------------+--------------------------------------------------------+",
     ]
 }
