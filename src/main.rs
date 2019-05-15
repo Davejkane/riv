@@ -1,4 +1,4 @@
-use riv::cli::{cli, InitialScreenArgs};
+use riv::cli::cli;
 use riv::program::Program;
 use std::convert::TryInto;
 
@@ -35,20 +35,8 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let texture_creator = canvas.texture_creator();
-    let init_screen_args = InitialScreenArgs {
-        window_title: INITIAL_TITLE.into(),
-        window_width: program_width,
-        window_height: program_height,
-        current_display: 0,
-    };
-    let mut program = Program::init(
-        &ttf_context,
-        sdl_context,
-        canvas,
-        &texture_creator,
-        args,
-        init_screen_args,
-    )?;
+
+    let mut program = Program::init(&ttf_context, sdl_context, canvas, &texture_creator, args)?;
     program.run()?;
     Ok(())
 }

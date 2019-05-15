@@ -23,14 +23,6 @@ pub struct Screen<'a> {
     pub last_texture: Option<sdl2::render::Texture<'a>>,
     /// dirty, if true indicates that last texture must be discarded
     pub dirty: bool,
-    /// window title
-    pub window_title: String,
-    /// x dimension of screen
-    pub window_width: u32,
-    /// y dimension of screen
-    pub window_height: u32,
-    /// current screen window is on
-    pub current_display: i32,
 }
 
 impl Screen<'_> {

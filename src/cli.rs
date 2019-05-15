@@ -5,19 +5,6 @@
 use clap::{App, Arg};
 use std::path::PathBuf;
 
-/// Holding container for passing initial screen info
-/// determined at runtime.
-pub struct InitialScreenArgs {
-    /// window title
-    pub window_title: String,
-    /// x dimension of screen
-    pub window_width: u32,
-    /// y dimension of screen
-    pub window_height: u32,
-    /// current screen window is on
-    pub current_display: i32,
-}
-
 /// Args contains the arguments that have been successfully parsed by the clap cli app
 pub struct Args {
     /// files is the vector of image file paths that match the supplied or default glob

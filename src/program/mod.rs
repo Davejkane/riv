@@ -42,7 +42,6 @@ impl<'a> Program<'a> {
         canvas: Canvas<Window>,
         texture_creator: &'a TextureCreator<WindowContext>,
         args: cli::Args,
-        screen_args: cli::InitialScreenArgs,
     ) -> Result<Program<'a>, String> {
         let images = args.files;
         let dest_folder = args.dest_folder;
@@ -79,10 +78,6 @@ impl<'a> Program<'a> {
                 last_index: 0,
                 last_texture: None,
                 dirty: false,
-                window_title: screen_args.window_title,
-                window_width: screen_args.window_width,
-                window_height: screen_args.window_height,
-                current_display: screen_args.current_display,
             },
             paths: Paths {
                 images,
