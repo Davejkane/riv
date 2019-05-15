@@ -45,6 +45,7 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 | t                | Toggle information bar                                 |
 | f OR F11         | Toggle fullscreen mode                                 |
 | h                | Toggle help box                                        |
+| z OR Left Click  | Toggle actual size vs scaled image                     |
 
 ## Getting Started
 
