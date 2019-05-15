@@ -4,6 +4,7 @@ use sdl2::render::{TextureCreator, WindowCanvas};
 use sdl2::ttf::Font;
 use sdl2::video::{FullscreenType, WindowContext};
 use sdl2::Sdl;
+use FullscreenType::*;
 
 /// Screen contains all SDL related data required for running the screen rendering.
 pub struct Screen<'a> {
@@ -28,7 +29,6 @@ pub struct Screen<'a> {
 impl Screen<'_> {
     /// Updates window for fullscreen state
     pub fn update_fullscreen(&mut self, fullscreen: bool) -> Result<(), String> {
-        use FullscreenType::*;
         let fullscreen_type = if fullscreen { Off } else { True };
         if self.canvas.window().fullscreen_state() == fullscreen_type {
             return Ok(());

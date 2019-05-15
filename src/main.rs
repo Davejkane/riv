@@ -2,13 +2,14 @@ use riv::cli::cli;
 use riv::program::Program;
 use std::convert::TryInto;
 
+const INITIAL_TITLE: &str = "riv";
+
 fn main() -> Result<(), String> {
     let args = cli()?;
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let sdl_context = sdl2::init()?;
     let video = sdl_context.video()?;
 
-    const INITIAL_TITLE: &str = "riv";
     // Use current display bounds for initial creation
     // Display program was launched on is number 0.
     let display_mode = video.current_display_mode(0).unwrap();
