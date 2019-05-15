@@ -374,19 +374,19 @@ fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &
     // Don't extend past max dimensions of src texture
     let target_width = target_rect.width();
     let target_height = target_rect.height();
-    let copy_width_boundry = if src_width > target_width {
+    let clip_width = if src_width > target_width {
         target_width
     } else {
         src_width
     };
-    let copy_height_boundry = if src_height > target_height {
+    let clip_height = if src_height > target_height {
         target_height
     } else {
         src_height
     };
 
-    // Centered slice which fits within destination boundries
-    Rect::from_center(tex_center, copy_width_boundry, copy_height_boundry)
+    // Centered slice which fits within destination boundaries
+    Rect::from_center(tex_center, clip_width, clip_height)
 }
 
 /// Primarily used for finding the center of a Texture.
