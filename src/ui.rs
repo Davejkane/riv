@@ -10,6 +10,8 @@ use sdl2::mouse::MouseButton;
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
+    /// Toggle Fullscreen State
+    ToggleFullscreen,
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
@@ -50,6 +52,8 @@ pub struct State {
     pub render_help: bool,
     /// Should the image shown be shown in actual pixel dimensions
     pub actual_size: bool,
+    /// Tracks fullscreen state of app.
+    pub fullscreen: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -64,12 +68,25 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Q),
             ..
         } => Action::Quit,
+        Event::KeyDown {
+            keycode: Some(Keycode::F),
+            ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::F11),
+            ..
+        } => Action::ToggleFullscreen,
         Event::Window {
             win_event: WindowEvent::Resized(_, _),
             ..
         }
         | Event::Window {
             win_event: WindowEvent::SizeChanged(_, _),
+            ..
+        }
+        // Rerender if the window was not changed by us.
+        | Event::Window {
+            win_event: WindowEvent::Exposed,
             ..
         }
         | Event::Window {

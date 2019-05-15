@@ -42,8 +42,8 @@ impl<'a> Program<'a> {
         sdl_context: Sdl,
         canvas: Canvas<Window>,
         texture_creator: &'a TextureCreator<WindowContext>,
+        args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let args = cli::cli()?;
         let images = args.files;
         let dest_folder = args.dest_folder;
 
@@ -92,6 +92,7 @@ impl<'a> Program<'a> {
                 render_infobar: true,
                 render_help: false,
                 actual_size: false,
+                fullscreen: args.fullscreen,
             },
         })
     }
@@ -280,6 +281,11 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
+    /// Toggles fullscreen state of app
+    pub fn toggle_fullscreen(&mut self) {
+        self.ui_state.fullscreen = !self.ui_state.fullscreen;
+    }
+
     /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
         self.render_screen()?;
@@ -288,6 +294,11 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
+                    Action::ToggleFullscreen => {
+                        self.toggle_fullscreen();
+                        self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                        self.render_screen()?
+                    }
                     Action::ReRender => self.render_screen()?,
                     Action::ToggleFit => {
                         self.toggle_fit();
