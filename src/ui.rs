@@ -65,6 +65,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         Event::KeyDown {
             keycode: Some(Keycode::F),
             ..
+        }
+        | Event::KeyDown {
+            keycode: Some(Keycode::F11),
+            ..
         } => Action::ToggleFullscreen,
         Event::Window {
             win_event: WindowEvent::Resized(_, _),
