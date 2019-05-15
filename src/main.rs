@@ -1,9 +1,9 @@
-use riv::cli::{Args, cli};
+use riv::cli::{cli, InitialScreenArgs};
 use riv::program::Program;
 use std::convert::TryInto;
 
 fn main() -> Result<(), String> {
-    let args: Args = cli()?;
+    let args = cli()?;
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let sdl_context = sdl2::init()?;
     let video = sdl_context.video()?;
@@ -16,21 +16,15 @@ fn main() -> Result<(), String> {
     let program_width = display_mode.w.try_into().unwrap();
     let program_height = display_mode.h.try_into().unwrap();
 
-    let mut window_builder = video
-        .window(
-            INITIAL_TITLE,
-            program_width,
-            program_height,
-        );
+    let mut window_builder = video.window(INITIAL_TITLE, program_width, program_height);
     if args.fullscreen {
-        window_builder.fullscreen()
-        .borderless();
-
+        window_builder.fullscreen().borderless();
     } else {
         window_builder.position_centered();
     }
-        // Still keep resizable windows for toggling between fullscreen at runtime
-       let window =  window_builder.resizable()
+    // Still keep resizable windows for toggling between fullscreen at runtime
+    let window = window_builder
+        .resizable()
         .build()
         .map_err(|e| e.to_string())?;
 
@@ -41,7 +35,20 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let texture_creator = canvas.texture_creator();
-    let mut program = Program::init(&ttf_context, sdl_context, canvas, &texture_creator, args)?;
+    let init_screen_args = InitialScreenArgs {
+        window_title: INITIAL_TITLE.into(),
+        window_width: program_width,
+        window_height: program_height,
+        current_display: 0,
+    };
+    let mut program = Program::init(
+        &ttf_context,
+        sdl_context,
+        canvas,
+        &texture_creator,
+        args,
+        init_screen_args,
+    )?;
     program.run()?;
     Ok(())
 }
