@@ -9,6 +9,8 @@ use sdl2::keyboard::Keycode;
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
+    /// Toggle Fullscreen State
+    ToggleFullscreen,
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
@@ -44,6 +46,8 @@ pub struct State {
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
     pub render_help: bool,
+    /// Tracks fullscreen state of app.
+    pub fullscreen: bool,
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -58,6 +62,10 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             keycode: Some(Keycode::Q),
             ..
         } => Action::Quit,
+        Event::KeyDown {
+            keycode: Some(Keycode::F),
+            ..
+        } => Action::ToggleFullscreen,
         Event::Window {
             win_event: WindowEvent::Resized(_, _),
             ..

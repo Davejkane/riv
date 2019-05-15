@@ -87,6 +87,7 @@ impl<'a> Program<'a> {
                 right_shift: false,
                 render_infobar: true,
                 render_help: false,
+                fullscreen: args.fullscreen,
             },
         })
     }
@@ -268,6 +269,11 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
+    /// Toggles fullscreen state of app
+    pub fn toggle_fullscreen(&mut self) {
+        self.ui_state.fullscreen = !self.ui_state.fullscreen;
+    }
+
     /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
         self.render_screen()?;
@@ -276,6 +282,9 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
+                    Action::ToggleFullscreen => {
+                        self.toggle_fullscreen();
+                    }
                     Action::ReRender => self.render_screen()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,

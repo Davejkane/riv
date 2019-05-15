@@ -281,6 +281,7 @@ fn help_text() -> Vec<&'static str> {
         "| c                | Copy image to destination folder (default is ./keep)   |",
         "| Delete OR d      | Delete image from it's location                        |",
         "| t                | Toggle information bar                                 |",
+        "| f OR F11         | Toggle fullscreen mode                                 |",
         "| h                | Toggle help box                                        |",
         "+------------------+--------------------------------------------------------+",
     ]

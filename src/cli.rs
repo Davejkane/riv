@@ -11,6 +11,8 @@ pub struct Args {
     pub files: Vec<PathBuf>,
     /// dest_folder is the supplied or default folder for moving files
     pub dest_folder: PathBuf,
+    /// Start in fullscreen mode
+    pub fullscreen: bool,
 }
 
 /// cli sets up the command line app and parses the arguments, using clap.
@@ -31,6 +33,13 @@ pub fn cli() -> Result<Args, String> {
                 .long("dest-folder")
                 .help("Desintation folder for moving files to")
                 .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("fullscreen")
+                .takes_value(false)
+                .long("fullscreen")
+                .short("F")
+                .help("Start app in fullscreen mode"),
         )
         .get_matches();
     match matches.values_of("paths") {
@@ -56,7 +65,13 @@ pub fn cli() -> Result<Args, String> {
         Some(f) => PathBuf::from(f),
         None => return Err("failed to determine destintation folder".to_string()),
     };
-    Ok(Args { files, dest_folder })
+
+    let fullscreen = matches.is_present("fullscreen");
+    Ok(Args {
+        files,
+        dest_folder,
+        fullscreen,
+    })
 }
 
 fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {

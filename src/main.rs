@@ -1,17 +1,34 @@
+use riv::cli::{Args, cli};
 use riv::program::Program;
+use std::convert::TryInto;
 
 fn main() -> Result<(), String> {
+    let args: Args = cli()?;
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let sdl_context = sdl2::init()?;
     let video = sdl_context.video()?;
-    let window = video
+
+    const INITIAL_TITLE: &str = "riv";
+    // Use current display bounds for initial creation
+    // Display program was launched on is number 0.
+    let display_mode = video.current_display_mode(0).unwrap();
+    // Don't see how width or height of a display could be negative
+    let program_width = display_mode.w.try_into().unwrap();
+    let program_height = display_mode.h.try_into().unwrap();
+
+    let mut window_builder = video
         .window(
-            "riv",
-            video.display_bounds(0).unwrap().width(),
-            video.display_bounds(0).unwrap().height(),
-        )
-        .position_centered()
-        .resizable()
+            INITIAL_TITLE,
+            program_width,
+            program_height,
+        );
+    if args.fullscreen {
+        window_builder.fullscreen();
+    } else {
+        window_builder.position_centered();
+    }
+        // Still keep resizable windows for toggling between fullscreen at runtime
+       let window =  window_builder.resizable()
         .build()
         .map_err(|e| e.to_string())?;
 
