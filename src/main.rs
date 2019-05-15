@@ -23,7 +23,9 @@ fn main() -> Result<(), String> {
             program_height,
         );
     if args.fullscreen {
-        window_builder.fullscreen();
+        window_builder.fullscreen()
+        .borderless();
+
     } else {
         window_builder.position_centered();
     }
