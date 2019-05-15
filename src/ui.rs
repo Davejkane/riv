@@ -78,6 +78,11 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             win_event: WindowEvent::SizeChanged(_, _),
             ..
         }
+        // Rerender if the window was not changed by us.
+        | Event::Window {
+            win_event: WindowEvent::Exposed,
+            ..
+        }
         | Event::Window {
             win_event: WindowEvent::Maximized,
             ..

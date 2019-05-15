@@ -292,7 +292,8 @@ impl<'a> Program<'a> {
                     Action::Quit => break 'mainloop,
                     Action::ToggleFullscreen => {
                         self.toggle_fullscreen();
-                        self.screen.update_fullscreen(self.ui_state.fullscreen)?
+                        self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                        self.render_screen()?
                     }
                     Action::ReRender => self.render_screen()?,
                     Action::Next => self.increment(1)?,

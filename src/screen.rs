@@ -47,24 +47,14 @@ impl Screen<'_> {
         }
         match fullscreen_type {
             Off => {
-                self.sdl_context
-                    .video()
-                    .unwrap()
-                    .window(&self.window_title, self.window_width, self.window_height)
-                    .position_centered()
-                    .resizable()
-                    .build()
-                    .unwrap();
+                let window = self.canvas.window_mut();
+                window.set_fullscreen(Off).unwrap();
+                window.set_bordered(true);
             }
             Desktop | True => {
-                self.sdl_context
-                    .video()
-                    .unwrap()
-                    .window(&self.window_title, self.window_width, self.window_height)
-                    .borderless()
-                    .fullscreen()
-                    .build()
-                    .unwrap();
+                let window = self.canvas.window_mut();
+                window.set_bordered(false);
+                window.set_fullscreen(True).unwrap();
             }
         };
         Ok(())
