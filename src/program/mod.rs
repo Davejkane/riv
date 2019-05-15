@@ -37,12 +37,9 @@ impl<'a> Program<'a> {
     /// arguments, sets up the sdl context, creates the window, the canvas and the texture
     /// creator.
     pub fn init(
-        ttf_context: &'a Sdl2TtfContext,
-        sdl_context: Sdl,
-        canvas: Canvas<Window>,
-        texture_creator: &'a TextureCreator<WindowContext>,
+        ttf_context: &'a Sdl2TtfContext, sdl_context: Sdl, canvas: Canvas<Window>,
+        texture_creator: &'a TextureCreator<WindowContext>, args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let args = cli::cli()?;
         let images = args.files;
         let dest_folder = args.dest_folder;
 

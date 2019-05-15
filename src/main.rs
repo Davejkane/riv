@@ -22,7 +22,7 @@ fn main() -> Result<(), String> {
         .map_err(|e| e.to_string())?;
 
     let texture_creator = canvas.texture_creator();
-    let mut program = Program::init(&ttf_context, sdl_context, canvas, &texture_creator)?;
+    let mut program = Program::init(&ttf_context, sdl_context, canvas, &texture_creator, args)?;
     program.run()?;
     Ok(())
 }
