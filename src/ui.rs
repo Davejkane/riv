@@ -7,6 +7,7 @@ use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
+#[derive(Clone)]
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
@@ -54,6 +55,24 @@ pub struct State {
     pub actual_size: bool,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
+    /// last_action records the last action performed. Used for repeating that action
+    pub last_action: Action,
+}
+
+impl State {
+    /// update_last_action takes an action, sets the last_action to said action, and returns the Action
+    fn process_action(&mut self, a: Action) -> Action {
+        match a {
+            Action::Quit | Action::ToggleFullscreen | Action::ReRender => {
+                self.last_action = Action::Noop;
+                a
+            }
+            _ => {
+                self.last_action = a.clone();
+                a
+            }
+        }
+    }
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -67,7 +86,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::Q),
             ..
-        } => Action::Quit,
+        } => state.process_action(Action::Quit),
         Event::KeyDown {
             keycode: Some(Keycode::F),
             ..
@@ -75,7 +94,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::F11),
             ..
-        } => Action::ToggleFullscreen,
+        } => state.process_action(Action::ToggleFullscreen),
         Event::Window {
             win_event: WindowEvent::Resized(_, _),
             ..
@@ -92,7 +111,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::Window {
             win_event: WindowEvent::Maximized,
             ..
-        } => Action::ReRender,
+        } => state.process_action(Action::ReRender),
         Event::KeyDown {
             keycode: Some(Keycode::Z),
             ..
@@ -100,7 +119,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::MouseButtonUp {
             mouse_btn: MouseButton::Left,
             ..
-        } => Action::ToggleFit,
+        } => state.process_action(Action::ToggleFit),
         Event::KeyDown {
             keycode: Some(Keycode::Right),
             ..
@@ -108,7 +127,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::J),
             ..
-        } => Action::Next,
+        } => state.process_action(Action::Next),
         Event::KeyDown {
             keycode: Some(Keycode::Left),
             ..
@@ -116,33 +135,33 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::K),
             ..
-        } => Action::Prev,
+        } => state.process_action(Action::Prev),
         Event::KeyDown {
             keycode: Some(Keycode::G),
             ..
         } => {
             if state.left_shift || state.right_shift {
-                Action::Last
+                state.process_action(Action::Last)
             } else {
-                Action::First
+                state.process_action(Action::First)
             }
         }
         Event::KeyDown {
             keycode: Some(Keycode::End),
             ..
-        } => Action::Last,
+        } => state.process_action(Action::Last),
         Event::KeyDown {
             keycode: Some(Keycode::Home),
             ..
-        } => Action::First,
+        } => state.process_action(Action::First),
         Event::KeyDown {
             keycode: Some(Keycode::C),
             ..
-        } => Action::Copy,
+        } => state.process_action(Action::Copy),
         Event::KeyDown {
             keycode: Some(Keycode::M),
             ..
-        } => Action::Move,
+        } => state.process_action(Action::Move),
         Event::KeyDown {
             keycode: Some(Keycode::W),
             ..
@@ -150,7 +169,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::PageUp),
             ..
-        } => Action::SkipForward,
+        } => state.process_action(Action::SkipForward),
         Event::KeyDown {
             keycode: Some(Keycode::B),
             ..
@@ -158,7 +177,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::PageDown),
             ..
-        } => Action::SkipBack,
+        } => state.process_action(Action::SkipBack),
         Event::KeyDown {
             keycode: Some(Keycode::D),
             ..
@@ -166,20 +185,26 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         | Event::KeyDown {
             keycode: Some(Keycode::Delete),
             ..
-        } => Action::Delete,
+        } => state.process_action(Action::Delete),
         Event::KeyDown {
             keycode: Some(Keycode::T),
             ..
         } => {
             state.render_infobar = !state.render_infobar;
-            Action::ReRender
+            state.process_action(Action::ReRender)
         }
         Event::KeyDown {
             keycode: Some(Keycode::H),
             ..
         } => {
             state.render_help = !state.render_help;
-            Action::ReRender
+            state.process_action(Action::ReRender)
+        }
+        Event::KeyDown {
+            keycode: Some(Keycode::Period),
+            ..
+        } => {
+            state.last_action.clone()
         }
         Event::KeyDown {
             keycode: Some(Keycode::LShift),
