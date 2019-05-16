@@ -67,7 +67,6 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         Event::KeyDown {
             keycode: Some(k), ..
         } => match k {
-            Num1 | Num2 | Num3 | Num4 | Num5 | Num6 | Num7 | Num8 | Num9 | Num0 => Action::Noop,
             C => Action::Copy,
             D | Delete => Action::Delete,
             F | F11 => Action::ToggleFullscreen,
