@@ -32,7 +32,6 @@ pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State,
-    sorter: Sorter,
 }
 
 impl<'a> Program<'a> {
@@ -46,7 +45,6 @@ impl<'a> Program<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
         args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let args = cli::cli()?;
         let mut images = args.files;
         let dest_folder = args.dest_folder;
         let reverse = args.reverse;
@@ -110,7 +108,6 @@ impl<'a> Program<'a> {
                 actual_size: false,
                 fullscreen: args.fullscreen,
             },
-            sorter,
         })
     }
 
