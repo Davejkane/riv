@@ -2,8 +2,7 @@
 //!
 //! The UI module contains logic for matching keyboard and system events
 
-use sdl2::event::{Event, WindowEvent};
-use sdl2::keyboard::Keycode;
+use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
@@ -58,157 +57,80 @@ pub struct State {
 
 /// event_action returns which action should be performed in response to this event
 pub fn event_action(state: &mut State, event: &Event) -> Action {
+    // Bring variants in function namespace for reduced typing.
+    use sdl2::event::WindowEvent::*;
+    use sdl2::keyboard::Keycode::*;
+
     match event {
-        Event::Quit { .. }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Escape),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Q),
-            ..
-        } => Action::Quit,
+        Event::Quit { .. } => Action::Quit,
+
         Event::KeyDown {
-            keycode: Some(Keycode::F),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::F11),
-            ..
-        } => Action::ToggleFullscreen,
-        Event::Window {
-            win_event: WindowEvent::Resized(_, _),
-            ..
-        }
-        | Event::Window {
-            win_event: WindowEvent::SizeChanged(_, _),
-            ..
-        }
-        // Rerender if the window was not changed by us.
-        | Event::Window {
-            win_event: WindowEvent::Exposed,
-            ..
-        }
-        | Event::Window {
-            win_event: WindowEvent::Maximized,
-            ..
-        } => Action::ReRender,
-        Event::KeyDown {
-            keycode: Some(Keycode::Z),
-            ..
-        }
-        | Event::MouseButtonUp {
-            mouse_btn: MouseButton::Left,
-            ..
-        } => Action::ToggleFit,
-        Event::KeyDown {
-            keycode: Some(Keycode::Right),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::J),
-            ..
-        } => Action::Next,
-        Event::KeyDown {
-            keycode: Some(Keycode::Left),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::K),
-            ..
-        } => Action::Prev,
-        Event::KeyDown {
-            keycode: Some(Keycode::G),
-            ..
-        } => {
-            if state.left_shift || state.right_shift {
-                Action::Last
-            } else {
-                Action::First
+            keycode: Some(k), ..
+        } => match k {
+            Num1 | Num2 | Num3 | Num4 | Num5 | Num6 | Num7 | Num8 | Num9 | Num0 => Action::Noop,
+            C => Action::Copy,
+            D | Delete => Action::Delete,
+            F | F11 => Action::ToggleFullscreen,
+            G => {
+                if state.left_shift || state.right_shift {
+                    Action::Last
+                } else {
+                    Action::First
+                }
             }
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::End),
-            ..
-        } => Action::Last,
-        Event::KeyDown {
-            keycode: Some(Keycode::Home),
-            ..
-        } => Action::First,
-        Event::KeyDown {
-            keycode: Some(Keycode::C),
-            ..
-        } => Action::Copy,
-        Event::KeyDown {
-            keycode: Some(Keycode::M),
-            ..
-        } => Action::Move,
-        Event::KeyDown {
-            keycode: Some(Keycode::W),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::PageUp),
-            ..
-        } => Action::SkipForward,
-        Event::KeyDown {
-            keycode: Some(Keycode::B),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::PageDown),
-            ..
-        } => Action::SkipBack,
-        Event::KeyDown {
-            keycode: Some(Keycode::D),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Delete),
-            ..
-        } => Action::Delete,
-        Event::KeyDown {
-            keycode: Some(Keycode::T),
-            ..
-        } => {
-            state.render_infobar = !state.render_infobar;
-            Action::ReRender
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::H),
-            ..
-        } => {
-            state.render_help = !state.render_help;
-            Action::ReRender
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::LShift),
-            ..
-        } => {
-            state.left_shift = true;
-            Action::Noop
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::RShift),
-            ..
-        } => {
-            state.right_shift = true;
-            Action::Noop
-        }
+            H => {
+                state.render_help = !state.render_help;
+                Action::ReRender
+            }
+            J | Right => Action::Next,
+            K | Left => Action::Prev,
+            M => Action::Move,
+            Q | Escape => Action::Quit,
+            T => {
+                state.render_infobar = !state.render_infobar;
+                Action::ReRender
+            }
+
+            W | PageUp => Action::SkipForward,
+            B | PageDown => Action::SkipBack,
+            Z => Action::ToggleFit,
+            Home => Action::First,
+            End => Action::Last,
+            LShift => {
+                state.left_shift = true;
+                Action::Noop
+            }
+            RShift => {
+                state.right_shift = true;
+                Action::Noop
+            }
+            _ => Action::Noop,
+        },
+
         Event::KeyUp {
-            keycode: Some(Keycode::LShift),
-            ..
-        } => {
-            state.left_shift = false;
-            Action::Noop
-        }
-        Event::KeyUp {
-            keycode: Some(Keycode::RShift),
-            ..
-        } => {
-            state.right_shift = false;
-            Action::Noop
-        }
+            keycode: Some(k), ..
+        } => match k {
+            LShift => {
+                state.left_shift = false;
+                Action::Noop
+            }
+            RShift => {
+                state.right_shift = false;
+                Action::Noop
+            }
+            _ => Action::Noop,
+        },
+
+        Event::Window { win_event, .. } => match win_event {
+            // Exposed: Rerender if the window was not changed by us.
+            Exposed | Resized(..) | SizeChanged(..) | Maximized => Action::ReRender,
+            _ => Action::Noop,
+        },
+
+        Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
+            MouseButton::Left => Action::ToggleFit,
+            _ => Action::Noop,
+        },
         _ => Action::Noop,
     }
 }
