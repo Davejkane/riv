@@ -2,8 +2,7 @@
 //!
 //! The UI module contains logic for matching keyboard and system events
 
-use sdl2::event::{Event, WindowEvent};
-use sdl2::keyboard::Keycode;
+use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
@@ -77,163 +76,79 @@ impl State {
 
 /// event_action returns which action should be performed in response to this event
 pub fn event_action(state: &mut State, event: &Event) -> Action {
+    // Bring variants in function namespace for reduced typing.
+    use sdl2::event::WindowEvent::*;
+    use sdl2::keyboard::Keycode::*;
+
     match event {
-        Event::Quit { .. }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Escape),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Q),
-            ..
-        } => state.process_action(Action::Quit),
+        Event::Quit { .. } => Action::Quit,
+
         Event::KeyDown {
-            keycode: Some(Keycode::F),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::F11),
-            ..
-        } => state.process_action(Action::ToggleFullscreen),
-        Event::Window {
-            win_event: WindowEvent::Resized(_, _),
-            ..
-        }
-        | Event::Window {
-            win_event: WindowEvent::SizeChanged(_, _),
-            ..
-        }
-        // Rerender if the window was not changed by us.
-        | Event::Window {
-            win_event: WindowEvent::Exposed,
-            ..
-        }
-        | Event::Window {
-            win_event: WindowEvent::Maximized,
-            ..
-        } => state.process_action(Action::ReRender),
-        Event::KeyDown {
-            keycode: Some(Keycode::Z),
-            ..
-        }
-        | Event::MouseButtonUp {
-            mouse_btn: MouseButton::Left,
-            ..
-        } => state.process_action(Action::ToggleFit),
-        Event::KeyDown {
-            keycode: Some(Keycode::Right),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::J),
-            ..
-        } => state.process_action(Action::Next),
-        Event::KeyDown {
-            keycode: Some(Keycode::Left),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::K),
-            ..
-        } => state.process_action(Action::Prev),
-        Event::KeyDown {
-            keycode: Some(Keycode::G),
-            ..
-        } => {
-            if state.left_shift || state.right_shift {
-                state.process_action(Action::Last)
-            } else {
-                state.process_action(Action::First)
+            keycode: Some(k), ..
+        } => match k {
+            C => state.process_action(Action::Copy),
+            D | Delete => state.process_action(Action::Delete),
+            F | F11 => state.process_action(Action::ToggleFullscreen),
+            G => {
+                if state.left_shift || state.right_shift {
+                    state.process_action(Action::Last)
+                } else {
+                    state.process_action(Action::First)
+                }
             }
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::End),
-            ..
-        } => state.process_action(Action::Last),
-        Event::KeyDown {
-            keycode: Some(Keycode::Home),
-            ..
-        } => state.process_action(Action::First),
-        Event::KeyDown {
-            keycode: Some(Keycode::C),
-            ..
-        } => state.process_action(Action::Copy),
-        Event::KeyDown {
-            keycode: Some(Keycode::M),
-            ..
-        } => state.process_action(Action::Move),
-        Event::KeyDown {
-            keycode: Some(Keycode::W),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::PageUp),
-            ..
-        } => state.process_action(Action::SkipForward),
-        Event::KeyDown {
-            keycode: Some(Keycode::B),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::PageDown),
-            ..
-        } => state.process_action(Action::SkipBack),
-        Event::KeyDown {
-            keycode: Some(Keycode::D),
-            ..
-        }
-        | Event::KeyDown {
-            keycode: Some(Keycode::Delete),
-            ..
-        } => state.process_action(Action::Delete),
-        Event::KeyDown {
-            keycode: Some(Keycode::T),
-            ..
-        } => {
-            state.render_infobar = !state.render_infobar;
-            state.process_action(Action::ReRender)
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::H),
-            ..
-        } => {
-            state.render_help = !state.render_help;
-            state.process_action(Action::ReRender)
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::Period),
-            ..
-        } => {
-            state.last_action.clone()
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::LShift),
-            ..
-        } => {
-            state.left_shift = true;
-            Action::Noop
-        }
-        Event::KeyDown {
-            keycode: Some(Keycode::RShift),
-            ..
-        } => {
-            state.right_shift = true;
-            Action::Noop
-        }
+            H => {
+                state.render_help = !state.render_help;
+                state.process_action(Action::ReRender)
+            }
+            J | Right => state.process_action(Action::Next),
+            K | Left => state.process_action(Action::Prev),
+            M => state.process_action(Action::Move),
+            Q | Escape => Action::Quit,
+            T => {
+                state.render_infobar = !state.render_infobar;
+                state.process_action(Action::ReRender)
+            }
+
+            W | PageUp => state.process_action(Action::SkipForward),
+            B | PageDown => state.process_action(Action::SkipBack),
+            Z => state.process_action(Action::ToggleFit),
+            Home => state.process_action(Action::First),
+            End => state.process_action(Action::Last),
+            LShift => {
+                state.left_shift = true;
+                Action::Noop
+            }
+            RShift => {
+                state.right_shift = true;
+                Action::Noop
+            }
+            _ => Action::Noop,
+        },
+
         Event::KeyUp {
-            keycode: Some(Keycode::LShift),
-            ..
-        } => {
-            state.left_shift = false;
-            Action::Noop
-        }
-        Event::KeyUp {
-            keycode: Some(Keycode::RShift),
-            ..
-        } => {
-            state.right_shift = false;
-            Action::Noop
-        }
+            keycode: Some(k), ..
+        } => match k {
+            LShift => {
+                state.left_shift = false;
+                Action::Noop
+            }
+            RShift => {
+                state.right_shift = false;
+                Action::Noop
+            }
+            _ => Action::Noop,
+        },
+
+        Event::Window { win_event, .. } => match win_event {
+            // Exposed: Rerender if the window was not changed by us.
+            Exposed | Resized(..) | SizeChanged(..) | Maximized => Action::ReRender,
+            _ => Action::Noop,
+        },
+
+        Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
+            MouseButton::Left => state.process_action(Action::ToggleFit),
+            _ => Action::Noop,
+        },
         _ => Action::Noop,
     }
 }
