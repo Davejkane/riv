@@ -1,6 +1,6 @@
 //! # Sort
 //!
-//! Contains Sorter and SortOrder that use command line arguments
+//! Contains Sorter and SortOrder that use command line arguments to sort images
 
 // Only because of SortOrder, as a result of Clap bug/restriction that only permits bare variants
 // inside of arg!_enum macro call
@@ -41,20 +41,13 @@ impl Sorter {
         self.reverse = reverse;
     }
 
-    /// Sorts the images based on sort_order, reverses if necessary, and truncates as well
+    /// Sorts the images based on sort_order, reverses if necessary
     pub fn sort<'a>(&self, pathes: &'a mut Vec<PathBuf>) -> &'a mut Vec<PathBuf> {
         pathes.sort_by(|a, b| self.sort_order.file_compare(&a, &b));
         if self.reverse {
             pathes.reverse();
         }
         pathes
-    }
-
-    /// Reverses provided vector, Added for extra versatility
-    pub fn reverse(&self, pathes: &mut Vec<PathBuf>) {
-        if self.reverse {
-            pathes.reverse();
-        }
     }
 }
 
@@ -93,7 +86,7 @@ impl SortOrder {
     }
 }
 
-/// Get the depth of a path - 1, because the filename is included
+/// Get the depth of a path - 1 due to the filename being included
 fn calculate_depth(path: &PathBuf) -> usize {
     path.ancestors().count() - 1
 }
