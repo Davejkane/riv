@@ -86,9 +86,9 @@ impl SortOrder {
     }
 }
 
-/// Get the depth of a path - 1 due to the filename being included
+/// Get the depth of a path + 1 due to the filename being included
 fn calculate_depth(path: &PathBuf) -> usize {
-    path.ancestors().count() - 1
+    path.ancestors().count()
 }
 
 /// if the file is a hidden file or dotfile, remove the dot

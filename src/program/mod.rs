@@ -52,7 +52,7 @@ impl<'a> Program<'a> {
         let max_length = args.max_length;
 
         let max_viewable = if max_length > 0 && max_length <= images.len() {
-            images.len().saturating_sub(images.len() - max_length)
+            max_length
         } else {
             images.len()
         };
