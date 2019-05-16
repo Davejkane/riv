@@ -65,7 +65,9 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | c                | Copy image to destination folder (default is ./keep)   |
 | Delete OR d      | Delete image from it's location                        |
 | t                | Toggle information bar                                 |
+| f OR F11         | Toggle fullscreen mode                                 |
 | h                | Toggle help box                                        |
+| z OR Left Click  | Toggle actual size vs scaled image                     |
 
 ## Getting Started
 

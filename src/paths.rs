@@ -1,4 +1,5 @@
-//! Paths contains the Paths struct which contains all path related information required for the running of the program.
+//! Paths contains the Paths struct which contains all path related information required for the
+//! running of the program.
 
 use std::path::PathBuf;
 

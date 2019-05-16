@@ -14,6 +14,7 @@ use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
+use sdl2::rect::Point;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureCreator};
 use sdl2::rwops::RWops;
@@ -43,6 +44,7 @@ impl<'a> Program<'a> {
         sdl_context: Sdl,
         canvas: Canvas<Window>,
         texture_creator: &'a TextureCreator<WindowContext>,
+        args: cli::Args,
     ) -> Result<Program<'a>, String> {
         let args = cli::cli()?;
         let mut images = args.files;
@@ -105,9 +107,16 @@ impl<'a> Program<'a> {
                 right_shift: false,
                 render_infobar: true,
                 render_help: false,
+                actual_size: false,
+                fullscreen: args.fullscreen,
             },
             sorter,
         })
+    }
+
+    /// Toggle whether actual size or scaled image is rendered.
+    pub fn toggle_fit(&mut self) {
+        self.ui_state.actual_size = !self.ui_state.actual_size;
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
@@ -151,23 +160,25 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
-    /// Returns new index to advance to
+    /// Skips forward by the default skip increment and renders the image
     pub fn skip_forward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.increment(skip_size)
     }
 
-    /// Returns new index to skip back to
+    /// Skips backward by the default skip increment and renders the image
     fn skip_backward(&mut self) -> Result<(), String> {
         let skip_size = compute_skip_size(&self.paths.images);
         self.decrement(skip_size)
     }
 
+    /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
         self.render_screen()
     }
 
+    /// Go to and render last image in list
     fn last(&mut self) -> Result<(), String> {
         if self.paths.images.is_empty() {
             self.paths.index = 0;
@@ -284,6 +295,11 @@ impl<'a> Program<'a> {
         self.render_screen()
     }
 
+    /// Toggles fullscreen state of app
+    pub fn toggle_fullscreen(&mut self) {
+        self.ui_state.fullscreen = !self.ui_state.fullscreen;
+    }
+
     /// run is the event loop that listens for input and delegates accordingly.
     pub fn run(&mut self) -> Result<(), String> {
         self.render_screen()?;
@@ -292,7 +308,16 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
                     Action::Quit => break 'mainloop,
+                    Action::ToggleFullscreen => {
+                        self.toggle_fullscreen();
+                        self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                        self.render_screen()?
+                    }
                     Action::ReRender => self.render_screen()?,
+                    Action::ToggleFit => {
+                        self.toggle_fit();
+                        self.render_screen()?
+                    }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
@@ -362,4 +387,36 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
+}
+
+/// Creates a rectangle which is centered on the src dimensions.
+/// For each src dimension, if the src is larger than the destination dimension, the
+/// rectangle is capped at the destination dimension.
+fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &Rect) -> Rect {
+    let tex_center = calculate_texture_center(src_width, src_height);
+
+    // create centered rectangle for texture
+    // Don't extend past max dimensions of src texture
+    let target_width = target_rect.width();
+    let target_height = target_rect.height();
+    let clip_width = if src_width > target_width {
+        target_width
+    } else {
+        src_width
+    };
+    let clip_height = if src_height > target_height {
+        target_height
+    } else {
+        src_height
+    };
+
+    // Centered slice which fits within destination boundaries
+    Rect::from_center(tex_center, clip_width, clip_height)
+}
+
+/// Primarily used for finding the center of a Texture.
+/// Computes the center of a rectangle, given the x and y points
+/// of the top-right corner of the rectangle.
+fn calculate_texture_center(src_x: u32, src_y: u32) -> Point {
+    Rect::new(0, 0, src_x, src_y).center()
 }

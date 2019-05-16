@@ -18,6 +18,8 @@ pub struct Args {
     pub reverse: bool,
     /// maximum length of files to display
     pub max_length: usize,
+    /// Start in fullscreen mode
+    pub fullscreen: bool,
 }
 
 /// cli sets up the command line app and parses the arguments, using clap.
@@ -67,6 +69,13 @@ pub fn cli() -> Result<Args, String> {
                 .multiple(false)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("fullscreen")
+                .takes_value(false)
+                .long("fullscreen")
+                .short("F")
+                .help("Start app in fullscreen mode"),
+        )
         .get_matches();
     match matches.values_of("paths") {
         Some(path_matches) => {
@@ -103,6 +112,7 @@ pub fn cli() -> Result<Args, String> {
     let reverse = matches.is_present("reverse");
 
     let max_length = value_t!(matches, "max-number-images", usize).unwrap_or(0);
+    let fullscreen = matches.is_present("fullscreen");
 
     Ok(Args {
         files,
@@ -110,6 +120,7 @@ pub fn cli() -> Result<Args, String> {
         sort_order,
         reverse,
         max_length,
+        fullscreen,
     })
 }
 
