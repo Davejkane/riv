@@ -20,4 +20,5 @@ pub mod infobar;
 pub mod paths;
 pub mod program;
 pub mod screen;
+pub mod sort;
 pub mod ui;

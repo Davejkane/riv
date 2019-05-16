@@ -8,6 +8,7 @@ pub use self::render::*;
 use crate::cli;
 use crate::paths::Paths;
 use crate::screen::Screen;
+use crate::sort::Sorter;
 use crate::ui::{self, Action};
 use core::cmp;
 use fs_extra::file::copy;
@@ -30,6 +31,7 @@ pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State,
+    sorter: Sorter,
 }
 
 impl<'a> Program<'a> {
@@ -43,8 +45,14 @@ impl<'a> Program<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
     ) -> Result<Program<'a>, String> {
         let args = cli::cli()?;
-        let images = args.files;
+        let mut images = args.files;
         let dest_folder = args.dest_folder;
+        let reverse = args.reverse;
+        let sort_order = args.sort_order;
+        let max_length = args.max_length;
+
+        let sorter = Sorter::new(sort_order, reverse, max_length);
+        sorter.sort(&mut images);
 
         let current_dir = match std::env::current_dir() {
             Ok(c) => c,
@@ -91,6 +99,7 @@ impl<'a> Program<'a> {
                 render_infobar: true,
                 render_help: false,
             },
+            sorter,
         })
     }
 

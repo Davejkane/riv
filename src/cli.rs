@@ -2,28 +2,9 @@
 //!
 //! The cli module is used for setting up the command line app and parsing the arguments.
 
-// Only because of SortOrder, as a result of Clap bug/restriction that only permits bare variants
-// inside of arg!_enum macro call
-#![allow(missing_docs)]
-
+use crate::sort::SortOrder;
 use clap::{App, Arg};
 use std::path::PathBuf;
-
-arg_enum! {
-    /// Enum used by clap cli app, in order to parse sorting options
-    pub enum SortOrder {
-        // Alphabetically by filename only
-        Alphabetical,
-        // Current directory images first, followed by subdirectories
-        BreadthFirst,
-        // By Modified date, most recent first
-        Date,
-        // [Default] Farthest depth images first
-        DepthFirst,
-        // By Size, largest size first
-        Size,
-    }
-}
 
 /// Args contains the arguments that have been successfully parsed by the clap cli app
 pub struct Args {
@@ -31,10 +12,12 @@ pub struct Args {
     pub files: Vec<PathBuf>,
     /// dest_folder is the supplied or default folder for moving files
     pub dest_folder: PathBuf,
-    /// Provides the SortOrder specified by the user
+    /// provides the SortOrder specified by the user
     pub sort_order: SortOrder,
     /// whether or not to reverse sorting
     pub reverse: bool,
+    /// maximum length of files to display
+    pub max_length: usize,
 }
 
 /// cli sets up the command line app and parses the arguments, using clap.
@@ -75,6 +58,15 @@ pub fn cli() -> Result<Args, String> {
                 .multiple(false)
                 .takes_value(false),
         )
+        .arg(
+            Arg::with_name("max-number-images")
+                .default_value("0")
+                .short("m")
+                .long("max")
+                .help("The maximum numbers of images to display [0 means infinitely many]")
+                .multiple(false)
+                .takes_value(true),
+        )
         .get_matches();
     match matches.values_of("paths") {
         Some(path_matches) => {
@@ -110,11 +102,14 @@ pub fn cli() -> Result<Args, String> {
 
     let reverse = matches.is_present("reverse");
 
+    let max_length = value_t!(matches, "max-number-images", usize).unwrap_or(0);
+
     Ok(Args {
         files,
         dest_folder,
         sort_order,
         reverse,
+        max_length,
     })
 }
 
