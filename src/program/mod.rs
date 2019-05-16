@@ -51,7 +51,13 @@ impl<'a> Program<'a> {
         let sort_order = args.sort_order;
         let max_length = args.max_length;
 
-        let sorter = Sorter::new(sort_order, reverse, max_length);
+        let max_viewable = if max_length > 0 && max_length <= images.len() {
+            images.len().saturating_sub(images.len() - max_length)
+        } else {
+            images.len()
+        };
+
+        let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
 
         let current_dir = match std::env::current_dir() {
@@ -92,6 +98,7 @@ impl<'a> Program<'a> {
                 dest_folder,
                 index: 0,
                 current_dir,
+                max_viewable,
             },
             ui_state: ui::State {
                 left_shift: false,
@@ -104,15 +111,15 @@ impl<'a> Program<'a> {
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
-        if self.paths.images.is_empty() || self.paths.images.len() == 1 {
+        if self.paths.images.is_empty() || self.paths.max_viewable == 1 {
             return Ok(());
         }
-        if self.paths.index < self.paths.images.len() - step {
+        if self.paths.index < self.paths.max_viewable - step {
             self.paths.index += step;
         }
         // Cap index at last image
         else {
-            self.paths.index = self.paths.images.len() - 1;
+            self.paths.index = self.paths.max_viewable - 1;
         }
         self.render_screen()
     }
@@ -128,7 +135,7 @@ impl<'a> Program<'a> {
         // Panics if index is past bounds of vec
         self.paths.images.remove(index);
         // Adjust index if past bounds
-        if index >= self.paths.images.len() && self.paths.index != 0 {
+        if index >= self.paths.max_viewable && self.paths.index != 0 {
             self.paths.index -= 1;
         }
     }
@@ -165,7 +172,7 @@ impl<'a> Program<'a> {
         if self.paths.images.is_empty() {
             self.paths.index = 0;
         } else {
-            self.paths.index = self.paths.images.len() - 1;
+            self.paths.index = self.paths.max_viewable - 1;
         }
         self.render_screen()
     }
@@ -198,8 +205,7 @@ impl<'a> Program<'a> {
         let filepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.paths.index,
-                self.paths.images.len()
+                self.paths.index, self.paths.max_viewable
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
@@ -214,12 +220,11 @@ impl<'a> Program<'a> {
             return Err("no images to move".to_string());
         }
         // Retrieve current image
-        assert!(self.paths.index < self.paths.images.len());
+        assert!(self.paths.index < self.paths.max_viewable);
         let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.paths.index,
-                self.paths.images.len()
+                self.paths.index, self.paths.max_viewable
             ))
         });
 
@@ -252,12 +257,11 @@ impl<'a> Program<'a> {
         }
 
         // Retrieve current image
-        assert!(self.paths.index < self.paths.images.len());
+        assert!(self.paths.index < self.paths.max_viewable);
         let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.paths.index,
-                self.paths.images.len()
+                self.paths.index, self.paths.max_viewable
             ))
         });
 

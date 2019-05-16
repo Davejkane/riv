@@ -20,16 +20,14 @@ pub struct Sorter {
     sort_order: SortOrder,
     /// Whether or not to reverse the order of sorting
     reverse: bool,
-    /// Maximum number of images to keep, remove the rest. 0 Meaning infinite
-    max_length: usize,
 }
 
 impl Sorter {
-    pub fn new(sort_order: SortOrder, reverse: bool, max_length: usize) -> Self {
+    /// Create sorter with command line arguments SortOrder and reverse
+    pub fn new(sort_order: SortOrder, reverse: bool) -> Self {
         Self {
             sort_order,
             reverse,
-            max_length,
         }
     }
 
@@ -43,20 +41,19 @@ impl Sorter {
         self.reverse = reverse;
     }
 
-    /// Change the maximum length of the images vector, post sorting
-    pub fn set_max_length(&mut self, max_length: usize) {
-        self.max_length = max_length;
-    }
-
     /// Sorts the images based on sort_order, reverses if necessary, and truncates as well
-    pub fn sort(&self, pathes: &mut Vec<PathBuf>) {
+    pub fn sort<'a>(&self, pathes: &'a mut Vec<PathBuf>) -> &'a mut Vec<PathBuf> {
         pathes.sort_by(|a, b| self.sort_order.file_compare(&a, &b));
         if self.reverse {
             pathes.reverse();
         }
-        if self.max_length > 0 {
-            let new_length = pathes.len().saturating_sub(pathes.len() - self.max_length);
-            pathes.truncate(new_length);
+        pathes
+    }
+
+    /// Reverses provided vector, Added for extra versatility
+    pub fn reverse(&self, pathes: &mut Vec<PathBuf>) {
+        if self.reverse {
+            pathes.reverse();
         }
     }
 }
