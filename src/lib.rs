@@ -11,9 +11,14 @@
     unused_qualifications,
     unused_must_use
 )]
+
+#[macro_use]
+extern crate clap;
+
 pub mod cli;
 pub mod infobar;
 pub mod paths;
 pub mod program;
 pub mod screen;
+pub mod sort;
 pub mod ui;
