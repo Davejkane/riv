@@ -27,6 +27,28 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 
 ```$ riv -f ~/saved_images```
 
+Set a sorting order with the `s` or `--sort` flag, case insensitive.
+
+```$ riv -s alphabetical **/*.png```
+
+### Sorting Options
+
+| Options          | Description                                                                              |
+|------------------|------------------------------------------------------------------------------------------|
+| Alphabetical     | Alphabetically by filename only                                                          |
+| Date             | By date last modified, most recent first                                                 |
+| Size             | By size, largest first                                                                   |
+| DepthFirst       | [Default] Ordered by farthest depth from current directory first                         |
+| BreadthFirst     | Ordered by farthest depth from current directory last                                    |
+
+Reverse the sorting order with `r` or `--reverse` flag
+
+```$ riv -sr date **/*.png```
+
+Set the maximum number of images to be displayed `m` or `--max` flag. 0 means infinitely many images.
+
+```$ riv -m 0 **/*.png```
+
 ### Controls
 
 
