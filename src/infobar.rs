@@ -19,27 +19,30 @@ impl Text {
     /// if cmd isn't empty the user is in command mode and therefore that should be displayed
     /// instead of normal mode information. Normal mode information is the index and the current
     /// image path
-    pub fn update(paths: &Paths, msg: &str) -> Self {
+    pub fn update(paths: &Paths, msg: Option<&str>) -> Self {
         let information: String;
         let mode: String;
-        if msg.is_empty() {
-            // user is in normal mode
-            information = match paths.images.get(paths.index) {
-                Some(path) => match path.to_str() {
-                    Some(name) => name.to_string(),
-                    None => "No file".to_string(),
-                },
-                None => "No file selected".to_string(),
-            };
-            mode = if paths.images.is_empty() {
-                "No files in path".to_string()
-            } else {
-                format!("{} of {}", paths.index + 1, paths.max_viewable)
-            };
-        } else {
-            // user is in command mode
-            information = msg.to_string();
-            mode = String::from("Command");
+        match msg {
+            Some(msg) => {
+                // user is in command mode
+                information = msg.to_string();
+                mode = String::from("Command");
+            }
+            None => {
+                // user is in normal mode
+                information = match paths.images.get(paths.index) {
+                    Some(path) => match path.to_str() {
+                        Some(name) => name.to_string(),
+                        None => "No file".to_string(),
+                    },
+                    None => "No file selected".to_string(),
+                };
+                mode = if paths.images.is_empty() {
+                    "No files in path".to_string()
+                } else {
+                    format!("{} of {}", paths.index + 1, paths.max_viewable)
+                };
+            }
         }
         Text { information, mode }
     }

@@ -124,7 +124,7 @@ pub fn cli() -> Result<Args, String> {
     })
 }
 
-fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
+pub(crate) fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
     if let Some(ext) = p.extension() {
         if let Some(ext_str) = ext.to_str() {
             let low = ext_str.to_string().to_lowercase();

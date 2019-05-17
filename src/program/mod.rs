@@ -3,6 +3,7 @@
 //! Program contains the program struct, which contains all information needed to run the
 //! event loop and render the images to screen
 
+mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
@@ -44,6 +45,7 @@ pub struct Program<'a> {
     paths: Paths,
     ui_state: ui::State,
     mode: Mode,
+    sorter: Sorter,
 }
 
 impl<'a> Program<'a> {
@@ -120,6 +122,7 @@ impl<'a> Program<'a> {
                 actual_size: false,
                 fullscreen: args.fullscreen,
             },
+            sorter,
             mode: Mode::Normal,
         })
     }
@@ -310,101 +313,19 @@ impl<'a> Program<'a> {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
     }
 
-    /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
-    /// Returning empty string signifies switching modes back to normal mode
-    // TODO: autocomplete use fn
-    fn get_command(&mut self) -> Result<String, String> {
-        use sdl2::event::Event;
-        use sdl2::keyboard::Keycode;
-
-        // Don't need to keep length because the key that got us into this mode is already included
-        // in input
-        let mut input = String::new();
-        let video_subsystem = self.screen.sdl_context.video()?;
-        video_subsystem.text_input().start();
-        self.render_screen(Some(&input))?;
-        'command_loop: loop {
-            // Notice, text_input could not be stopped, shouldn't matter due to if an error
-            // occurred program terminates
-            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                match event {
-                    // Handle backspace and escape
-                    Event::KeyDown {
-                        keycode: Some(code),
-                        ..
-                    } => match code {
-                        Keycode::Backspace => {
-                            if input.len() > 0 {
-                                input.pop();
-                            } else {
-                                break 'command_loop;
-                            }
-                            self.render_screen(Some(&input))?;
-                        }
-                        Keycode::Escape => {
-                            return Ok(String::new());
-                        }
-                        // User is done entering input
-                        Keycode::Return | Keycode::Return2 | Keycode::KpEnter => {
-                            break 'command_loop;
-                        }
-                        _ => continue,
-                    },
-                    Event::TextInput { text, .. } => {
-                        input.push_str(&text);
-                        self.render_screen(Some(&input))?;
-                    }
-                    _ => continue,
-                }
-            }
-            std::thread::sleep(Duration::from_millis(1000 / 60));
-        }
-        video_subsystem.text_input().stop();
-        // Return infobar back to original state where it doesn't display commands
-        Ok(input)
-    }
-
-    /// Enters command mode that gets user input and runs a set of possible commands based on user
-    /// input
-    fn run_command_mode(&mut self) -> Result<(), String> {
-        let mut input = self.get_command()?;
-        // Empty input means switch back to normal mode
-        if input.is_empty() {
-            self.mode = Mode::Normal;
-            return Ok(());
-        }
-        // TODO: this removes the key that got user into command mode, capture it then match on it for search
-        input = input[1..].into();
-        let input_vec: Vec<&str> = input.split_whitespace().collect();
-
-        match input_vec[0] {
-            "ng" | "newglob" => {
-                // find new glob
-            }
-            "h" | "help" => {
-                self.ui_state.render_help = !self.ui_state.render_help;
-                self.mode = Mode::Normal;
-                return Ok(());
-            }
-            "q" | "quit" => {
-                self.mode = Mode::Exit;
-                return Ok(());
-            }
-            _ => {
-                // print error message on infobar
-            }
-        }
-        // perform action print error to infobar if it fails
-        Ok(())
-    }
-
     /// Central run function that starts by default in Normal mode
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
+        self.render_screen(None)?;
         while self.mode != Mode::Exit {
             match self.mode {
                 Mode::Normal => self.run_normal_mode()?,
-                Mode::Command => self.run_command_mode()?,
+                Mode::Command => match self.run_command_mode() {
+                    // Upon success refresh
+                    Ok(()) => self.render_screen(None)?,
+                    // Upon failure refresh and display error
+                    Err(e) => self.render_screen(Some(&e))?,
+                },
                 Mode::Exit => continue,
             }
         }
@@ -414,8 +335,6 @@ impl<'a> Program<'a> {
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
     /// normal mode
     fn run_normal_mode(&mut self) -> Result<(), String> {
-        self.render_screen(None)?;
-
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
@@ -429,7 +348,7 @@ impl<'a> Program<'a> {
                         self.render_screen(None)?
                     }
                     Action::ReRender => self.render_screen(None)?,
-                    Action::EnterCommandMode => {
+                    Action::CommandMode => {
                         self.mode = Mode::Command;
                         break 'mainloop;
                     }

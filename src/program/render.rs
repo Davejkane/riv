@@ -104,10 +104,6 @@ impl<'a> Program<'a> {
     }
 
     fn render_infobar(&mut self, msg: Option<&str>) -> Result<(), String> {
-        let msg = match msg {
-            Some(msg) => msg,
-            None => "",
-        };
         let text = infobar::Text::update(&self.paths, msg);
         // Load the filename texture
         let filename_surface = self
