@@ -6,29 +6,41 @@ use crate::paths::Paths;
 
 /// Text contains the strings required to print the infobar.
 pub struct Text {
-    /// current image is the string of the current image path
-    pub current_image: String,
-    /// index is the string represention of the index.
-    pub index: String,
+    /// Either displays the name of the current image or the current command the user is typing in
+    /// command mode
+    pub information: String,
+    /// In normal mode this is the string represention of the index, in command mode this is
+    /// "Command"
+    pub mode: String,
 }
 
-impl From<&Paths> for Text {
-    fn from(p: &Paths) -> Self {
-        let current_image = match p.images.get(p.index) {
-            Some(path) => match path.to_str() {
-                Some(name) => name.to_string(),
-                None => "No file".to_string(),
-            },
-            None => "No file selected".to_string(),
-        };
-        let index = if p.images.is_empty() {
-            "No files in path".to_string()
+impl Text {
+    /// Updates the infobar
+    /// if cmd isn't empty the user is in command mode and therefore that should be displayed
+    /// instead of normal mode information. Normal mode information is the index and the current
+    /// image path
+    pub fn update(paths: &Paths, msg: &str) -> Self {
+        let information: String;
+        let mode: String;
+        if msg.is_empty() {
+            // user is in normal mode
+            information = match paths.images.get(paths.index) {
+                Some(path) => match path.to_str() {
+                    Some(name) => name.to_string(),
+                    None => "No file".to_string(),
+                },
+                None => "No file selected".to_string(),
+            };
+            mode = if paths.images.is_empty() {
+                "No files in path".to_string()
+            } else {
+                format!("{} of {}", paths.index + 1, paths.max_viewable)
+            };
         } else {
-            format!("{} of {}", p.index + 1, p.max_viewable)
-        };
-        Text {
-            current_image,
-            index,
+            // user is in command mode
+            information = msg.to_string();
+            mode = String::from("Command");
         }
+        Text { information, mode }
     }
 }

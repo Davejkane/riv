@@ -140,7 +140,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen()
+        self.render_screen(None)
     }
 
     /// Removes an image from tracked images.
@@ -167,7 +167,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = 0;
         }
-        self.render_screen()
+        self.render_screen(None)
     }
 
     /// Skips forward by the default skip increment and renders the image
@@ -185,7 +185,7 @@ impl<'a> Program<'a> {
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
-        self.render_screen()
+        self.render_screen(None)
     }
 
     /// Go to and render last image in list
@@ -195,7 +195,7 @@ impl<'a> Program<'a> {
         } else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen()
+        self.render_screen(None)
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
@@ -267,7 +267,7 @@ impl<'a> Program<'a> {
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen()
+        self.render_screen(None)
     }
 
     /// Deletes image currently being viewed
@@ -302,7 +302,7 @@ impl<'a> Program<'a> {
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen()
+        self.render_screen(None)
     }
 
     /// Toggles fullscreen state of app
@@ -313,7 +313,7 @@ impl<'a> Program<'a> {
     /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
     /// Returning empty string signifies switching modes back to normal mode
     // TODO: autocomplete use fn
-    fn get_command(&self) -> Result<String, String> {
+    fn get_command(&mut self) -> Result<String, String> {
         use sdl2::event::Event;
         use sdl2::keyboard::Keycode;
 
@@ -322,7 +322,10 @@ impl<'a> Program<'a> {
         let mut input = String::new();
         let video_subsystem = self.screen.sdl_context.video()?;
         video_subsystem.text_input().start();
+        self.render_screen(Some(&input))?;
         'command_loop: loop {
+            // Notice, text_input could not be stopped, shouldn't matter due to if an error
+            // occurred program terminates
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match event {
                     // Handle backspace and escape
@@ -331,22 +334,25 @@ impl<'a> Program<'a> {
                         ..
                     } => match code {
                         Keycode::Backspace => {
-                            // Length + 1 to account for ':' or '/' at beginning of input
                             if input.len() > 0 {
                                 input.pop();
                             } else {
                                 break 'command_loop;
                             }
-                            //TODO: update infobar
+                            self.render_screen(Some(&input))?;
                         }
                         Keycode::Escape => {
                             return Ok(String::new());
+                        }
+                        // User is done entering input
+                        Keycode::Return | Keycode::Return2 | Keycode::KpEnter => {
+                            break 'command_loop;
                         }
                         _ => continue,
                     },
                     Event::TextInput { text, .. } => {
                         input.push_str(&text);
-                        //TODO: update infobar
+                        self.render_screen(Some(&input))?;
                     }
                     _ => continue,
                 }
@@ -354,6 +360,7 @@ impl<'a> Program<'a> {
             std::thread::sleep(Duration::from_millis(1000 / 60));
         }
         video_subsystem.text_input().stop();
+        // Return infobar back to original state where it doesn't display commands
         Ok(input)
     }
 
@@ -373,6 +380,15 @@ impl<'a> Program<'a> {
         match input_vec[0] {
             "ng" | "newglob" => {
                 // find new glob
+            }
+            "h" | "help" => {
+                self.ui_state.render_help = !self.ui_state.render_help;
+                self.mode = Mode::Normal;
+                return Ok(());
+            }
+            "q" | "quit" => {
+                self.mode = Mode::Exit;
+                return Ok(());
             }
             _ => {
                 // print error message on infobar
@@ -398,7 +414,7 @@ impl<'a> Program<'a> {
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
     /// normal mode
     fn run_normal_mode(&mut self) -> Result<(), String> {
-        self.render_screen()?;
+        self.render_screen(None)?;
 
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
@@ -410,16 +426,16 @@ impl<'a> Program<'a> {
                     Action::ToggleFullscreen => {
                         self.toggle_fullscreen();
                         self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                        self.render_screen()?
+                        self.render_screen(None)?
                     }
-                    Action::ReRender => self.render_screen()?,
+                    Action::ReRender => self.render_screen(None)?,
                     Action::EnterCommandMode => {
                         self.mode = Mode::Command;
                         break 'mainloop;
                     }
                     Action::ToggleFit => {
                         self.toggle_fit();
-                        self.render_screen()?
+                        self.render_screen(None)?
                     }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,

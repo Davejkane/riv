@@ -13,7 +13,7 @@ const LINE_PADDING: i32 = 5;
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
     /// rendered
-    pub fn render_screen(&mut self) -> Result<(), String> {
+    pub fn render_screen(&mut self, msg: Option<&str>) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
             return self.render_blank();
@@ -21,7 +21,7 @@ impl<'a> Program<'a> {
         self.screen.canvas.clear();
         self.render_image()?;
         if self.ui_state.render_infobar {
-            self.render_infobar()?;
+            self.render_infobar(msg)?;
         }
         if self.ui_state.render_help {
             self.render_help()?;
@@ -103,13 +103,17 @@ impl<'a> Program<'a> {
         src_dims.x > dest_dims.x || src_dims.y > dest_dims.y
     }
 
-    fn render_infobar(&mut self) -> Result<(), String> {
-        let text = infobar::Text::from(&self.paths);
+    fn render_infobar(&mut self, msg: Option<&str>) -> Result<(), String> {
+        let msg = match msg {
+            Some(msg) => msg,
+            None => "",
+        };
+        let text = infobar::Text::update(&self.paths, msg);
         // Load the filename texture
         let filename_surface = self
             .screen
             .font
-            .render(&text.current_image)
+            .render(&text.information)
             .blended(text_color())
             .map_err(|e| e.to_string())?;
         let filename_texture = self
@@ -122,7 +126,7 @@ impl<'a> Program<'a> {
         let index_surface = self
             .screen
             .font
-            .render(&text.index)
+            .render(&text.mode)
             .blended(text_color())
             .map_err(|e| e.to_string())?;
         let index_texture = self
@@ -261,7 +265,7 @@ impl<'a> Program<'a> {
     fn render_blank(&mut self) -> Result<(), String> {
         self.screen.canvas.clear();
         if self.ui_state.render_infobar {
-            self.render_infobar()?;
+            self.render_infobar(None)?;
         }
         if self.ui_state.render_help {
             self.render_help()?;
