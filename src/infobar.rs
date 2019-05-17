@@ -24,7 +24,7 @@ impl From<&Paths> for Text {
         let index = if p.images.is_empty() {
             "No files in path".to_string()
         } else {
-            format!("{} of {}", p.index + 1, p.images.len())
+            format!("{} of {}", p.index + 1, p.max_viewable)
         };
         Text {
             current_image,
