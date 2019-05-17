@@ -62,10 +62,7 @@ impl State {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
     fn process_action(&mut self, a: Action) -> Action {
         match a {
-            Action::Quit | Action::ReRender => {
-                self.last_action = Action::Noop;
-                a
-            }
+            Action::Quit | Action::ReRender => a,
             _ => {
                 self.last_action = a.clone();
                 a
