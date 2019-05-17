@@ -109,6 +109,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             W | PageUp => state.process_action(Action::SkipForward),
             B | PageDown => state.process_action(Action::SkipBack),
             Z => state.process_action(Action::ToggleFit),
+            Period => state.last_action.clone(),
             Home => state.process_action(Action::First),
             End => state.process_action(Action::Last),
             LShift => {
