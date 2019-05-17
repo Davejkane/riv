@@ -27,11 +27,23 @@ use std::time::Duration;
 
 const FONT_SIZE: u16 = 18;
 
+/// Modal setting for Program, this dictates the commands that are available to the user
+#[derive(PartialEq)]
+pub enum Mode {
+    /// Default mode, allows the removal, traversal, move, and copy of images
+    Normal,
+    /// Mode that is built off of user input, allows switching the current glob
+    Command,
+    /// Terminate condition, if this mode is set the program will stop execution
+    Exit,
+}
+
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State,
+    mode: Mode,
 }
 
 impl<'a> Program<'a> {
@@ -108,6 +120,7 @@ impl<'a> Program<'a> {
                 actual_size: false,
                 fullscreen: args.fullscreen,
             },
+            mode: Mode::Normal,
         })
     }
 
@@ -297,20 +310,113 @@ impl<'a> Program<'a> {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
     }
 
-    /// run is the event loop that listens for input and delegates accordingly.
+    /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
+    /// Returning empty string signifies switching modes back to normal mode
+    // TODO: autocomplete use fn
+    fn get_command(&self) -> Result<String, String> {
+        use sdl2::event::Event;
+        use sdl2::keyboard::Keycode;
+
+        // Don't need to keep length because the key that got us into this mode is already included
+        // in input
+        let mut input = String::new();
+        let video_subsystem = self.screen.sdl_context.video()?;
+        video_subsystem.text_input().start();
+        'command_loop: loop {
+            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
+                match event {
+                    // Handle backspace and escape
+                    Event::KeyDown {
+                        keycode: Some(code),
+                        ..
+                    } => match code {
+                        Keycode::Backspace => {
+                            // Length + 1 to account for ':' or '/' at beginning of input
+                            if input.len() > 0 {
+                                input.pop();
+                            } else {
+                                break 'command_loop;
+                            }
+                            //TODO: update infobar
+                        }
+                        Keycode::Escape => {
+                            return Ok(String::new());
+                        }
+                        _ => continue,
+                    },
+                    Event::TextInput { text, .. } => {
+                        input.push_str(&text);
+                        //TODO: update infobar
+                    }
+                    _ => continue,
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1000 / 60));
+        }
+        video_subsystem.text_input().stop();
+        Ok(input)
+    }
+
+    /// Enters command mode that gets user input and runs a set of possible commands based on user
+    /// input
+    fn run_command_mode(&mut self) -> Result<(), String> {
+        let mut input = self.get_command()?;
+        // Empty input means switch back to normal mode
+        if input.is_empty() {
+            self.mode = Mode::Normal;
+            return Ok(());
+        }
+        // TODO: this removes the key that got user into command mode, capture it then match on it for search
+        input = input[1..].into();
+        let input_vec: Vec<&str> = input.split_whitespace().collect();
+
+        match input_vec[0] {
+            "ng" | "newglob" => {
+                // find new glob
+            }
+            _ => {
+                // print error message on infobar
+            }
+        }
+        // perform action print error to infobar if it fails
+        Ok(())
+    }
+
+    /// Central run function that starts by default in Normal mode
+    /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
+        while self.mode != Mode::Exit {
+            match self.mode {
+                Mode::Normal => self.run_normal_mode()?,
+                Mode::Command => self.run_command_mode()?,
+                Mode::Exit => continue,
+            }
+        }
+        Ok(())
+    }
+
+    /// run_normal_mode is the event loop that listens for input and delegates accordingly for
+    /// normal mode
+    fn run_normal_mode(&mut self) -> Result<(), String> {
         self.render_screen()?;
 
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 match ui::event_action(&mut self.ui_state, &event) {
-                    Action::Quit => break 'mainloop,
+                    Action::Quit => {
+                        self.mode = Mode::Exit;
+                        break 'mainloop;
+                    }
                     Action::ToggleFullscreen => {
                         self.toggle_fullscreen();
                         self.screen.update_fullscreen(self.ui_state.fullscreen)?;
                         self.render_screen()?
                     }
                     Action::ReRender => self.render_screen()?,
+                    Action::EnterCommandMode => {
+                        self.mode = Mode::Command;
+                        break 'mainloop;
+                    }
                     Action::ToggleFit => {
                         self.toggle_fit();
                         self.render_screen()?

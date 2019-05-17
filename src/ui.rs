@@ -14,6 +14,8 @@ pub enum Action {
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
+    /// Switches modes from visual to command mode to enter queries such as "newglob"/"ng"
+    EnterCommandMode,
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
@@ -95,6 +97,14 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             Z => Action::ToggleFit,
             Home => Action::First,
             End => Action::Last,
+            Semicolon => {
+                if state.left_shift || state.right_shift {
+                    Action::EnterCommandMode
+                } else {
+                    // placeholder for any feature that uses ';'
+                    Action::Noop
+                }
+            }
             LShift => {
                 state.left_shift = true;
                 Action::Noop
