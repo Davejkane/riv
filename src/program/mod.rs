@@ -107,6 +107,7 @@ impl<'a> Program<'a> {
                 render_help: false,
                 actual_size: false,
                 fullscreen: args.fullscreen,
+                last_action: Action::Noop,
             },
         })
     }

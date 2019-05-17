@@ -6,6 +6,7 @@ use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
+#[derive(Clone)]
 pub enum Action {
     /// Quit indicates the app should quit in response to this event
     Quit,
@@ -53,6 +54,21 @@ pub struct State {
     pub actual_size: bool,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
+    /// last_action records the last action performed. Used for repeating that action
+    pub last_action: Action,
+}
+
+impl State {
+    /// update_last_action takes an action, sets the last_action to said action, and returns the Action
+    fn process_action(&mut self, a: Action) -> Action {
+        match a {
+            Action::Quit | Action::ReRender => a,
+            _ => {
+                self.last_action = a.clone();
+                a
+            }
+        }
+    }
 }
 
 /// event_action returns which action should be performed in response to this event
@@ -67,34 +83,34 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         Event::KeyDown {
             keycode: Some(k), ..
         } => match k {
-            C => Action::Copy,
-            D | Delete => Action::Delete,
-            F | F11 => Action::ToggleFullscreen,
+            C => state.process_action(Action::Copy),
+            D | Delete => state.process_action(Action::Delete),
+            F | F11 => state.process_action(Action::ToggleFullscreen),
             G => {
                 if state.left_shift || state.right_shift {
-                    Action::Last
+                    state.process_action(Action::Last)
                 } else {
-                    Action::First
+                    state.process_action(Action::First)
                 }
             }
             H => {
                 state.render_help = !state.render_help;
-                Action::ReRender
+                state.process_action(Action::ReRender)
             }
-            J | Right => Action::Next,
-            K | Left => Action::Prev,
-            M => Action::Move,
+            J | Right => state.process_action(Action::Next),
+            K | Left => state.process_action(Action::Prev),
+            M => state.process_action(Action::Move),
             Q | Escape => Action::Quit,
             T => {
                 state.render_infobar = !state.render_infobar;
-                Action::ReRender
+                state.process_action(Action::ReRender)
             }
 
-            W | PageUp => Action::SkipForward,
-            B | PageDown => Action::SkipBack,
-            Z => Action::ToggleFit,
-            Home => Action::First,
-            End => Action::Last,
+            W | PageUp => state.process_action(Action::SkipForward),
+            B | PageDown => state.process_action(Action::SkipBack),
+            Z => state.process_action(Action::ToggleFit),
+            Home => state.process_action(Action::First),
+            End => state.process_action(Action::Last),
             LShift => {
                 state.left_shift = true;
                 Action::Noop
@@ -127,7 +143,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
         },
 
         Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
-            MouseButton::Left => Action::ToggleFit,
+            MouseButton::Left => state.process_action(Action::ToggleFit),
             _ => Action::Noop,
         },
         _ => Action::Noop,
