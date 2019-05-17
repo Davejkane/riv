@@ -6,7 +6,7 @@ use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
-pub enum Action {
+pub enum Action<'a> {
     /// Quit indicates the app should quit in response to this event
     Quit,
     /// Toggle Fullscreen State
@@ -15,7 +15,13 @@ pub enum Action {
     /// resize)
     ReRender,
     /// Switches modes from normal to command mode to enter queries such as "newglob"/"ng"
-    CommandMode,
+    EnterCommandMode,
+    /// Indicates user hit the backspace, program input should be truncated accordinly
+    Backspace,
+    /// User entered input from the keyboard
+    KeyboardInput(&'a str),
+    /// switches modes back to normal mode
+    ExitCommandMode,
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
@@ -41,6 +47,17 @@ pub enum Action {
     Noop,
 }
 
+/// Modal setting for Program, this dictates the commands that are available to the user
+#[derive(PartialEq)]
+pub enum Mode {
+    /// Default mode, allows the removal, traversal, move, and copy of images
+    Normal,
+    /// Mode that is built off of user input, allows switching the current glob
+    Command,
+    /// Terminate condition, if this mode is set the program will stop execution
+    Exit,
+}
+
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
 pub struct State {
     /// left_shift tracks whether or not the left shift key is pressed.
@@ -55,10 +72,12 @@ pub struct State {
     pub actual_size: bool,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
+    /// current mode of the application, changes how input is interpreted
+    pub mode: Mode,
 }
 
 /// event_action returns which action should be performed in response to this event
-pub fn event_action(state: &mut State, event: &Event) -> Action {
+pub fn process_normal_mode<'a>(state: &mut State, event: &Event) -> Action<'a> {
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
@@ -99,7 +118,7 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
             End => Action::Last,
             Semicolon => {
                 if state.left_shift || state.right_shift {
-                    Action::CommandMode
+                    Action::EnterCommandMode
                 } else {
                     // placeholder for any feature that uses ';'
                     Action::Noop
@@ -138,6 +157,36 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
 
         Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
             MouseButton::Left => Action::ToggleFit,
+            _ => Action::Noop,
+        },
+        _ => Action::Noop,
+    }
+}
+
+/// Processes event information for Command mode, and returns them as Actions
+pub fn process_command_mode<'a>(event: &'a Event) -> Action<'a> {
+    use sdl2::event::WindowEvent;
+    use sdl2::keyboard::Keycode;
+
+    match event {
+        Event::TextInput { text, .. } => Action::KeyboardInput(text),
+        // Handle backspace, escape, and returns
+        Event::KeyDown {
+            keycode: Some(code),
+            ..
+        } => match code {
+            Keycode::Backspace => Action::Backspace,
+            Keycode::Escape => Action::ExitCommandMode,
+            // User is done entering input
+            Keycode::Return | Keycode::Return2 | Keycode::KpEnter => Action::ExitCommandMode,
+            _ => Action::Noop,
+        },
+        Event::Window { win_event, .. } => match win_event {
+            // Exposed: Rerender if the window was not changed by us.
+            WindowEvent::Exposed
+            | WindowEvent::Resized(..)
+            | WindowEvent::SizeChanged(..)
+            | WindowEvent::Maximized => Action::ReRender,
             _ => Action::Noop,
         },
         _ => Action::Noop,

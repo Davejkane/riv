@@ -1,8 +1,8 @@
 //! File that contains Command mode functionality, command mode in this case dictates anything that
 //! queries the user for input during run time
-use super::{Mode, Program};
+use super::Program;
 use crate::sort::SortOrder;
-use sdl2::event::WindowEvent;
+use crate::ui::{process_command_mode, Action, Mode};
 use std::path::Path;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -85,65 +85,34 @@ impl<'a> Program<'a> {
     /// Returning empty string signifies switching modes back to normal mode
     // TODO: autocomplete use fn
     fn get_command(&mut self, cmd: &str) -> Result<String, String> {
-        use sdl2::event::Event;
-        use sdl2::keyboard::Keycode;
-
-        // Don't need to keep length because the key that got us into this mode is already included
-        // in input
         let mut input = String::new();
-        let video_subsystem = self.screen.sdl_context.video()?;
-        video_subsystem.text_input().start();
         let mut events = self.screen.sdl_context.event_pump()?;
         'command_loop: loop {
             // text_input could not be stopped
             for event in events.poll_iter() {
+                let action = process_command_mode(&event);
+
                 let display = format!("{}{}", cmd, input);
                 self.render_screen(Some(&display))?;
-                match event {
-                    Event::TextInput { text, .. } => {
-                        input.push_str(&text);
-                        // Occasionally when starting the cmd would carry over
-                        // this prevents it
+                match action {
+                    Action::Backspace => {
+                        if input.len() < 1 {
+                            break 'command_loop;
+                        }
+                        input.pop();
+                    }
+                    Action::KeyboardInput(text) => {
+                        input.push_str(text);
                         if input.starts_with(cmd) {
                             input = input[1..].to_string();
                         }
                     }
-                    // Handle backspace, escape, and returns
-                    Event::KeyDown {
-                        keycode: Some(code),
-                        ..
-                    } => match code {
-                        Keycode::Backspace => {
-                            if input.len() > 0 {
-                                input.pop();
-                            } else {
-                                // if user deletes entire buffer quit command mode
-                                break 'command_loop;
-                            }
-                        }
-                        Keycode::Escape => {
-                            return Ok(String::new());
-                        }
-                        // User is done entering input
-                        Keycode::Return | Keycode::Return2 | Keycode::KpEnter => {
-                            break 'command_loop;
-                        }
-                        _ => continue,
-                    },
-                    Event::Window { win_event, .. } => match win_event {
-                        // Exposed: Rerender if the window was not changed by us.
-                        WindowEvent::Exposed
-                        | WindowEvent::Resized(..)
-                        | WindowEvent::SizeChanged(..)
-                        | WindowEvent::Maximized => self.render_screen(Some(&display))?,
-                        _ => continue,
-                    },
+                    Action::ExitCommandMode => break 'command_loop,
                     _ => continue,
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));
         }
-        video_subsystem.text_input().stop();
         Ok(input)
     }
 
@@ -169,7 +138,7 @@ impl<'a> Program<'a> {
     pub fn run_command_mode(&mut self) -> Result<(), String> {
         let input = self.get_command(":")?;
         // after evaluating a command always exit to normal mode by default
-        self.mode = Mode::Normal;
+        self.ui_state.mode = Mode::Normal;
         // Empty input means switch back to normal mode
         if input.is_empty() {
             return Ok(());
@@ -208,7 +177,7 @@ impl<'a> Program<'a> {
                 self.ui_state.render_help = !self.ui_state.render_help;
             }
             "q" | "quit" => {
-                self.mode = Mode::Exit;
+                self.ui_state.mode = Mode::Exit;
             }
             "r" | "reverse" => {
                 self.paths.images.reverse();
@@ -236,7 +205,8 @@ impl<'a> Program<'a> {
                         return Err(err_msg);
                     }
                 };
-                if self.paths.max_viewable > self.paths.images.len() {
+                if self.paths.max_viewable > self.paths.images.len() || self.paths.max_viewable == 0
+                {
                     self.paths.max_viewable = self.paths.images.len();
                 }
                 if self.paths.max_viewable < self.paths.index {

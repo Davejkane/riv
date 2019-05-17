@@ -10,7 +10,7 @@ use crate::cli;
 use crate::paths::Paths;
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action};
+use crate::ui::{self, Action, Mode};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
@@ -28,23 +28,11 @@ use std::time::Duration;
 
 const FONT_SIZE: u16 = 18;
 
-/// Modal setting for Program, this dictates the commands that are available to the user
-#[derive(PartialEq)]
-pub enum Mode {
-    /// Default mode, allows the removal, traversal, move, and copy of images
-    Normal,
-    /// Mode that is built off of user input, allows switching the current glob
-    Command,
-    /// Terminate condition, if this mode is set the program will stop execution
-    Exit,
-}
-
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State,
-    mode: Mode,
     sorter: Sorter,
 }
 
@@ -121,9 +109,9 @@ impl<'a> Program<'a> {
                 render_help: false,
                 actual_size: false,
                 fullscreen: args.fullscreen,
+                mode: Mode::Normal,
             },
             sorter,
-            mode: Mode::Normal,
         })
     }
 
@@ -317,8 +305,8 @@ impl<'a> Program<'a> {
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
         self.render_screen(None)?;
-        while self.mode != Mode::Exit {
-            match self.mode {
+        while self.ui_state.mode != Mode::Exit {
+            match self.ui_state.mode {
                 Mode::Normal => self.run_normal_mode()?,
                 Mode::Command => match self.run_command_mode() {
                     // Upon success refresh
@@ -337,9 +325,9 @@ impl<'a> Program<'a> {
     fn run_normal_mode(&mut self) -> Result<(), String> {
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                match ui::event_action(&mut self.ui_state, &event) {
+                match ui::process_normal_mode(&mut self.ui_state, &event) {
                     Action::Quit => {
-                        self.mode = Mode::Exit;
+                        self.ui_state.mode = Mode::Exit;
                         break 'mainloop;
                     }
                     Action::ToggleFullscreen => {
@@ -348,8 +336,8 @@ impl<'a> Program<'a> {
                         self.render_screen(None)?
                     }
                     Action::ReRender => self.render_screen(None)?,
-                    Action::CommandMode => {
-                        self.mode = Mode::Command;
+                    Action::EnterCommandMode => {
+                        self.ui_state.mode = Mode::Command;
                         break 'mainloop;
                     }
                     Action::ToggleFit => {
@@ -375,6 +363,7 @@ impl<'a> Program<'a> {
                         Err(e) => eprintln!("{}", e),
                     },
                     Action::Noop => {}
+                    _ => {}
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));
