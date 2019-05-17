@@ -2,7 +2,6 @@
 //!
 //! Program contains the program struct, which contains all information needed to run the
 //! event loop and render the images to screen
-
 mod render;
 pub use self::render::*;
 use crate::cli;
@@ -10,7 +9,6 @@ use crate::paths::Paths;
 use crate::screen::Screen;
 use crate::sort::Sorter;
 use crate::ui::{self, Action};
-use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
@@ -21,6 +19,8 @@ use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
+use std::cmp;
+use std::cmp::min;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::Duration;
@@ -31,7 +31,7 @@ const FONT_SIZE: u16 = 18;
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
-    ui_state: ui::State,
+    ui_state: ui::State<'a>,
 }
 
 impl<'a> Program<'a> {
@@ -101,13 +101,12 @@ impl<'a> Program<'a> {
                 max_viewable,
             },
             ui_state: ui::State {
-                left_shift: false,
-                right_shift: false,
                 render_infobar: true,
                 render_help: false,
                 actual_size: false,
                 fullscreen: args.fullscreen,
                 last_action: Action::Noop,
+                ..Default::default()
             },
         })
     }
@@ -205,16 +204,23 @@ impl<'a> Program<'a> {
 
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<(), String> {
+    fn copy_image(&mut self, index: usize) -> Result<(), String> {
         // Check if there are any images
         if self.paths.images.is_empty() {
             return Err("No image to copy".to_string());
+        } // Maxviewable
+        if index > self.paths.max_viewable - 1 {
+            return Err(format!(
+                "out of view access: {} is past max_viewable index {}",
+                index,
+                self.paths.max_viewable - 1
+            ));
         }
         let opt = &fs_extra::file::CopyOptions::new();
-        let filepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
+        let filepath = self.paths.images.get(index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
+                index, self.paths.index
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
@@ -322,7 +328,7 @@ impl<'a> Program<'a> {
                     Action::Last => self.last()?,
                     Action::SkipForward => self.skip_forward()?,
                     Action::SkipBack => self.skip_backward()?,
-                    Action::Copy => match self.copy_image() {
+                    Action::Copy => match self.copy_image(self.paths.index) {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to copy file: {}", e),
                     },
@@ -334,6 +340,26 @@ impl<'a> Program<'a> {
                         Ok(_) => (),
                         Err(e) => eprintln!("{}", e),
                     },
+                    Action::NumericOp(_) => {}
+                    Action::CopyMultiple(n) => {
+                        // Only supports copying forward
+                        let number = n.join("").parse::<usize>().expect("Valid number");
+                        println!("Need to copy {} images", number);
+                        if number == 0 {
+                            self.ui_state.unprocessed_input.clear();
+                            continue;
+                        }
+
+                        let max_index_to_delete =
+                            min(self.paths.index + number, self.paths.max_viewable - 1);
+                        for index in self.paths.index..=max_index_to_delete {
+                            self.copy_image(index)?
+                        }
+                    }
+                    Action::Cancel => {
+                        println!("Cancel current operation");
+                        self.ui_state.unprocessed_input.clear();
+                    }
                     Action::Noop => {}
                 }
             }
