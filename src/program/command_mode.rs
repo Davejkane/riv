@@ -93,7 +93,7 @@ impl<'a> Program<'a> {
                 let action = process_command_mode(&event);
 
                 let display = format!("{}{}", cmd, input);
-                self.render_screen(Some(&display))?;
+                self.render_screen(false, Some(&display))?;
                 match action {
                     Action::Backspace => {
                         if input.len() < 1 {
@@ -135,6 +135,8 @@ impl<'a> Program<'a> {
     ///     * sort                        no argument: performs the selected sort on images, keeps
     ///                                     moves to index of current image prior to reverse
     ///                                   one argument: performs selected sort
+    ///
+    ///     * m/max                       set new maximum amount of images to display
     pub fn run_command_mode(&mut self) -> Result<(), String> {
         let input = self.get_command(":")?;
         // after evaluating a command always exit to normal mode by default
@@ -162,7 +164,6 @@ impl<'a> Program<'a> {
                     Some(new_index) => self.paths.index = new_index,
                     None => {
                         self.paths.index = 0;
-                        // Force rerender
                     }
                 }
                 self.paths.max_viewable = if self.paths.max_viewable > 0
@@ -211,7 +212,6 @@ impl<'a> Program<'a> {
                 }
                 if self.paths.max_viewable < self.paths.index {
                     self.paths.index = self.paths.max_viewable - 1;
-                    // force rerender
                 }
             }
             "sort" => {
@@ -234,10 +234,15 @@ impl<'a> Program<'a> {
                 let target = self.paths.images[self.paths.index].to_owned();
                 self.sorter.sort(&mut self.paths.images);
                 match find_path_in_paths(&self.paths.images, &target) {
-                    Some(new_index) => self.paths.index = new_index,
+                    Some(new_index) => {
+                        if new_index < self.paths.max_viewable {
+                            self.paths.index = new_index;
+                        } else {
+                            self.paths.index = self.paths.max_viewable - 1;
+                        }
+                    }
                     None => {
                         self.paths.index = 0;
-                        // Force rerender
                     }
                 }
             }

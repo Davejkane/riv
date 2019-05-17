@@ -131,7 +131,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     /// Removes an image from tracked images.
@@ -158,7 +158,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = 0;
         }
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     /// Skips forward by the default skip increment and renders the image
@@ -176,7 +176,7 @@ impl<'a> Program<'a> {
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     /// Go to and render last image in list
@@ -186,7 +186,7 @@ impl<'a> Program<'a> {
         } else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
@@ -258,7 +258,7 @@ impl<'a> Program<'a> {
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     /// Deletes image currently being viewed
@@ -293,7 +293,7 @@ impl<'a> Program<'a> {
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(None)
+        self.render_screen(false, None)
     }
 
     /// Toggles fullscreen state of app
@@ -304,15 +304,15 @@ impl<'a> Program<'a> {
     /// Central run function that starts by default in Normal mode
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
-        self.render_screen(None)?;
+        self.render_screen(false, None)?;
         while self.ui_state.mode != Mode::Exit {
             match self.ui_state.mode {
                 Mode::Normal => self.run_normal_mode()?,
                 Mode::Command => match self.run_command_mode() {
                     // Upon success refresh
-                    Ok(()) => self.render_screen(None)?,
+                    Ok(()) => self.render_screen(true, None)?,
                     // Upon failure refresh and display error
-                    Err(e) => self.render_screen(Some(&e))?,
+                    Err(e) => self.render_screen(false, Some(&e))?,
                 },
                 Mode::Exit => continue,
             }
@@ -333,16 +333,16 @@ impl<'a> Program<'a> {
                     Action::ToggleFullscreen => {
                         self.toggle_fullscreen();
                         self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                        self.render_screen(None)?
+                        self.render_screen(false, None)?
                     }
-                    Action::ReRender => self.render_screen(None)?,
+                    Action::ReRender => self.render_screen(false, None)?,
                     Action::EnterCommandMode => {
                         self.ui_state.mode = Mode::Command;
                         break 'mainloop;
                     }
                     Action::ToggleFit => {
                         self.toggle_fit();
-                        self.render_screen(None)?
+                        self.render_screen(false, None)?
                     }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,

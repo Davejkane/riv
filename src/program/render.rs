@@ -13,15 +13,19 @@ const LINE_PADDING: i32 = 5;
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
     /// rendered
-    pub fn render_screen(&mut self, msg: Option<&str>) -> Result<(), String> {
+    pub fn render_screen(
+        &mut self,
+        force_render: bool,
+        infobar_msg: Option<&str>,
+    ) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
             return self.render_blank();
         }
         self.screen.canvas.clear();
-        self.render_image()?;
+        self.render_image(force_render)?;
         if self.ui_state.render_infobar {
-            self.render_infobar(msg)?;
+            self.render_infobar(infobar_msg)?;
         }
         if self.ui_state.render_help {
             self.render_help()?;
@@ -32,8 +36,8 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn render_image(&mut self) -> Result<(), String> {
-        self.set_image_texture()?;
+    fn render_image(&mut self, force_render: bool) -> Result<(), String> {
+        self.set_image_texture(force_render)?;
         match self.screen.last_texture {
             Some(_) => (),
             None => return Ok(()),
@@ -63,10 +67,11 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn set_image_texture(&mut self) -> Result<(), String> {
+    fn set_image_texture(&mut self, force_render: bool) -> Result<(), String> {
         if self.paths.index == self.screen.last_index
             && self.screen.last_texture.is_some()
             && !self.screen.dirty
+            && !force_render
         {
             return Ok(());
         }
