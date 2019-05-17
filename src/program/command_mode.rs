@@ -196,8 +196,13 @@ impl<'a> Program<'a> {
                         // Force rerender
                     }
                 }
-                //TODO: cache Args::Max_length for use here
-                self.paths.max_viewable = self.paths.images.len();
+                self.paths.max_viewable = if self.paths.max_viewable > 0
+                    && self.paths.max_viewable <= self.paths.images.len()
+                {
+                    self.paths.max_viewable
+                } else {
+                    self.paths.images.len()
+                };
             }
             "h" | "help" => {
                 self.ui_state.render_help = !self.ui_state.render_help;
@@ -216,6 +221,28 @@ impl<'a> Program<'a> {
                     return Err(err_msg);
                 }
                 self.paths.dest_folder = PathBuf::from(input_vec[1]);
+            }
+            "m" | "max" => {
+                if input_vec.len() < 2 {
+                    let err_msg =
+                        String::from("Error: command \":max\" or \":m\" requires a new maximum number of files to display");
+                    return Err(err_msg);
+                }
+                self.paths.max_viewable = match input_vec[1].parse::<usize>() {
+                    Ok(new_max) => new_max,
+                    Err(_e) => {
+                        let err_msg =
+                            format!("Error: \"{}\" is not a positive integer", input_vec[1]);
+                        return Err(err_msg);
+                    }
+                };
+                if self.paths.max_viewable > self.paths.images.len() {
+                    self.paths.max_viewable = self.paths.images.len();
+                }
+                if self.paths.max_viewable < self.paths.index {
+                    self.paths.index = self.paths.max_viewable - 1;
+                    // force rerender
+                }
             }
             "sort" => {
                 use std::str::FromStr;
