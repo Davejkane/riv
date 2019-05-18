@@ -15,13 +15,13 @@ pub enum Action<'a> {
     /// resize)
     ReRender,
     /// Switches modes from normal to command mode to enter queries such as "newglob"/"ng"
-    EnterCommandMode,
+    SwitchCommandMode,
     /// Indicates user hit the backspace, program input should be truncated accordinly
     Backspace,
     /// User entered input from the keyboard
     KeyboardInput(&'a str),
     /// switches modes back to normal mode
-    ExitCommandMode,
+    SwitchNormalMode,
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
@@ -118,7 +118,7 @@ pub fn process_normal_mode<'a>(state: &mut State, event: &Event) -> Action<'a> {
             End => Action::Last,
             Semicolon => {
                 if state.left_shift || state.right_shift {
-                    Action::EnterCommandMode
+                    Action::SwitchCommandMode
                 } else {
                     // placeholder for any feature that uses ';'
                     Action::Noop
@@ -176,9 +176,9 @@ pub fn process_command_mode<'a>(event: &'a Event) -> Action<'a> {
             ..
         } => match code {
             Keycode::Backspace => Action::Backspace,
-            Keycode::Escape => Action::ExitCommandMode,
+            Keycode::Escape => Action::SwitchNormalMode,
             // User is done entering input
-            Keycode::Return | Keycode::Return2 | Keycode::KpEnter => Action::ExitCommandMode,
+            Keycode::Return | Keycode::Return2 | Keycode::KpEnter => Action::SwitchNormalMode,
             _ => Action::Noop,
         },
         Event::Window { win_event, .. } => match win_event {

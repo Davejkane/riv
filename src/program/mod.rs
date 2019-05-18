@@ -336,7 +336,7 @@ impl<'a> Program<'a> {
                         self.render_screen(false, None)?
                     }
                     Action::ReRender => self.render_screen(false, None)?,
-                    Action::EnterCommandMode => {
+                    Action::SwitchCommandMode => {
                         self.ui_state.mode = Mode::Command;
                         break 'mainloop;
                     }

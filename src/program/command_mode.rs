@@ -107,7 +107,7 @@ impl<'a> Program<'a> {
                             input = input[1..].to_string();
                         }
                     }
-                    Action::ExitCommandMode => break 'command_loop,
+                    Action::SwitchNormalMode => break 'command_loop,
                     _ => continue,
                 }
             }
