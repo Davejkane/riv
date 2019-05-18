@@ -44,6 +44,12 @@ fn convert_path_to_globable(path: &str) -> Result<String, String> {
     }
 
     path_buf = PathBuf::from(&absolute_path);
+    if !path_buf.exists() {
+        return Err(format!(
+            "Error: Cannot access \"{}\": No such file or directory",
+            path
+        ));
+    }
     // If path is a dir, add /* to glob
     if path_buf.is_dir() {
         if !absolute_path.ends_with("/") {
@@ -88,24 +94,25 @@ impl<'a> Program<'a> {
         let mut input = String::new();
         let mut events = self.screen.sdl_context.event_pump()?;
         'command_loop: loop {
-            // text_input could not be stopped
             for event in events.poll_iter() {
                 let action = process_command_mode(&event);
-
-                let display = format!("{}{}", cmd, input);
-                self.render_screen(false, Some(&display))?;
                 match action {
                     Action::Backspace => {
                         if input.len() < 1 {
                             break 'command_loop;
                         }
                         input.pop();
+                        let display = format!("{}{}", cmd, input);
+                        self.render_screen(false, Some(&display))?;
                     }
                     Action::KeyboardInput(text) => {
                         input.push_str(text);
+                        // Fixes ':' in command mode start
                         if input.starts_with(cmd) {
                             input = input[1..].to_string();
                         }
+                        let display = format!("{}{}", cmd, input);
+                        self.render_screen(false, Some(&display))?;
                     }
                     Action::SwitchNormalMode => break 'command_loop,
                     _ => continue,
