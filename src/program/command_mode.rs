@@ -76,7 +76,7 @@ fn convert_path_to_globable(path: &str) -> Result<String, String> {
     let mut absolute_path = String::from(expanded_path);
     // If path is a dir, add /* to glob
     if PathBuf::from(&absolute_path).is_dir() {
-        if !absolute_path.ends_with("/") {
+        if !absolute_path.ends_with('/') {
             absolute_path.push('/');
         }
         absolute_path.push('*');
@@ -146,7 +146,7 @@ impl<'a> Program<'a> {
                 let action = process_command_mode(&event);
                 match action {
                     Action::Backspace => {
-                        if input.len() < 1 {
+                        if input.is_empty() {
                             break 'command_loop;
                         }
                         input.pop();
@@ -194,11 +194,11 @@ impl<'a> Program<'a> {
                 }
                 let mut new_images: Vec<PathBuf>;
                 new_images = glob_path(&input_vec[1])?;
-                let mut target: Option<PathBuf> = None;
-                // the path to find in order to maintain that it is the current image
-                if !self.paths.images.is_empty() {
-                    target = Some(self.paths.images[self.paths.index].to_owned());
-                }
+                let target = if !self.paths.images.is_empty() {
+                    Some(self.paths.images[self.paths.index].to_owned())
+                } else {
+                    None
+                };
                 self.paths.images = new_images;
                 self.sorter.sort(&mut self.paths.images);
 
