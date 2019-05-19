@@ -68,6 +68,7 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | f OR F11         | Toggle fullscreen mode                                 |
 | h                | Toggle help box                                        |
 | z OR Left Click  | Toggle actual size vs scaled image                     |
+| . (period)       | Repeat last action                                     |
 
 ## Getting Started
 
