@@ -20,7 +20,7 @@ impl<'a> Program<'a> {
     ) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
-            return self.render_blank();
+            return self.render_blank(infobar_msg);
         }
         self.screen.canvas.clear();
         self.render_image(force_render)?;
@@ -263,10 +263,10 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn render_blank(&mut self) -> Result<(), String> {
+    fn render_blank(&mut self, infobar_msg: Option<&str>) -> Result<(), String> {
         self.screen.canvas.clear();
         if self.ui_state.render_infobar {
-            self.render_infobar(None)?;
+            self.render_infobar(infobar_msg)?;
         }
         if self.ui_state.render_help {
             self.render_help()?;

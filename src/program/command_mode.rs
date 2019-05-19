@@ -194,14 +194,26 @@ impl<'a> Program<'a> {
                 }
                 let mut new_images: Vec<PathBuf>;
                 new_images = glob_path(&input_vec[1])?;
+                let mut target: Option<PathBuf> = None;
                 // the path to find in order to maintain that it is the current image
-                let target = self.paths.images[self.paths.index].to_owned();
+                if !self.paths.images.is_empty() {
+                    target = Some(self.paths.images[self.paths.index].to_owned());
+                }
                 self.paths.images = new_images;
                 self.sorter.sort(&mut self.paths.images);
-                match self.paths.images.iter().position(|path| path == &target) {
-                    Some(new_index) => self.paths.index = new_index,
-                    None => {
-                        self.paths.index = 0;
+
+                if let Some(target_path) = target {
+                    // find location of current image, if it exists in self.paths.images
+                    match self
+                        .paths
+                        .images
+                        .iter()
+                        .position(|path| path == &target_path)
+                    {
+                        Some(new_index) => self.paths.index = new_index,
+                        None => {
+                            self.paths.index = 0;
+                        }
                     }
                 }
                 self.paths.max_viewable = if self.paths.max_viewable > 0
