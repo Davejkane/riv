@@ -6,6 +6,7 @@ use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
+#[derive(Clone)]
 pub enum Action<'a> {
     /// Quit indicates the app should quit in response to this event
     Quit,
@@ -59,7 +60,7 @@ pub enum Mode {
 }
 
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
-pub struct State {
+pub struct State<'a> {
     /// left_shift tracks whether or not the left shift key is pressed.
     pub left_shift: bool,
     /// right_shift tracks whether or not the right shift key is pressed.
@@ -74,10 +75,25 @@ pub struct State {
     pub fullscreen: bool,
     /// current mode of the application, changes how input is interpreted
     pub mode: Mode,
+    /// last_action records the last action performed. Used for repeating that action
+    pub last_action: Action<'a>,
+}
+
+impl<'a> State<'a> {
+    /// update_last_action takes an action, sets the last_action to said action, and returns the Action
+    fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
+        match a {
+            Action::Quit | Action::ReRender => a,
+            _ => {
+                self.last_action = a.clone();
+                a
+            }
+        }
+    }
 }
 
 /// event_action returns which action should be performed in response to this event
-pub fn process_normal_mode<'a>(state: &mut State, event: &Event) -> Action<'a> {
+pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'a> {
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
@@ -88,34 +104,34 @@ pub fn process_normal_mode<'a>(state: &mut State, event: &Event) -> Action<'a> {
         Event::KeyDown {
             keycode: Some(k), ..
         } => match k {
-            C => Action::Copy,
-            D | Delete => Action::Delete,
-            F | F11 => Action::ToggleFullscreen,
+            C => state.process_action(Action::Copy),
+            D | Delete => state.process_action(Action::Delete),
+            F | F11 => state.process_action(Action::ToggleFullscreen),
             G => {
                 if state.left_shift || state.right_shift {
-                    Action::Last
+                    state.process_action(Action::Last)
                 } else {
-                    Action::First
+                    state.process_action(Action::First)
                 }
             }
             H => {
                 state.render_help = !state.render_help;
-                Action::ReRender
+                state.process_action(Action::ReRender)
             }
-            J | Right => Action::Next,
-            K | Left => Action::Prev,
-            M => Action::Move,
+            J | Right => state.process_action(Action::Next),
+            K | Left => state.process_action(Action::Prev),
+            M => state.process_action(Action::Move),
             Q | Escape => Action::Quit,
             T => {
                 state.render_infobar = !state.render_infobar;
-                Action::ReRender
+                state.process_action(Action::ReRender)
             }
-
             W | PageUp => Action::SkipForward,
             B | PageDown => Action::SkipBack,
             Z => Action::ToggleFit,
             Home => Action::First,
             End => Action::Last,
+            Period => state.last_action.clone(),
             Semicolon => {
                 if state.left_shift || state.right_shift {
                     Action::SwitchCommandMode
@@ -156,7 +172,7 @@ pub fn process_normal_mode<'a>(state: &mut State, event: &Event) -> Action<'a> {
         },
 
         Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
-            MouseButton::Left => Action::ToggleFit,
+            MouseButton::Left => state.process_action(Action::ToggleFit),
             _ => Action::Noop,
         },
         _ => Action::Noop,

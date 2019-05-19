@@ -32,7 +32,7 @@ const FONT_SIZE: u16 = 18;
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
-    ui_state: ui::State,
+    ui_state: ui::State<'a>,
     sorter: Sorter,
 }
 
@@ -110,6 +110,7 @@ impl<'a> Program<'a> {
                 actual_size: false,
                 fullscreen: args.fullscreen,
                 mode: Mode::Normal,
+                last_action: Action::Noop,
             },
             sorter,
         })
