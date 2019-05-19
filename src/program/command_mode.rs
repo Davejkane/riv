@@ -1,9 +1,10 @@
-//! File that contains Command mode functionality, command mode in this case dictates anything that
-//! queries the user for input during run time
+//! File that contains Command mode functionality, command mode is a mode that allows verbose input
+//! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
-use std::path::Path;
+use regex::Regex;
+use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -67,51 +68,14 @@ impl FromStr for Commands {
     }
 }
 
-/// Finds the provided path in paths returning the usize or error
-/// Returns 0 if not found
-fn find_path_in_paths(paths: &Vec<PathBuf>, current_path: &PathBuf) -> Option<usize> {
-    match paths.iter().position(|path| path == current_path) {
-        Some(i) => Some(i),
-        None => None,
-    }
-}
-
 /// Converts the provided path by user to a path that can be glob'd
-/// Changes $HOME and ~ to their expanded home path
-/// If the path is to a directory add glob to the end to catch the directories files
+/// Directories are changed from /home/etc to /home/etc/*
 fn convert_path_to_globable(path: &str) -> Result<String, String> {
-    let mut absolute_path = String::from(path);
-    // Get HOME environment variable
-    let home = match std::env::var("HOME") {
-        Ok(home) => home,
-        Err(e) => return Err(e.to_string()),
-    };
-
-    // create path_buf from path to get parents
-    let mut path_buf = PathBuf::from(path);
-
-    // ~ constant used to check if any parent is '~'
-    let tilda = Path::new("~");
-    // $HOME constant used to check if any parent is "$HOME"
-    let home_shell = Path::new("$HOME");
-    // replace all ~ and $HOME with home env variable
-    for parent in path_buf.ancestors() {
-        if parent == tilda {
-            absolute_path = absolute_path.replace("~", &home);
-        } else if parent == home_shell {
-            absolute_path = absolute_path.replace("$HOME", &home);
-        }
-    }
-
-    path_buf = PathBuf::from(&absolute_path);
-    if !path_buf.exists() {
-        return Err(format!(
-            "Error: Cannot access \"{}\": No such file or directory",
-            path
-        ));
-    }
+    let expanded_path =
+        full(path).map_err(|e| format!("Error: \"{}\": {}", e.var_name, e.cause))?;
+    let mut absolute_path = String::from(expanded_path);
     // If path is a dir, add /* to glob
-    if path_buf.is_dir() {
+    if PathBuf::from(&absolute_path).is_dir() {
         if !absolute_path.ends_with("/") {
             absolute_path.push('/');
         }
@@ -146,6 +110,30 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
     Ok(new_images)
 }
 
+/// Uses regex to parse user input, then concating all subsequent strings that are escaped together
+/// TODO: have regex capture the ending space in case of escaped files
+fn parse_user_input(input: &str) -> Vec<String> {
+    let mut input_vec: Vec<String> = Vec::new();
+    let re: Regex = Regex::new(r"[\x21-\x7E]+(\\)?").unwrap();
+    let mut escaped = false;
+
+    for regex_match in re.captures_iter(&input) {
+        let value: String = regex_match[0].to_string();
+        if value.ends_with('\\') && !escaped {
+            escaped = true;
+            input_vec.push(value);
+        } else if escaped {
+            if let Some(last) = input_vec.last_mut() {
+                last.push(' ');
+                last.push_str(&value);
+            }
+        } else {
+            input_vec.push(value);
+        }
+    }
+    input_vec
+}
+
 impl<'a> Program<'a> {
     /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
     /// Returning empty string signifies switching modes back to normal mode
@@ -167,7 +155,7 @@ impl<'a> Program<'a> {
                     }
                     Action::KeyboardInput(text) => {
                         input.push_str(text);
-                        // Fixes ':' in command mode start
+                        // Fixes additional ':' in command mode start
                         if input.starts_with(cmd) {
                             input = input[1..].to_string();
                         }
@@ -195,9 +183,8 @@ impl<'a> Program<'a> {
         if input.is_empty() {
             return Ok(());
         }
-        let input_vec: Vec<&str> = input.split_whitespace().collect();
-        let command = Commands::from_str(input_vec[0])?;
-
+        let input_vec = parse_user_input(&input);
+        let command = Commands::from_str(&input_vec[0])?;
         match command {
             Commands::NewGlob => {
                 if input_vec.len() < 2 {
@@ -206,12 +193,12 @@ impl<'a> Program<'a> {
                     return Err(err_msg);
                 }
                 let mut new_images: Vec<PathBuf>;
-                new_images = glob_path(input_vec[1])?;
+                new_images = glob_path(&input_vec[1])?;
                 // the path to find in order to maintain that it is the current image
                 let target = self.paths.images[self.paths.index].to_owned();
                 self.paths.images = new_images;
                 self.sorter.sort(&mut self.paths.images);
-                match find_path_in_paths(&self.paths.images, &target) {
+                match self.paths.images.iter().position(|path| path == &target) {
                     Some(new_index) => self.paths.index = new_index,
                     None => {
                         self.paths.index = 0;
@@ -241,7 +228,7 @@ impl<'a> Program<'a> {
                         String::from("Error: command \":destfolder\" or \":d\" requires a path");
                     return Err(err_msg);
                 }
-                self.paths.dest_folder = PathBuf::from(input_vec[1]);
+                self.paths.dest_folder = PathBuf::from(&input_vec[1]);
             }
             Commands::MaximumImages => {
                 if input_vec.len() < 2 {
@@ -268,7 +255,7 @@ impl<'a> Program<'a> {
             Commands::Sort => {
                 // Allow both just calling "sort" and allow providing the new sort
                 if input_vec.len() >= 2 {
-                    let new_sort_order = match SortOrder::from_str(input_vec[1]) {
+                    let new_sort_order = match SortOrder::from_str(&input_vec[1]) {
                         Ok(order) => order,
                         Err(e) => {
                             return Err(format!(
@@ -282,7 +269,7 @@ impl<'a> Program<'a> {
                 // the path to find in order to maintain that it is the current image
                 let target = self.paths.images[self.paths.index].to_owned();
                 self.sorter.sort(&mut self.paths.images);
-                match find_path_in_paths(&self.paths.images, &target) {
+                match self.paths.images.iter().position(|path| path == &target) {
                     Some(new_index) => {
                         if new_index < self.paths.max_viewable {
                             self.paths.index = new_index;
