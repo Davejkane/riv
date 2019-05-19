@@ -5,7 +5,67 @@ use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::Duration;
+
+/// Available commands in Command mode
+///
+/// Note: in documentation for commands leading `:` is prepended and should no be included
+enum Commands {
+    /// `:sort`
+    ///
+    /// No argument: performs the selected sort on images.
+    /// One argument: argument is the new sorting order to perform, subsequent calls to sort performs newly
+    /// selected sort.
+    ///
+    /// Regardless of arguments, if the current image prior to sort is in the post sorted images
+    /// move to its index
+    Sort,
+    /// `:ng` or `:newglob`
+    ///
+    /// Requires only one addition parameter, the new current_dir.
+    /// If the current image exists prior to changing globs exists in the new glob move to that index.
+    /// If the new path has no images do nothing.
+    NewGlob,
+    /// `:h` or `:help`
+    ///
+    /// Switches to normal mode and displays help info
+    Help,
+    /// `:q` or `:quit`
+    ///
+    /// Terminates the application
+    Quit,
+    /// `:r` or `:reverse`
+    ///
+    /// reverses current images, moving to index of current image prior to reverse
+    Reverse,
+    /// `:df` or `:destfolder`
+    ///
+    /// Requires one argument, the new path for the destination folder (where to save images)
+    DestFolder,
+    /// `:m` or `:max`
+    ///
+    /// Sets the maximum number of images to display at any given time
+    MaximumImages,
+}
+
+impl FromStr for Commands {
+    type Err = String;
+
+    /// All commands must implement FromStr
+    fn from_str(s: &str) -> Result<Commands, String> {
+        match s {
+            "sort" => Ok(Commands::Sort),
+            "ng" | "newglob" => Ok(Commands::NewGlob),
+            "h" | "help" => Ok(Commands::Help),
+            "q" | "quit" => Ok(Commands::Quit),
+            "r" | "reverse" => Ok(Commands::Reverse),
+            "df" | "destfolder" => Ok(Commands::DestFolder),
+            "m" | "max" => Ok(Commands::MaximumImages),
+            _ => Err(format!("Error: no such command \"{}\"", s)),
+        }
+    }
+}
 
 /// Finds the provided path in paths returning the usize or error
 /// Returns 0 if not found
@@ -123,27 +183,10 @@ impl<'a> Program<'a> {
         Ok(input)
     }
 
-    /// Enters command mode that gets user input and runs a set of possible commands based on user
-    /// input. After every command the user is set either into normal mode again or the app
-    /// terminates
+    /// Enters command mode that gets user input and runs a set of possible commands based on user input.
+    /// After every command the user is set either into normal mode or the app terminates.
     ///
-    /// Commands:
-    ///     * ng/newglob                  requires only one addition parameter, the new current_dir.
-    ///                                     If the current image prior exists in the new glob move to that index
-    ///
-    ///     * h/help                      switches to normal mode and displays help info
-    ///
-    ///     * q/quit                      terminates the application
-    ///
-    ///     * r/reverse                   reverses current images, moving to index of current image prior to reverse
-    ///
-    ///     * df/destfolder               sets the new destination folder
-    ///
-    ///     * sort                        no argument: performs the selected sort on images, keeps
-    ///                                     moves to index of current image prior to reverse
-    ///                                   one argument: performs selected sort
-    ///
-    ///     * m/max                       set new maximum amount of images to display
+    /// List of commands provided in `Commands` enum
     pub fn run_command_mode(&mut self) -> Result<(), String> {
         let input = self.get_command(":")?;
         // after evaluating a command always exit to normal mode by default
@@ -153,9 +196,10 @@ impl<'a> Program<'a> {
             return Ok(());
         }
         let input_vec: Vec<&str> = input.split_whitespace().collect();
+        let command = Commands::from_str(input_vec[0])?;
 
-        match input_vec[0] {
-            "ng" | "newglob" => {
+        match command {
+            Commands::NewGlob => {
                 if input_vec.len() < 2 {
                     let err_msg =
                         String::from("Error: command \"newglob\" or \":ng\" requires a glob");
@@ -181,17 +225,17 @@ impl<'a> Program<'a> {
                     self.paths.images.len()
                 };
             }
-            "h" | "help" => {
+            Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
             }
-            "q" | "quit" => {
+            Commands::Quit => {
                 self.ui_state.mode = Mode::Exit;
             }
-            "r" | "reverse" => {
+            Commands::Reverse => {
                 self.paths.images.reverse();
                 self.paths.index = self.paths.max_viewable - self.paths.index - 1;
             }
-            "df" | "destfolder" => {
+            Commands::DestFolder => {
                 if input_vec.len() < 2 {
                     let err_msg =
                         String::from("Error: command \":destfolder\" or \":d\" requires a path");
@@ -199,7 +243,7 @@ impl<'a> Program<'a> {
                 }
                 self.paths.dest_folder = PathBuf::from(input_vec[1]);
             }
-            "m" | "max" => {
+            Commands::MaximumImages => {
                 if input_vec.len() < 2 {
                     let err_msg =
                         String::from("Error: command \":max\" or \":m\" requires a new maximum number of files to display");
@@ -221,9 +265,7 @@ impl<'a> Program<'a> {
                     self.paths.index = self.paths.max_viewable - 1;
                 }
             }
-            "sort" => {
-                use std::str::FromStr;
-
+            Commands::Sort => {
                 // Allow both just calling "sort" and allow providing the new sort
                 if input_vec.len() >= 2 {
                     let new_sort_order = match SortOrder::from_str(input_vec[1]) {
@@ -252,10 +294,6 @@ impl<'a> Program<'a> {
                         self.paths.index = 0;
                     }
                 }
-            }
-            _ => {
-                let err_msg = format!("Error: \"{}\" is not a command", input_vec[0]);
-                return Err(err_msg);
             }
         }
         Ok(())
