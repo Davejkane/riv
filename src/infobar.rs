@@ -3,6 +3,7 @@
 //! Module InfoBar provides structures and functions for building and rendering an infobar
 
 use crate::paths::Paths;
+use crate::ui::Mode;
 
 /// Text contains the strings required to print the infobar.
 pub struct Text {
@@ -15,21 +16,22 @@ pub struct Text {
 }
 
 impl Text {
-    /// Updates the infobar
-    /// if cmd isn't empty the user is in command mode and therefore that should be displayed
-    /// instead of normal mode information. Normal mode information is the index and the current
-    /// image path
-    pub fn update(paths: &Paths, msg: Option<&str>) -> Self {
-        let information: String;
-        let mode: String;
-        match msg {
-            Some(msg) => {
-                // user is in command mode
-                information = msg.to_string();
-                mode = String::from("Command");
-            }
-            None => {
-                // user is in normal mode
+    /// Updates the infobar based on the current mode of the applicaiton
+    /// Normal Mode:
+    ///     mode = index of current image
+    ///     information = path to current image
+    /// Command Mode:
+    ///     mode = "Command"
+    ///     information = curerntly entered user string
+    /// Error Mode:
+    ///     mode = "Error"
+    ///     information = error message to display
+    pub fn update(current_mode: &Mode, paths: &Paths) -> Self {
+        let (mode, information) = match current_mode {
+            Mode::Command(msg) => ("Command".to_string(), format!(":{}", msg)),
+            Mode::Normal => {
+                let information: String;
+                let mode: String;
                 information = match paths.images.get(paths.index) {
                     Some(path) => match path.to_str() {
                         Some(name) => name.to_string(),
@@ -42,8 +44,11 @@ impl Text {
                 } else {
                     format!("{} of {}", paths.index + 1, paths.max_viewable)
                 };
+                (mode, information)
             }
-        }
+            Mode::Error(msg) => ("Error".to_string(), msg.to_string()),
+            _ => (String::new(), String::new()),
+        };
         Text { information, mode }
     }
 }

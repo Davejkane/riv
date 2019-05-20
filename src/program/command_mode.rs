@@ -63,7 +63,7 @@ impl FromStr for Commands {
             "r" | "reverse" => Ok(Commands::Reverse),
             "df" | "destfolder" => Ok(Commands::DestFolder),
             "m" | "max" => Ok(Commands::MaximumImages),
-            _ => Err(format!("Error: no such command \"{}\"", s)),
+            _ => Err(format!("No such command \"{}\"", s)),
         }
     }
 }
@@ -71,8 +71,7 @@ impl FromStr for Commands {
 /// Converts the provided path by user to a path that can be glob'd
 /// Directories are changed from /home/etc to /home/etc/*
 fn convert_path_to_globable(path: &str) -> Result<String, String> {
-    let expanded_path =
-        full(path).map_err(|e| format!("Error: \"{}\": {}", e.var_name, e.cause))?;
+    let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
     let mut absolute_path = String::from(expanded_path);
     // If path is a dir, add /* to glob
     if PathBuf::from(&absolute_path).is_dir() {
@@ -98,26 +97,32 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
                 push_image_path(&mut new_images, p);
             }
             Err(e) => {
-                let err_msg = format!("Error: Unexpected path {}", e);
+                let err_msg = format!("Unexpected path {}", e);
                 return Err(err_msg);
             }
         }
     }
     if new_images.is_empty() {
-        let err_msg = format!("Error: path \"{}\" had no images", path);
+        let err_msg = format!("Path \"{}\" had no images", path);
         return Err(err_msg);
     }
     Ok(new_images)
 }
 
-/// Uses regex to parse user input, then concating all subsequent strings that are escaped together
-/// TODO: have regex capture the ending space in case of escaped files
+/// Uses regex to parse user input that's provided to command mode into arguments
+/// First argument is the command followed by its arguments
 fn parse_user_input(input: &str) -> Vec<String> {
     let mut input_vec: Vec<String> = Vec::new();
-    let re: Regex = Regex::new(r"[\x21-\x7E]+(\\)?").unwrap();
+    // Regex pattern matches all unicode characters there must be at least 1
+    // and the '\' character may be present at the end of the string
+    // This is used to rather than split on whitespace, only get the actual arguments
+    let regex = match Regex::new(r"[\x21-\x7E]+(\\)?") {
+        Ok(regex) => regex,
+        Err(e) => panic!("Failed to construct Regex in parse_user_input: {}", e),
+    };
     let mut escaped = false;
 
-    for regex_match in re.captures_iter(&input) {
+    for regex_match in regex.captures_iter(&input) {
         let value: String = regex_match[0].to_string();
         if value.ends_with('\\') && !escaped {
             escaped = true;
@@ -137,7 +142,6 @@ fn parse_user_input(input: &str) -> Vec<String> {
 impl<'a> Program<'a> {
     /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
     /// Returning empty string signifies switching modes back to normal mode
-    // TODO: autocomplete use fn
     fn get_command(&mut self, cmd: &str) -> Result<String, String> {
         let mut input = String::new();
         let mut events = self.screen.sdl_context.event_pump()?;
@@ -150,8 +154,8 @@ impl<'a> Program<'a> {
                             break 'command_loop;
                         }
                         input.pop();
-                        let display = format!("{}{}", cmd, input);
-                        self.render_screen(false, Some(&display))?;
+                        self.ui_state.mode = Mode::Command(input.clone());
+                        self.render_screen(false)?;
                     }
                     Action::KeyboardInput(text) => {
                         input.push_str(text);
@@ -159,8 +163,8 @@ impl<'a> Program<'a> {
                         if input.starts_with(cmd) {
                             input = input[1..].to_string();
                         }
-                        let display = format!("{}{}", cmd, input);
-                        self.render_screen(false, Some(&display))?;
+                        self.ui_state.mode = Mode::Command(input.clone());
+                        self.render_screen(false)?;
                     }
                     Action::SwitchNormalMode => break 'command_loop,
                     _ => continue,
@@ -175,6 +179,8 @@ impl<'a> Program<'a> {
     /// After every command the user is set either into normal mode or the app terminates.
     ///
     /// List of commands provided in `Commands` enum
+    ///
+    /// Error is returned only in serious cases, for instance if the application fails to render_screen
     pub fn run_command_mode(&mut self) -> Result<(), String> {
         let input = self.get_command(":")?;
         // after evaluating a command always exit to normal mode by default
@@ -184,16 +190,28 @@ impl<'a> Program<'a> {
             return Ok(());
         }
         let input_vec = parse_user_input(&input);
-        let command = Commands::from_str(&input_vec[0])?;
+        let command = match Commands::from_str(&input_vec[0]) {
+            Ok(command) => command,
+            Err(e) => {
+                self.ui_state.mode = Mode::Error(e.to_string());
+                return Ok(());
+            }
+        };
         match command {
             Commands::NewGlob => {
                 if input_vec.len() < 2 {
-                    let err_msg =
-                        String::from("Error: command \"newglob\" or \":ng\" requires a glob");
-                    return Err(err_msg);
+                    self.ui_state.mode =
+                        Mode::Error(("Command \"newglob\" or \":ng\" requires a glob").to_string());
+                    return Ok(());
                 }
                 let mut new_images: Vec<PathBuf>;
-                new_images = glob_path(&input_vec[1])?;
+                new_images = match glob_path(&input_vec[1]) {
+                    Ok(new_images) => new_images,
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(e.to_string());
+                        return Ok(());
+                    }
+                };
                 let target = if !self.paths.images.is_empty() {
                     Some(self.paths.images[self.paths.index].to_owned())
                 } else {
@@ -236,24 +254,26 @@ impl<'a> Program<'a> {
             }
             Commands::DestFolder => {
                 if input_vec.len() < 2 {
-                    let err_msg =
-                        String::from("Error: command \":destfolder\" or \":d\" requires a path");
-                    return Err(err_msg);
+                    self.ui_state.mode = Mode::Error(
+                        "Command \":destfolder\" or \":d\" requires a path".to_string(),
+                    );
+                    return Ok(());
                 }
                 self.paths.dest_folder = PathBuf::from(&input_vec[1]);
             }
             Commands::MaximumImages => {
                 if input_vec.len() < 2 {
-                    let err_msg =
-                        String::from("Error: command \":max\" or \":m\" requires a new maximum number of files to display");
-                    return Err(err_msg);
+                    self.ui_state.mode = Mode::Error(
+                        "Command \":max\" or \":m\" requires a new maximum number of files to display".to_string(),
+                    );
+                    return Ok(());
                 }
                 self.paths.max_viewable = match input_vec[1].parse::<usize>() {
                     Ok(new_max) => new_max,
                     Err(_e) => {
-                        let err_msg =
-                            format!("Error: \"{}\" is not a positive integer", input_vec[1]);
-                        return Err(err_msg);
+                        self.ui_state.mode =
+                            Mode::Error(format!("\"{}\" is not a positive integer", input_vec[1]));
+                        return Ok(());
                     }
                 };
                 if self.paths.max_viewable > self.paths.images.len() || self.paths.max_viewable == 0
@@ -270,10 +290,9 @@ impl<'a> Program<'a> {
                     let new_sort_order = match SortOrder::from_str(&input_vec[1]) {
                         Ok(order) => order,
                         Err(e) => {
-                            return Err(format!(
-                                "Error: invalid value \"{}\". {}",
-                                input_vec[1], e
-                            ));
+                            self.ui_state.mode =
+                                Mode::Command(format!("Invalid value \"{}\". {}", input_vec[1], e));
+                            return Ok(());
                         }
                     };
                     self.sorter.set_order(new_sort_order);

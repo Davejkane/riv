@@ -49,12 +49,16 @@ pub enum Action<'a> {
 }
 
 /// Modal setting for Program, this dictates the commands that are available to the user
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub enum Mode {
     /// Default mode, allows the removal, traversal, move, and copy of images
     Normal,
     /// Mode that is built off of user input, allows switching the current glob
-    Command,
+    /// string is the input to display on the infobar
+    Command(String),
+    /// Mode that is meant to display errors to the user through the infobar
+    /// string is the input to display on the infobar
+    Error(String),
     /// Terminate condition, if this mode is set the program will stop execution
     Exit,
 }
@@ -126,9 +130,9 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
                 state.render_infobar = !state.render_infobar;
                 state.process_action(Action::ReRender)
             }
-            W | PageUp => Action::SkipForward,
-            B | PageDown => Action::SkipBack,
-            Z => Action::ToggleFit,
+            W | PageUp => state.process_action(Action::SkipForward),
+            B | PageDown => state.process_action(Action::SkipBack),
+            Z => state.process_action(Action::ToggleFit),
             Home => Action::First,
             End => Action::Last,
             Period => state.last_action.clone(),
@@ -136,7 +140,6 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
                 if state.left_shift || state.right_shift {
                     Action::SwitchCommandMode
                 } else {
-                    // placeholder for any feature that uses ';'
                     Action::Noop
                 }
             }

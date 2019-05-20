@@ -13,19 +13,15 @@ const LINE_PADDING: i32 = 5;
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
     /// rendered
-    pub fn render_screen(
-        &mut self,
-        force_render: bool,
-        infobar_msg: Option<&str>,
-    ) -> Result<(), String> {
+    pub fn render_screen(&mut self, force_render: bool) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
-            return self.render_blank(infobar_msg);
+            return self.render_blank();
         }
         self.screen.canvas.clear();
         self.render_image(force_render)?;
         if self.ui_state.render_infobar {
-            self.render_infobar(infobar_msg)?;
+            self.render_infobar()?;
         }
         if self.ui_state.render_help {
             self.render_help()?;
@@ -108,8 +104,8 @@ impl<'a> Program<'a> {
         src_dims.x > dest_dims.x || src_dims.y > dest_dims.y
     }
 
-    fn render_infobar(&mut self, msg: Option<&str>) -> Result<(), String> {
-        let text = infobar::Text::update(&self.paths, msg);
+    fn render_infobar(&mut self) -> Result<(), String> {
+        let text = infobar::Text::update(&self.ui_state.mode, &self.paths);
         // Load the filename texture
         let filename_surface = self
             .screen
@@ -263,10 +259,10 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn render_blank(&mut self, infobar_msg: Option<&str>) -> Result<(), String> {
+    fn render_blank(&mut self) -> Result<(), String> {
         self.screen.canvas.clear();
         if self.ui_state.render_infobar {
-            self.render_infobar(infobar_msg)?;
+            self.render_infobar()?;
         }
         if self.ui_state.render_help {
             self.render_help()?;
