@@ -65,10 +65,6 @@ pub enum Mode {
 
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
 pub struct State<'a> {
-    /// left_shift tracks whether or not the left shift key is pressed.
-    pub left_shift: bool,
-    /// right_shift tracks whether or not the right shift key is pressed.
-    pub right_shift: bool,
     /// render_infobar determines whether or not the info bar should be rendered.
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
@@ -143,28 +139,6 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             Home => Action::First,
             End => Action::Last,
             Period => state.last_action.clone(),
-            LShift => {
-                state.left_shift = true;
-                Action::Noop
-            }
-            RShift => {
-                state.right_shift = true;
-                Action::Noop
-            }
-            _ => Action::Noop,
-        },
-
-        Event::KeyUp {
-            keycode: Some(k), ..
-        } => match k {
-            LShift => {
-                state.left_shift = false;
-                Action::Noop
-            }
-            RShift => {
-                state.right_shift = false;
-                Action::Noop
-            }
             _ => Action::Noop,
         },
 

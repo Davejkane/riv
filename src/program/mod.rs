@@ -104,8 +104,6 @@ impl<'a> Program<'a> {
                 actual_max_viewable: max_length,
             },
             ui_state: ui::State {
-                left_shift: false,
-                right_shift: false,
                 render_infobar: true,
                 render_help: false,
                 actual_size: false,
