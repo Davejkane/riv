@@ -5,6 +5,7 @@ use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
 use regex::Regex;
 use shellexpand::full;
+use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
@@ -72,7 +73,8 @@ impl FromStr for Commands {
 /// Directories are changed from /home/etc to /home/etc/*
 fn convert_path_to_globable(path: &str) -> Result<String, String> {
     let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
-    let mut absolute_path = String::from(expanded_path);
+    // remove escaped spaces
+    let mut absolute_path = String::from(expanded_path).replace(r"\ ", " ");
     // If path is a dir, add /* to glob
     if PathBuf::from(&absolute_path).is_dir() {
         if !absolute_path.ends_with('/') {
@@ -111,8 +113,8 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
 
 /// Uses regex to parse user input that's provided to command mode into arguments
 /// First argument is the command followed by its arguments
-fn parse_user_input(input: &str) -> Vec<String> {
-    let mut input_vec: Vec<String> = Vec::new();
+fn parse_user_input(input: &str) -> VecDeque<String> {
+    let mut input_queue: VecDeque<String> = VecDeque::new();
     // Regex pattern matches all unicode characters there must be at least 1
     // and the '\' character may be present at the end of the string
     // This is used to rather than split on whitespace, only get the actual arguments
@@ -126,17 +128,17 @@ fn parse_user_input(input: &str) -> Vec<String> {
         let value: String = regex_match[0].to_string();
         if value.ends_with('\\') && !escaped {
             escaped = true;
-            input_vec.push(value);
+            input_queue.push_back(value);
         } else if escaped {
-            if let Some(last) = input_vec.last_mut() {
+            if let Some(last) = input_queue.back_mut() {
                 last.push(' ');
                 last.push_str(&value);
             }
         } else {
-            input_vec.push(value);
+            input_queue.push_back(value);
         }
     }
-    input_vec
+    input_queue
 }
 
 impl<'a> Program<'a> {
@@ -175,6 +177,101 @@ impl<'a> Program<'a> {
         Ok(input)
     }
 
+    /// Takes a path to a directory or glob and adds these images to self.paths.images
+    fn newglob(&mut self, path_to_newglob: &str) {
+        let new_images = match glob_path(path_to_newglob) {
+            Ok(new_images) => new_images,
+            Err(e) => {
+                self.ui_state.mode = Mode::Error(e.to_string());
+                return;
+            }
+        };
+        let target = if !self.paths.images.is_empty() {
+            // Set current directory to new one
+            self.paths.current_dir = PathBuf::from(path_to_newglob);
+
+            Some(self.paths.images[self.paths.index].to_owned())
+        } else {
+            None
+        };
+        self.paths.images = new_images;
+        self.sorter.sort(&mut self.paths.images);
+
+        if let Some(target_path) = target {
+            // find location of current image, if it exists in self.paths.images
+            match self
+                .paths
+                .images
+                .iter()
+                .position(|path| path == &target_path)
+            {
+                Some(new_index) => self.paths.index = new_index,
+                None => {
+                    self.paths.index = 0;
+                }
+            }
+        }
+        self.paths.max_viewable =
+            if self.paths.max_viewable > 0 && self.paths.max_viewable <= self.paths.images.len() {
+                self.paths.max_viewable
+            } else {
+                self.paths.images.len()
+            };
+    }
+
+    /// Providing no additional arguments just sorts the current data with the already set sorting
+    /// method
+    ///
+    /// Additional argument changes the sorting method and sorts the images
+    fn sort(&mut self, arguments: &VecDeque<String>) {
+        if arguments.is_empty() {
+            self.sorter.sort(&mut self.paths.images);
+            return;
+        }
+        // get a SortOrder from the provided argument
+        let new_sort_order = match SortOrder::from_str(&arguments[0]) {
+            Ok(order) => order,
+            Err(e) => {
+                self.ui_state.mode =
+                    Mode::Command(format!("Invalid value \"{}\". {}", arguments[0], e));
+                return;
+            }
+        };
+        self.sorter.set_order(new_sort_order);
+        // the path to find in order to maintain that it is the current image
+        let target = self.paths.images[self.paths.index].to_owned();
+        self.sorter.sort(&mut self.paths.images);
+        match self.paths.images.iter().position(|path| path == &target) {
+            Some(new_index) => {
+                if new_index < self.paths.max_viewable {
+                    self.paths.index = new_index;
+                } else {
+                    self.paths.index = self.paths.max_viewable - 1;
+                }
+            }
+            None => {
+                self.paths.index = 0;
+            }
+        }
+    }
+
+    /// sets the new maximum_viewable images
+    fn maximum_viewable(&mut self, max: &str) {
+        self.paths.max_viewable = match max.parse::<usize>() {
+            Ok(new_max) => new_max,
+            Err(_e) => {
+                self.ui_state.mode = Mode::Error(format!("\"{}\" is not a positive integer", max));
+                return;
+            }
+        };
+        if self.paths.max_viewable > self.paths.images.len() || self.paths.max_viewable == 0 {
+            self.paths.max_viewable = self.paths.images.len();
+        }
+        if self.paths.max_viewable < self.paths.index {
+            self.paths.index = self.paths.max_viewable - 1;
+        }
+    }
+
     /// Enters command mode that gets user input and runs a set of possible commands based on user input.
     /// After every command the user is set either into normal mode or the app terminates.
     ///
@@ -189,58 +286,28 @@ impl<'a> Program<'a> {
         if input.is_empty() {
             return Ok(());
         }
-        let input_vec = parse_user_input(&input);
-        let command = match Commands::from_str(&input_vec[0]) {
-            Ok(command) => command,
-            Err(e) => {
-                self.ui_state.mode = Mode::Error(e.to_string());
+        let mut input_queue = parse_user_input(&input);
+        let command = {
+            if let Some(potential_command) = input_queue.pop_front() {
+                match Commands::from_str(&potential_command) {
+                    Ok(command) => command,
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(e.to_string());
+                        return Ok(());
+                    }
+                }
+            } else {
                 return Ok(());
             }
         };
         match command {
             Commands::NewGlob => {
-                if input_vec.len() < 2 {
+                if input_queue.is_empty() {
                     self.ui_state.mode =
                         Mode::Error(("Command \"newglob\" or \":ng\" requires a glob").to_string());
                     return Ok(());
                 }
-                let mut new_images: Vec<PathBuf>;
-                new_images = match glob_path(&input_vec[1]) {
-                    Ok(new_images) => new_images,
-                    Err(e) => {
-                        self.ui_state.mode = Mode::Error(e.to_string());
-                        return Ok(());
-                    }
-                };
-                let target = if !self.paths.images.is_empty() {
-                    Some(self.paths.images[self.paths.index].to_owned())
-                } else {
-                    None
-                };
-                self.paths.images = new_images;
-                self.sorter.sort(&mut self.paths.images);
-
-                if let Some(target_path) = target {
-                    // find location of current image, if it exists in self.paths.images
-                    match self
-                        .paths
-                        .images
-                        .iter()
-                        .position(|path| path == &target_path)
-                    {
-                        Some(new_index) => self.paths.index = new_index,
-                        None => {
-                            self.paths.index = 0;
-                        }
-                    }
-                }
-                self.paths.max_viewable = if self.paths.max_viewable > 0
-                    && self.paths.max_viewable <= self.paths.images.len()
-                {
-                    self.paths.max_viewable
-                } else {
-                    self.paths.images.len()
-                };
+                self.newglob(&input_queue[0]);
             }
             Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
@@ -253,65 +320,25 @@ impl<'a> Program<'a> {
                 self.paths.index = self.paths.max_viewable - self.paths.index - 1;
             }
             Commands::DestFolder => {
-                if input_vec.len() < 2 {
+                if input_queue.is_empty() {
                     self.ui_state.mode = Mode::Error(
                         "Command \":destfolder\" or \":d\" requires a path".to_string(),
                     );
                     return Ok(());
                 }
-                self.paths.dest_folder = PathBuf::from(&input_vec[1]);
+                self.paths.dest_folder = PathBuf::from(&input_queue[1]);
             }
             Commands::MaximumImages => {
-                if input_vec.len() < 2 {
+                if input_queue.is_empty() {
                     self.ui_state.mode = Mode::Error(
                         "Command \":max\" or \":m\" requires a new maximum number of files to display".to_string(),
                     );
                     return Ok(());
                 }
-                self.paths.max_viewable = match input_vec[1].parse::<usize>() {
-                    Ok(new_max) => new_max,
-                    Err(_e) => {
-                        self.ui_state.mode =
-                            Mode::Error(format!("\"{}\" is not a positive integer", input_vec[1]));
-                        return Ok(());
-                    }
-                };
-                if self.paths.max_viewable > self.paths.images.len() || self.paths.max_viewable == 0
-                {
-                    self.paths.max_viewable = self.paths.images.len();
-                }
-                if self.paths.max_viewable < self.paths.index {
-                    self.paths.index = self.paths.max_viewable - 1;
-                }
+                self.maximum_viewable(&input_queue[0]);
             }
             Commands::Sort => {
-                // Allow both just calling "sort" and allow providing the new sort
-                if input_vec.len() >= 2 {
-                    let new_sort_order = match SortOrder::from_str(&input_vec[1]) {
-                        Ok(order) => order,
-                        Err(e) => {
-                            self.ui_state.mode =
-                                Mode::Command(format!("Invalid value \"{}\". {}", input_vec[1], e));
-                            return Ok(());
-                        }
-                    };
-                    self.sorter.set_order(new_sort_order);
-                }
-                // the path to find in order to maintain that it is the current image
-                let target = self.paths.images[self.paths.index].to_owned();
-                self.sorter.sort(&mut self.paths.images);
-                match self.paths.images.iter().position(|path| path == &target) {
-                    Some(new_index) => {
-                        if new_index < self.paths.max_viewable {
-                            self.paths.index = new_index;
-                        } else {
-                            self.paths.index = self.paths.max_viewable - 1;
-                        }
-                    }
-                    None => {
-                        self.paths.index = 0;
-                    }
-                }
+                self.sort(&input_queue);
             }
         }
         Ok(())
