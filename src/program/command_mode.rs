@@ -286,6 +286,8 @@ impl<'a> Program<'a> {
     ///
     /// Error is returned only in serious cases, for instance if the application fails to render_screen
     pub fn run_command_mode(&mut self) -> Result<(), String> {
+        self.ui_state.render_infobar = true;
+        self.render_screen(false)?;
         let input = self.get_command(":")?;
         // after evaluating a command always exit to normal mode by default
         self.ui_state.mode = Mode::Normal;
