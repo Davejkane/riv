@@ -183,7 +183,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
 }
 
 /// Processes event information for Command mode, and returns them as Actions
-pub fn process_command_mode<'a>(event: &'a Event) -> Action<'a> {
+pub fn process_command_mode(event: &Event) -> Action {
     use sdl2::event::WindowEvent;
     use sdl2::keyboard::Keycode;
 
