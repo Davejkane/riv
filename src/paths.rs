@@ -15,4 +15,6 @@ pub struct Paths {
     pub index: usize,
     /// Artificial user facing length of images limited by max cli argument
     pub max_viewable: usize,
+    /// Actual length the user said was maximum for images
+    pub actual_max_viewable: usize,
 }

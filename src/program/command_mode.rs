@@ -201,12 +201,13 @@ impl<'a> Program<'a> {
                 }
             }
         }
-        self.paths.max_viewable =
-            if self.paths.max_viewable > 0 && self.paths.max_viewable <= self.paths.images.len() {
-                self.paths.max_viewable
-            } else {
-                self.paths.images.len()
-            };
+        self.paths.max_viewable = if self.paths.actual_max_viewable > 0
+            && self.paths.actual_max_viewable <= self.paths.images.len()
+        {
+            self.paths.actual_max_viewable
+        } else {
+            self.paths.images.len()
+        };
     }
 
     /// Providing no additional arguments just sorts the current data with the already set sorting
@@ -243,7 +244,13 @@ impl<'a> Program<'a> {
                 .iter()
                 .position(|path| path == &target_path)
             {
-                Some(new_index) => self.paths.index = new_index,
+                Some(new_index) => {
+                    if new_index <= (self.paths.max_viewable - 1) {
+                        self.paths.index = new_index;
+                    } else {
+                        self.paths.index = 0;
+                    }
+                }
                 None => {
                     self.paths.index = 0;
                 }
@@ -253,17 +260,21 @@ impl<'a> Program<'a> {
 
     /// sets the new maximum_viewable images
     fn maximum_viewable(&mut self, max: &str) {
-        self.paths.max_viewable = match max.parse::<usize>() {
+        self.paths.actual_max_viewable = match max.parse::<usize>() {
             Ok(new_max) => new_max,
             Err(_e) => {
                 self.ui_state.mode = Mode::Error(format!("\"{}\" is not a positive integer", max));
                 return;
             }
         };
-        if self.paths.max_viewable > self.paths.images.len() || self.paths.max_viewable == 0 {
+        if self.paths.actual_max_viewable > self.paths.images.len()
+            || self.paths.actual_max_viewable == 0
+        {
             self.paths.max_viewable = self.paths.images.len();
+        } else {
+            self.paths.max_viewable = self.paths.actual_max_viewable;
         }
-        if self.paths.max_viewable < self.paths.index {
+        if self.paths.max_viewable <= self.paths.index {
             self.paths.index = self.paths.max_viewable - 1;
         }
     }

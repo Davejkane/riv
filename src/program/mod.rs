@@ -101,6 +101,7 @@ impl<'a> Program<'a> {
                 index: 0,
                 current_dir,
                 max_viewable,
+                actual_max_viewable: max_length,
             },
             ui_state: ui::State {
                 left_shift: false,
