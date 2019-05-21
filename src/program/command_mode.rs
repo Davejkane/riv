@@ -113,17 +113,16 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
 fn parse_user_input(input: String) -> Result<(Commands, String), String> {
     // find where to split
     let command_terminating_index = {
-        if let Some(end) = input.find(' ') {
-            end
+        if let Some(space_index) = input.find(' ') {
+            space_index
         } else {
             input.len()
         }
     };
     let command_str = &input[0..command_terminating_index];
     let command = Commands::from_str(command_str)?;
-
     let arguments = {
-        if !input.is_empty() {
+        if input.len() > command_terminating_index {
             input[command_terminating_index + 1..].to_owned()
         } else {
             String::new()
@@ -230,18 +229,24 @@ impl<'a> Program<'a> {
         };
         self.sorter.set_order(new_sort_order);
         // the path to find in order to maintain that it is the current image
-        let target = self.paths.images[self.paths.index].to_owned();
+        let target = if !self.paths.images.is_empty() {
+            Some(self.paths.images[self.paths.index].to_owned())
+        } else {
+            None
+        };
         self.sorter.sort(&mut self.paths.images);
-        match self.paths.images.iter().position(|path| path == &target) {
-            Some(new_index) => {
-                if new_index < self.paths.max_viewable {
-                    self.paths.index = new_index;
-                } else {
-                    self.paths.index = self.paths.max_viewable - 1;
+        if let Some(target_path) = target {
+            // find location of current image, if it exists in self.paths.images
+            match self
+                .paths
+                .images
+                .iter()
+                .position(|path| path == &target_path)
+            {
+                Some(new_index) => self.paths.index = new_index,
+                None => {
+                    self.paths.index = 0;
                 }
-            }
-            None => {
-                self.paths.index = 0;
             }
         }
     }
