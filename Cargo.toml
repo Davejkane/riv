@@ -10,7 +10,6 @@ glob = "0.3"
 fs_extra = "1.1"
 natord = "1.0.9"
 shellexpand = "1.0"
-regex = "1.1.6"
 
 [dependencies.sdl2]
 version = "0.32"

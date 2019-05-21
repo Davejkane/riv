@@ -3,16 +3,14 @@
 use super::Program;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
-use regex::Regex;
 use shellexpand::full;
-use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::time::Duration;
 
 /// Available commands in Command mode
 ///
-/// Note: in documentation for commands leading `:` is prepended and should no be included
+/// Note: in documentation for commands leading `:` is prepended and should not be included
 enum Commands {
     /// `:sort`
     ///
@@ -74,15 +72,13 @@ impl FromStr for Commands {
 fn convert_path_to_globable(path: &str) -> Result<String, String> {
     let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
     // remove escaped spaces
-    let mut absolute_path = String::from(expanded_path).replace(r"\ ", " ");
+    let absolute_path = String::from(expanded_path).replace(r"\ ", " ");
     // If path is a dir, add /* to glob
-    if PathBuf::from(&absolute_path).is_dir() {
-        if !absolute_path.ends_with('/') {
-            absolute_path.push('/');
-        }
-        absolute_path.push('*');
+    let mut pathbuf = PathBuf::from(&absolute_path);
+    if pathbuf.is_dir() {
+        pathbuf = pathbuf.join("*");
     }
-    Ok(absolute_path)
+    Ok(pathbuf.to_string_lossy().to_string())
 }
 
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
@@ -104,41 +100,36 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
             }
         }
     }
-    if new_images.is_empty() {
+    if path.find(' ').is_some() && new_images.is_empty() {
+        return Err("Newglob accepts only one argument, but more were provided".to_string());
+    } else if new_images.is_empty() {
         let err_msg = format!("Path \"{}\" had no images", path);
         return Err(err_msg);
     }
     Ok(new_images)
 }
 
-/// Uses regex to parse user input that's provided to command mode into arguments
-/// First argument is the command followed by its arguments
-fn parse_user_input(input: &str) -> VecDeque<String> {
-    let mut input_queue: VecDeque<String> = VecDeque::new();
-    // Regex pattern matches all unicode characters there must be at least 1
-    // and the '\' character may be present at the end of the string
-    // This is used to rather than split on whitespace, only get the actual arguments
-    let regex = match Regex::new(r"[\x21-\x7E]+(\\)?") {
-        Ok(regex) => regex,
-        Err(e) => panic!("Failed to construct Regex in parse_user_input: {}", e),
-    };
-    let mut escaped = false;
-
-    for regex_match in regex.captures_iter(&input) {
-        let value: String = regex_match[0].to_string();
-        if value.ends_with('\\') && !escaped {
-            escaped = true;
-            input_queue.push_back(value);
-        } else if escaped {
-            if let Some(last) = input_queue.back_mut() {
-                last.push(' ');
-                last.push_str(&value);
-            }
+/// Separate user input into the main command and its respected arguments
+fn parse_user_input(input: String) -> Result<(Commands, String), String> {
+    // find where to split
+    let command_terminating_index = {
+        if let Some(end) = input.find(' ') {
+            end
         } else {
-            input_queue.push_back(value);
+            input.len()
         }
-    }
-    input_queue
+    };
+    let command_str = &input[0..command_terminating_index];
+    let command = Commands::from_str(command_str)?;
+
+    let arguments = {
+        if !input.is_empty() {
+            input[command_terminating_index + 1..].to_owned()
+        } else {
+            String::new()
+        }
+    };
+    Ok((command, arguments))
 }
 
 impl<'a> Program<'a> {
@@ -223,17 +214,17 @@ impl<'a> Program<'a> {
     /// method
     ///
     /// Additional argument changes the sorting method and sorts the images
-    fn sort(&mut self, arguments: &VecDeque<String>) {
+    fn sort(&mut self, arguments: String) {
         if arguments.is_empty() {
             self.sorter.sort(&mut self.paths.images);
             return;
         }
         // get a SortOrder from the provided argument
-        let new_sort_order = match SortOrder::from_str(&arguments[0]) {
+        let new_sort_order = match SortOrder::from_str(&arguments) {
             Ok(order) => order,
             Err(e) => {
                 self.ui_state.mode =
-                    Mode::Command(format!("Invalid value \"{}\". {}", arguments[0], e));
+                    Mode::Command(format!("Invalid value \"{}\". {}", arguments, e));
                 return;
             }
         };
@@ -286,28 +277,21 @@ impl<'a> Program<'a> {
         if input.is_empty() {
             return Ok(());
         }
-        let mut input_queue = parse_user_input(&input);
-        let command = {
-            if let Some(potential_command) = input_queue.pop_front() {
-                match Commands::from_str(&potential_command) {
-                    Ok(command) => command,
-                    Err(e) => {
-                        self.ui_state.mode = Mode::Error(e.to_string());
-                        return Ok(());
-                    }
-                }
-            } else {
+        let (command, arguments) = match parse_user_input(input) {
+            Ok((command, arguments)) => (command, arguments),
+            Err(e) => {
+                self.ui_state.mode = Mode::Error(e.to_string());
                 return Ok(());
             }
         };
         match command {
             Commands::NewGlob => {
-                if input_queue.is_empty() {
+                if arguments.is_empty() {
                     self.ui_state.mode =
                         Mode::Error(("Command \"newglob\" or \":ng\" requires a glob").to_string());
                     return Ok(());
                 }
-                self.newglob(&input_queue[0]);
+                self.newglob(&arguments);
             }
             Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
@@ -320,25 +304,25 @@ impl<'a> Program<'a> {
                 self.paths.index = self.paths.max_viewable - self.paths.index - 1;
             }
             Commands::DestFolder => {
-                if input_queue.is_empty() {
+                if arguments.is_empty() {
                     self.ui_state.mode = Mode::Error(
                         "Command \":destfolder\" or \":d\" requires a path".to_string(),
                     );
                     return Ok(());
                 }
-                self.paths.dest_folder = PathBuf::from(&input_queue[1]);
+                self.paths.dest_folder = PathBuf::from(&arguments);
             }
             Commands::MaximumImages => {
-                if input_queue.is_empty() {
+                if arguments.is_empty() {
                     self.ui_state.mode = Mode::Error(
                         "Command \":max\" or \":m\" requires a new maximum number of files to display".to_string(),
                     );
                     return Ok(());
                 }
-                self.maximum_viewable(&input_queue[0]);
+                self.maximum_viewable(&arguments);
             }
             Commands::Sort => {
-                self.sort(&input_queue);
+                self.sort(arguments);
             }
         }
         Ok(())
