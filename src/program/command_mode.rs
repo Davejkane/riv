@@ -326,7 +326,16 @@ impl<'a> Program<'a> {
                     );
                     return Ok(());
                 }
-                self.paths.dest_folder = PathBuf::from(&arguments);
+                match full(&arguments) {
+                    Ok(path) => {
+                        self.paths.dest_folder = PathBuf::from(path.to_string());
+                    }
+                    Err(e) => {
+                        self.ui_state.mode =
+                            Mode::Error(format!("\"{}\": {}", e.var_name, e.cause));
+                        return Ok(());
+                    }
+                }
             }
             Commands::MaximumImages => {
                 if arguments.is_empty() {
