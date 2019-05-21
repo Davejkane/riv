@@ -3,6 +3,7 @@
 use super::Program;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
+use lazy_static::lazy_static;
 use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
@@ -116,13 +117,16 @@ fn parse_user_input(input: &str) -> Vec<String> {
     // Regex pattern matches all unicode characters there must be at least 1
     // and the '\' character may be present at the end of the string
     // This is used to rather than split on whitespace, only get the actual arguments
-    let regex = match Regex::new(r"[\x21-\x7E]+(\\)?") {
-        Ok(regex) => regex,
-        Err(e) => panic!("Failed to construct Regex in parse_user_input: {}", e),
-    };
+    lazy_static! {
+        static ref PATH_REGEX: Regex = match Regex::new(r"[\x21-\x7E]+(\\)?") {
+            Ok(regex) => regex,
+            Err(e) => panic!("Failed to construct Regex in parse_user_input: {}", e),
+        };
+    }
+
     let mut escaped = false;
 
-    for regex_match in regex.captures_iter(&input) {
+    for regex_match in PATH_REGEX.captures_iter(&input) {
         let value: String = regex_match[0].to_string();
         if value.ends_with('\\') && !escaped {
             escaped = true;
