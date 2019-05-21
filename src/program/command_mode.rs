@@ -109,7 +109,6 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
     Ok(new_images)
 }
 
-<<<<<<< HEAD
 /// Separate user input into the main command and its respected arguments
 fn parse_user_input(input: String) -> Result<(Commands, String), String> {
     // find where to split
@@ -126,34 +125,6 @@ fn parse_user_input(input: String) -> Result<(Commands, String), String> {
     let arguments = {
         if !input.is_empty() {
             input[command_terminating_index + 1..].to_owned()
-=======
-/// Uses regex to parse user input that's provided to command mode into arguments
-/// First argument is the command followed by its arguments
-fn parse_user_input(input: &str) -> Vec<String> {
-    let mut input_vec: Vec<String> = Vec::new();
-    // Regex pattern matches all unicode characters there must be at least 1
-    // and the '\' character may be present at the end of the string
-    // This is used to rather than split on whitespace, only get the actual arguments
-    lazy_static! {
-        static ref PATH_REGEX: Regex = match Regex::new(r"[\x21-\x7E]+(\\)?") {
-            Ok(regex) => regex,
-            Err(e) => panic!("Failed to construct Regex in parse_user_input: {}", e),
-        };
-    }
-
-    let mut escaped = false;
-
-    for regex_match in PATH_REGEX.captures_iter(&input) {
-        let value: String = regex_match[0].to_string();
-        if value.ends_with('\\') && !escaped {
-            escaped = true;
-            input_vec.push(value);
-        } else if escaped {
-            if let Some(last) = input_vec.last_mut() {
-                last.push(' ');
-                last.push_str(&value);
-            }
->>>>>>> refs/remotes/origin/feat-redefine-glob
         } else {
             String::new()
         }
