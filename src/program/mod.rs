@@ -309,7 +309,10 @@ impl<'a> Program<'a> {
         'main_loop: loop {
             let mode = &self.ui_state.mode.clone();
             match mode {
-                Mode::Normal => self.run_normal_mode()?,
+                Mode::Normal => {
+                    self.run_normal_mode()?;
+                    self.render_screen(true)?;
+                }
                 Mode::Command(..) => {
                     self.run_command_mode()?;
                     // Force renders in order to remove "Command" and other info from bar

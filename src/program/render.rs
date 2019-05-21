@@ -313,7 +313,7 @@ fn help_text() -> Vec<&'static str> {
         "| Delete OR d      | Delete image from it's location                        |",
         "| t                | Toggle information bar                                 |",
         "| f OR F11         | Toggle fullscreen mode                                 |",
-        "| h                | Toggle help box                                        |",
+        "| ?                | Toggle help box                                        |",
         "| z OR Left Click  | Toggle actual size vs scaled image                     |",
         "| . (period)       | Repeat last action                                     |",
         "+------------------+--------------------------------------------------------+",

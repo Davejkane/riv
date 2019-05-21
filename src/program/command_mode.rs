@@ -27,7 +27,7 @@ enum Commands {
     /// If the current image exists prior to changing globs exists in the new glob move to that index.
     /// If the new path has no images do nothing.
     NewGlob,
-    /// `:h` or `:help`
+    /// `:?` or `:help`
     ///
     /// Switches to normal mode and displays help info
     Help,
@@ -57,7 +57,7 @@ impl FromStr for Commands {
         match s {
             "sort" => Ok(Commands::Sort),
             "ng" | "newglob" => Ok(Commands::NewGlob),
-            "h" | "help" => Ok(Commands::Help),
+            "?" | "help" => Ok(Commands::Help),
             "q" | "quit" => Ok(Commands::Quit),
             "r" | "reverse" => Ok(Commands::Reverse),
             "df" | "destfolder" => Ok(Commands::DestFolder),

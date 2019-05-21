@@ -105,47 +105,44 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
     match event {
         Event::Quit { .. } => Action::Quit,
 
-        Event::KeyDown {
-            keycode: Some(k),
-            scancode: Some(scan),
-            ..
-        } => match k {
-            C => state.process_action(Action::Copy),
-            D | Delete => state.process_action(Action::Delete),
-            F | F11 => state.process_action(Action::ToggleFullscreen),
-            G => {
-                if state.left_shift || state.right_shift {
-                    state.process_action(Action::Last)
-                } else {
-                    state.process_action(Action::First)
-                }
-            }
-            H => {
+        Event::TextInput { text, .. } => match text.as_str() {
+            "c" => state.process_action(Action::Copy),
+            "d" => state.process_action(Action::Delete),
+            "f" => state.process_action(Action::ToggleFullscreen),
+            "g" => state.process_action(Action::First),
+            "G" => state.process_action(Action::Last),
+            "?" => {
                 state.render_help = !state.render_help;
                 state.process_action(Action::ReRender)
             }
-            J | Right => state.process_action(Action::Next),
-            K | Left => state.process_action(Action::Prev),
-            M => state.process_action(Action::Move),
-            Q | Escape => Action::Quit,
-            T => {
+            "j" => state.process_action(Action::Next),
+            "k" => state.process_action(Action::Prev),
+            "m" => state.process_action(Action::Move),
+            "q" => Action::Quit,
+            "t" => {
                 state.render_infobar = !state.render_infobar;
                 state.process_action(Action::ReRender)
             }
-            W | PageUp => state.process_action(Action::SkipForward),
-            B | PageDown => state.process_action(Action::SkipBack),
-            Z => state.process_action(Action::ToggleFit),
+            "w" => state.process_action(Action::SkipForward),
+            "b" => state.process_action(Action::SkipBack),
+            "z" => state.process_action(Action::ToggleFit),
+            ":" => Action::SwitchCommandMode,
+            _ => Action::Noop,
+        },
+
+        Event::KeyDown {
+            keycode: Some(k), ..
+        } => match k {
+            Delete => state.process_action(Action::Delete),
+            F11 => state.process_action(Action::ToggleFullscreen),
+            Right => state.process_action(Action::Next),
+            Left => state.process_action(Action::Prev),
+            Escape => Action::Quit,
+            PageUp => state.process_action(Action::SkipForward),
+            PageDown => state.process_action(Action::SkipBack),
             Home => Action::First,
             End => Action::Last,
             Period => state.last_action.clone(),
-            Colon => Action::SwitchCommandMode,
-            Semicolon => {
-                if state.left_shift || state.right_shift {
-                    Action::SwitchCommandMode
-                } else {
-                    Action::Noop
-                }
-            }
             LShift => {
                 state.left_shift = true;
                 Action::Noop
@@ -154,17 +151,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
                 state.right_shift = true;
                 Action::Noop
             }
-            _ => {
-                // convert scancode to keycode via virtual mapping
-                let keycode = match sdl2::keyboard::Keycode::from_scancode(*scan) {
-                    Some(keycode) => keycode,
-                    Option::None => return Action::Noop,
-                };
-                match keycode {
-                    Colon => Action::SwitchCommandMode,
-                    _ => Action::Noop,
-                }
-            }
+            _ => Action::Noop,
         },
 
         Event::KeyUp {
