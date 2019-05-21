@@ -106,7 +106,9 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
         Event::Quit { .. } => Action::Quit,
 
         Event::KeyDown {
-            keycode: Some(k), ..
+            keycode: Some(k),
+            scancode: Some(scan),
+            ..
         } => match k {
             C => state.process_action(Action::Copy),
             D | Delete => state.process_action(Action::Delete),
@@ -136,6 +138,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             Home => Action::First,
             End => Action::Last,
             Period => state.last_action.clone(),
+            Colon => Action::SwitchCommandMode,
             Semicolon => {
                 if state.left_shift || state.right_shift {
                     Action::SwitchCommandMode
@@ -151,7 +154,17 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
                 state.right_shift = true;
                 Action::Noop
             }
-            _ => Action::Noop,
+            _ => {
+                // convert scancode to keycode via virtual mapping
+                let keycode = match sdl2::keyboard::Keycode::from_scancode(*scan) {
+                    Some(keycode) => keycode,
+                    Option::None => return Action::Noop,
+                };
+                match keycode {
+                    Colon => Action::SwitchCommandMode,
+                    _ => Action::Noop,
+                }
+            }
         },
 
         Event::KeyUp {
