@@ -132,7 +132,7 @@ fn parse_user_input(input: String) -> Result<(Commands, String), String> {
 }
 
 /// When provided a newglob set current_dir to the nearest directory
-fn find_new_current_dir(new_path: &str) -> Option<PathBuf> {
+fn find_new_base_dir(new_path: &str) -> Option<PathBuf> {
     let expanded_path = match full(new_path) {
         Ok(path) => path,
         Err(_e) => {
@@ -205,9 +205,9 @@ impl<'a> Program<'a> {
         };
         self.paths.images = new_images;
         // Set current directory to new one
-        let new_current_dir = find_new_current_dir(&path_to_newglob.replace("\\ ", " "));
-        match new_current_dir {
-            Some(current_dir) => self.paths.current_dir = current_dir,
+        let new_base_dir = find_new_base_dir(&path_to_newglob.replace("\\ ", " "));
+        match new_base_dir {
+            Some(base_dir) => self.paths.base_dir = base_dir,
             None => {}
         }
         self.sorter.sort(&mut self.paths.images);
@@ -335,8 +335,8 @@ impl<'a> Program<'a> {
                     return Ok(());
                 }
                 self.newglob(&arguments);
-                if self.paths.dest_folder.ends_with("keep") {
-                    self.paths.dest_folder = self.paths.current_dir.join("keep");
+                if !self.paths.changed_dest_folder {
+                    self.paths.dest_folder = self.paths.base_dir.join("keep");
                 }
             }
             Commands::Help => {
@@ -367,6 +367,7 @@ impl<'a> Program<'a> {
                         return Ok(());
                     }
                 }
+                self.paths.changed_dest_folder = true;
             }
             Commands::MaximumImages => {
                 if arguments.is_empty() {

@@ -49,6 +49,7 @@ impl<'a> Program<'a> {
     ) -> Result<Program<'a>, String> {
         let mut images = args.files;
         let dest_folder = args.dest_folder;
+        let changed_dest_folder = dest_folder == PathBuf::from("./keep");
         let reverse = args.reverse;
         let sort_order = args.sort_order;
         let max_length = args.max_length;
@@ -62,7 +63,7 @@ impl<'a> Program<'a> {
         let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
 
-        let current_dir = match std::env::current_dir() {
+        let base_dir = match std::env::current_dir() {
             Ok(c) => c,
             Err(_) => PathBuf::new(),
         };
@@ -98,8 +99,9 @@ impl<'a> Program<'a> {
             paths: Paths {
                 images,
                 dest_folder,
+                changed_dest_folder,
                 index: 0,
-                current_dir,
+                base_dir,
                 max_viewable,
                 actual_max_viewable: max_length,
             },
