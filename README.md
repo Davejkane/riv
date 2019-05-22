@@ -76,7 +76,7 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | Command                     | Action                                                   |
 |-----------------------------|----------------------------------------------------------|
 | ng OR newglob [glob]        | **Required argument** the new glob/directory/file        |
-| ? OR help                   | Toggle fullscreen mode                                   |
+| ? OR help                   | Toggle help box                                          |
 | q OR quit                   | Quit                                                     |
 | sort (method)               | *Optional argument* the new method to sort by            |
 | df OR destfolder [path]     | **Required argument** new folder to move/copy images to  |
