@@ -3,13 +3,14 @@
 //! Program contains the program struct, which contains all information needed to run the
 //! event loop and render the images to screen
 
+mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
 use crate::paths::Paths;
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action};
+use crate::ui::{self, Action, Mode};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
@@ -31,7 +32,8 @@ const FONT_SIZE: u16 = 18;
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
-    ui_state: ui::State,
+    ui_state: ui::State<'a>,
+    sorter: Sorter,
 }
 
 impl<'a> Program<'a> {
@@ -47,6 +49,7 @@ impl<'a> Program<'a> {
     ) -> Result<Program<'a>, String> {
         let mut images = args.files;
         let dest_folder = args.dest_folder;
+        let changed_dest_folder = dest_folder == PathBuf::from("./keep");
         let reverse = args.reverse;
         let sort_order = args.sort_order;
         let max_length = args.max_length;
@@ -60,7 +63,7 @@ impl<'a> Program<'a> {
         let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
 
-        let current_dir = match std::env::current_dir() {
+        let base_dir = match std::env::current_dir() {
             Ok(c) => c,
             Err(_) => PathBuf::new(),
         };
@@ -96,19 +99,21 @@ impl<'a> Program<'a> {
             paths: Paths {
                 images,
                 dest_folder,
+                changed_dest_folder,
                 index: 0,
-                current_dir,
+                base_dir,
                 max_viewable,
+                actual_max_viewable: max_length,
             },
             ui_state: ui::State {
-                left_shift: false,
-                right_shift: false,
                 render_infobar: true,
                 render_help: false,
                 actual_size: false,
                 fullscreen: args.fullscreen,
+                mode: Mode::Normal,
                 last_action: Action::Noop,
             },
+            sorter,
         })
     }
 
@@ -128,7 +133,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen()
+        self.render_screen(false)
     }
 
     /// Removes an image from tracked images.
@@ -145,6 +150,10 @@ impl<'a> Program<'a> {
         if index >= self.paths.max_viewable && self.paths.index != 0 {
             self.paths.index -= 1;
         }
+        // Decrease max viewable if another image won't take the deleted's place
+        if self.paths.images.len() <= self.paths.max_viewable {
+            self.paths.max_viewable -= 1;
+        }
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
@@ -155,7 +164,7 @@ impl<'a> Program<'a> {
         else {
             self.paths.index = 0;
         }
-        self.render_screen()
+        self.render_screen(false)
     }
 
     /// Skips forward by the default skip increment and renders the image
@@ -173,7 +182,7 @@ impl<'a> Program<'a> {
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
         self.paths.index = 0;
-        self.render_screen()
+        self.render_screen(false)
     }
 
     /// Go to and render last image in list
@@ -183,7 +192,7 @@ impl<'a> Program<'a> {
         } else {
             self.paths.index = self.paths.max_viewable - 1;
         }
-        self.render_screen()
+        self.render_screen(false)
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
@@ -248,14 +257,18 @@ impl<'a> Program<'a> {
                 e.to_string()
             ));
         }
-
         // Only if successful, remove image from tracked images
         self.remove_image(self.paths.index);
         self.screen.dirty = true;
 
+        // If index is greater than or equal to max_viewable set it to it - 1
+        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
+            self.paths.index = self.paths.max_viewable - 1;
+        }
+
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen()
+        self.render_screen(false)
     }
 
     /// Deletes image currently being viewed
@@ -288,9 +301,14 @@ impl<'a> Program<'a> {
         self.remove_image(self.paths.index);
         self.screen.dirty = true;
 
+        // If index is greater than or equal to max_viewable set it to it - 1
+        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
+            self.paths.index = self.paths.max_viewable - 1;
+        }
+
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen()
+        self.render_screen(false)
     }
 
     /// Toggles fullscreen state of app
@@ -298,23 +316,55 @@ impl<'a> Program<'a> {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
     }
 
-    /// run is the event loop that listens for input and delegates accordingly.
+    /// Central run function that starts by default in Normal mode
+    /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
-        self.render_screen()?;
+        self.render_screen(false)?;
+        'main_loop: loop {
+            let mode = &self.ui_state.mode.clone();
+            match mode {
+                Mode::Normal => {
+                    self.run_normal_mode()?;
+                    self.render_screen(true)?;
+                }
+                Mode::Command(..) => {
+                    self.run_command_mode()?;
+                    // Force renders in order to remove "Command" and other info from bar
+                    self.render_screen(true)?;
+                }
+                Mode::Error(..) => {
+                    self.render_screen(false)?;
+                    self.ui_state.mode = Mode::Normal;
+                }
+                Mode::Exit => break 'main_loop,
+            }
+        }
+        Ok(())
+    }
 
+    /// run_normal_mode is the event loop that listens for input and delegates accordingly for
+    /// normal mode
+    fn run_normal_mode(&mut self) -> Result<(), String> {
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                match ui::event_action(&mut self.ui_state, &event) {
-                    Action::Quit => break 'mainloop,
+                match ui::process_normal_mode(&mut self.ui_state, &event) {
+                    Action::Quit => {
+                        self.ui_state.mode = Mode::Exit;
+                        break 'mainloop;
+                    }
                     Action::ToggleFullscreen => {
                         self.toggle_fullscreen();
                         self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                        self.render_screen()?
+                        self.render_screen(false)?
                     }
-                    Action::ReRender => self.render_screen()?,
+                    Action::ReRender => self.render_screen(false)?,
+                    Action::SwitchCommandMode => {
+                        self.ui_state.mode = Mode::Command(String::new());
+                        break 'mainloop;
+                    }
                     Action::ToggleFit => {
                         self.toggle_fit();
-                        self.render_screen()?
+                        self.render_screen(false)?
                     }
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
@@ -335,6 +385,7 @@ impl<'a> Program<'a> {
                         Err(e) => eprintln!("{}", e),
                     },
                     Action::Noop => {}
+                    _ => {}
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));

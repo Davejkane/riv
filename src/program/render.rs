@@ -13,13 +13,13 @@ const LINE_PADDING: i32 = 5;
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
     /// rendered
-    pub fn render_screen(&mut self) -> Result<(), String> {
+    pub fn render_screen(&mut self, force_render: bool) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
         if self.paths.images.is_empty() {
             return self.render_blank();
         }
         self.screen.canvas.clear();
-        self.render_image()?;
+        self.render_image(force_render)?;
         if self.ui_state.render_infobar {
             self.render_infobar()?;
         }
@@ -32,8 +32,8 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn render_image(&mut self) -> Result<(), String> {
-        self.set_image_texture()?;
+    fn render_image(&mut self, force_render: bool) -> Result<(), String> {
+        self.set_image_texture(force_render)?;
         match self.screen.last_texture {
             Some(_) => (),
             None => return Ok(()),
@@ -63,10 +63,11 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
-    fn set_image_texture(&mut self) -> Result<(), String> {
+    fn set_image_texture(&mut self, force_render: bool) -> Result<(), String> {
         if self.paths.index == self.screen.last_index
             && self.screen.last_texture.is_some()
             && !self.screen.dirty
+            && !force_render
         {
             return Ok(());
         }
@@ -104,12 +105,12 @@ impl<'a> Program<'a> {
     }
 
     fn render_infobar(&mut self) -> Result<(), String> {
-        let text = infobar::Text::from(&self.paths);
+        let text = infobar::Text::update(&self.ui_state.mode, &self.paths);
         // Load the filename texture
         let filename_surface = self
             .screen
             .font
-            .render(&text.current_image)
+            .render(&text.information)
             .blended(text_color())
             .map_err(|e| e.to_string())?;
         let filename_texture = self
@@ -122,7 +123,7 @@ impl<'a> Program<'a> {
         let index_surface = self
             .screen
             .font
-            .render(&text.index)
+            .render(&text.mode)
             .blended(text_color())
             .map_err(|e| e.to_string())?;
         let index_texture = self
@@ -312,7 +313,7 @@ fn help_text() -> Vec<&'static str> {
         "| Delete OR d      | Delete image from it's location                        |",
         "| t                | Toggle information bar                                 |",
         "| f OR F11         | Toggle fullscreen mode                                 |",
-        "| h                | Toggle help box                                        |",
+        "| ?                | Toggle help box                                        |",
         "| z OR Left Click  | Toggle actual size vs scaled image                     |",
         "| . (period)       | Repeat last action                                     |",
         "+------------------+--------------------------------------------------------+",

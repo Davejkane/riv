@@ -7,7 +7,7 @@ use sdl2::mouse::MouseButton;
 
 /// Action represents the possible actions that could result from an event
 #[derive(Clone)]
-pub enum Action {
+pub enum Action<'a> {
     /// Quit indicates the app should quit in response to this event
     Quit,
     /// Toggle Fullscreen State
@@ -15,6 +15,14 @@ pub enum Action {
     /// ReRender indicates the app should re-render in response to this event (such as a window
     /// resize)
     ReRender,
+    /// Switches modes from normal to command mode to enter queries such as "newglob"/"ng"
+    SwitchCommandMode,
+    /// Indicates user hit the backspace, program input should be truncated accordinly
+    Backspace,
+    /// User entered input from the keyboard
+    KeyboardInput(&'a str),
+    /// switches modes back to normal mode
+    SwitchNormalMode,
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
@@ -40,12 +48,23 @@ pub enum Action {
     Noop,
 }
 
+/// Modal setting for Program, this dictates the commands that are available to the user
+#[derive(PartialEq, Clone)]
+pub enum Mode {
+    /// Default mode, allows the removal, traversal, move, and copy of images
+    Normal,
+    /// Mode that is built off of user input, allows switching the current glob
+    /// string is the input to display on the infobar
+    Command(String),
+    /// Mode that is meant to display errors to the user through the infobar
+    /// string is the input to display on the infobar
+    Error(String),
+    /// Terminate condition, if this mode is set the program will stop execution
+    Exit,
+}
+
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
-pub struct State {
-    /// left_shift tracks whether or not the left shift key is pressed.
-    pub left_shift: bool,
-    /// right_shift tracks whether or not the right shift key is pressed.
-    pub right_shift: bool,
+pub struct State<'a> {
     /// render_infobar determines whether or not the info bar should be rendered.
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
@@ -54,13 +73,15 @@ pub struct State {
     pub actual_size: bool,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
+    /// current mode of the application, changes how input is interpreted
+    pub mode: Mode,
     /// last_action records the last action performed. Used for repeating that action
-    pub last_action: Action,
+    pub last_action: Action<'a>,
 }
 
-impl State {
+impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
-    fn process_action(&mut self, a: Action) -> Action {
+    fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
         match a {
             Action::Quit | Action::ReRender => a,
             _ => {
@@ -72,7 +93,7 @@ impl State {
 }
 
 /// event_action returns which action should be performed in response to this event
-pub fn event_action(state: &mut State, event: &Event) -> Action {
+pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'a> {
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
@@ -80,60 +101,44 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
     match event {
         Event::Quit { .. } => Action::Quit,
 
-        Event::KeyDown {
-            keycode: Some(k), ..
-        } => match k {
-            C => state.process_action(Action::Copy),
-            D | Delete => state.process_action(Action::Delete),
-            F | F11 => state.process_action(Action::ToggleFullscreen),
-            G => {
-                if state.left_shift || state.right_shift {
-                    state.process_action(Action::Last)
-                } else {
-                    state.process_action(Action::First)
-                }
-            }
-            H => {
+        Event::TextInput { text, .. } => match text.as_str() {
+            "c" => state.process_action(Action::Copy),
+            "d" => state.process_action(Action::Delete),
+            "f" => state.process_action(Action::ToggleFullscreen),
+            "g" => state.process_action(Action::First),
+            "G" => state.process_action(Action::Last),
+            "?" => {
                 state.render_help = !state.render_help;
                 state.process_action(Action::ReRender)
             }
-            J | Right => state.process_action(Action::Next),
-            K | Left => state.process_action(Action::Prev),
-            M => state.process_action(Action::Move),
-            Q | Escape => Action::Quit,
-            T => {
+            "j" => state.process_action(Action::Next),
+            "k" => state.process_action(Action::Prev),
+            "m" => state.process_action(Action::Move),
+            "q" => Action::Quit,
+            "t" => {
                 state.render_infobar = !state.render_infobar;
                 state.process_action(Action::ReRender)
             }
-
-            W | PageUp => state.process_action(Action::SkipForward),
-            B | PageDown => state.process_action(Action::SkipBack),
-            Z => state.process_action(Action::ToggleFit),
-            Period => state.last_action.clone(),
-            Home => state.process_action(Action::First),
-            End => state.process_action(Action::Last),
-            LShift => {
-                state.left_shift = true;
-                Action::Noop
-            }
-            RShift => {
-                state.right_shift = true;
-                Action::Noop
-            }
+            "w" => state.process_action(Action::SkipForward),
+            "b" => state.process_action(Action::SkipBack),
+            "z" => state.process_action(Action::ToggleFit),
+            ":" => Action::SwitchCommandMode,
             _ => Action::Noop,
         },
 
-        Event::KeyUp {
+        Event::KeyDown {
             keycode: Some(k), ..
         } => match k {
-            LShift => {
-                state.left_shift = false;
-                Action::Noop
-            }
-            RShift => {
-                state.right_shift = false;
-                Action::Noop
-            }
+            Delete => state.process_action(Action::Delete),
+            F11 => state.process_action(Action::ToggleFullscreen),
+            Right => state.process_action(Action::Next),
+            Left => state.process_action(Action::Prev),
+            Escape => Action::Quit,
+            PageUp => state.process_action(Action::SkipForward),
+            PageDown => state.process_action(Action::SkipBack),
+            Home => Action::First,
+            End => Action::Last,
+            Period => state.last_action.clone(),
             _ => Action::Noop,
         },
 
@@ -145,6 +150,36 @@ pub fn event_action(state: &mut State, event: &Event) -> Action {
 
         Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
             MouseButton::Left => state.process_action(Action::ToggleFit),
+            _ => Action::Noop,
+        },
+        _ => Action::Noop,
+    }
+}
+
+/// Processes event information for Command mode, and returns them as Actions
+pub fn process_command_mode(event: &Event) -> Action {
+    use sdl2::event::WindowEvent;
+    use sdl2::keyboard::Keycode;
+
+    match event {
+        Event::TextInput { text, .. } => Action::KeyboardInput(text),
+        // Handle backspace, escape, and returns
+        Event::KeyDown {
+            keycode: Some(code),
+            ..
+        } => match code {
+            Keycode::Backspace => Action::Backspace,
+            Keycode::Escape => Action::SwitchNormalMode,
+            // User is done entering input
+            Keycode::Return | Keycode::Return2 | Keycode::KpEnter => Action::SwitchNormalMode,
+            _ => Action::Noop,
+        },
+        Event::Window { win_event, .. } => match win_event {
+            // Exposed: Rerender if the window was not changed by us.
+            WindowEvent::Exposed
+            | WindowEvent::Resized(..)
+            | WindowEvent::SizeChanged(..)
+            | WindowEvent::Maximized => Action::ReRender,
             _ => Action::Noop,
         },
         _ => Action::Noop,

@@ -49,7 +49,7 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 
 ```$ riv -m 0 **/*.png```
 
-### Controls
+### Normal Mode Controls
 
 
 | Key              | Action                                                 |
@@ -69,6 +69,19 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | h                | Toggle help box                                        |
 | z OR Left Click  | Toggle actual size vs scaled image                     |
 | . (period)       | Repeat last action                                     |
+
+### Command Mode Controls
+
+
+| Command                     | Action                                                   |
+|-----------------------------|----------------------------------------------------------|
+| ng OR newglob [glob]        | **Required argument** the new glob/directory/file        |
+| ? OR help                   | Toggle fullscreen mode                                   |
+| q OR quit                   | Quit                                                     |
+| sort (method)               | *Optional argument* the new method to sort by            |
+| df OR destfolder [path]     | **Required argument** new folder to move/copy images to  |
+| m OR max [positive integer] | **Required argument** new maximum number of files to view|
+
 
 ## Getting Started
 
