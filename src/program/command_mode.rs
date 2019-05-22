@@ -131,6 +131,28 @@ fn parse_user_input(input: String) -> Result<(Commands, String), String> {
     Ok((command, arguments))
 }
 
+/// When provided a newglob set current_dir to the nearest directory
+fn find_new_current_dir(new_path: &str) -> Option<PathBuf> {
+    let expanded_path = match full(new_path) {
+        Ok(path) => path,
+        Err(_e) => {
+            return None;
+        }
+    };
+    let pathbuf = PathBuf::from(&expanded_path.to_string());
+    if pathbuf.is_dir() {
+        Some(pathbuf)
+    } else {
+        // Provided newglob is a path to an image or a glob
+        for parent in pathbuf.ancestors() {
+            if parent.is_dir() {
+                return Some(parent.to_path_buf());
+            }
+        }
+        None
+    }
+}
+
 impl<'a> Program<'a> {
     /// User input is taken in and displayed on infobar, cmd is either '/' or ':'
     /// Returning empty string signifies switching modes back to normal mode
@@ -177,14 +199,17 @@ impl<'a> Program<'a> {
             }
         };
         let target = if !self.paths.images.is_empty() {
-            // Set current directory to new one
-            self.paths.current_dir = PathBuf::from(path_to_newglob);
-
             Some(self.paths.images[self.paths.index].to_owned())
         } else {
             None
         };
         self.paths.images = new_images;
+        // Set current directory to new one
+        let new_current_dir = find_new_current_dir(&path_to_newglob.replace("\\ ", " "));
+        match new_current_dir {
+            Some(current_dir) => self.paths.current_dir = current_dir,
+            None => {}
+        }
         self.sorter.sort(&mut self.paths.images);
 
         if let Some(target_path) = target {
@@ -210,7 +235,7 @@ impl<'a> Program<'a> {
         };
     }
 
-    /// Providing no additional arguments just sorts the current data with the already set sorting
+    /// Providing no additional arguments just sorts the current images with the already set sorting
     /// method
     ///
     /// Additional argument changes the sorting method and sorts the images
@@ -310,6 +335,9 @@ impl<'a> Program<'a> {
                     return Ok(());
                 }
                 self.newglob(&arguments);
+                if self.paths.dest_folder.ends_with("keep") {
+                    self.paths.dest_folder = self.paths.current_dir.join("keep");
+                }
             }
             Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
