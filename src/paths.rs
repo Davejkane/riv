@@ -36,8 +36,7 @@ pub fn normalize_path(path: &PathBuf) -> PathBuf {
     use std::path::Component;
 
     let mut normalized_path = PathBuf::new();
-    let mut components = path.components();
-    while let Some(component) = components.next() {
+    for component in path.components() {
         // skip '.'
         if component == Component::CurDir {
             continue;
