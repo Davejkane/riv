@@ -148,6 +148,10 @@ impl<'a> Program<'a> {
         if index >= self.paths.max_viewable && self.paths.index != 0 {
             self.paths.index -= 1;
         }
+        // Decrease max viewable if another image won't take the deleted's place
+        if self.paths.images.len() <= self.paths.max_viewable {
+            self.paths.max_viewable -= 1;
+        }
     }
 
     fn decrement(&mut self, step: usize) -> Result<(), String> {
@@ -251,10 +255,14 @@ impl<'a> Program<'a> {
                 e.to_string()
             ));
         }
-
         // Only if successful, remove image from tracked images
         self.remove_image(self.paths.index);
         self.screen.dirty = true;
+
+        // If index is greater than or equal to max_viewable set it to it - 1
+        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
+            self.paths.index = self.paths.max_viewable - 1;
+        }
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
@@ -290,6 +298,11 @@ impl<'a> Program<'a> {
         // Only if successful, remove image from tracked images
         self.remove_image(self.paths.index);
         self.screen.dirty = true;
+
+        // If index is greater than or equal to max_viewable set it to it - 1
+        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
+            self.paths.index = self.paths.max_viewable - 1;
+        }
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this

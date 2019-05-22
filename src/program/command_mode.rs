@@ -330,7 +330,8 @@ impl<'a> Program<'a> {
                 }
                 match full(&arguments) {
                     Ok(path) => {
-                        self.paths.dest_folder = PathBuf::from(path.to_string());
+                        self.paths.dest_folder =
+                            PathBuf::from(path.to_string().replace("\\ ", " "));
                     }
                     Err(e) => {
                         self.ui_state.mode =
