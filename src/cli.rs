@@ -2,7 +2,7 @@
 //!
 //! The cli module is used for setting up the command line app and parsing the arguments.
 
-use crate::paths::{normalize_path, push_image_path};
+use crate::paths::push_image_path;
 use crate::sort::SortOrder;
 use clap::{App, Arg};
 use std::path::PathBuf;
@@ -81,7 +81,12 @@ pub fn cli() -> Result<Args, String> {
     match matches.values_of("paths") {
         Some(path_matches) => {
             for path in path_matches {
-                push_image_path(&mut files, normalize_path(&PathBuf::from(path)));
+                let pathbuf = PathBuf::from(path);
+                // normalize path
+                match pathbuf.canonicalize() {
+                    Ok(path) => push_image_path(&mut files, path),
+                    Err(e) => eprintln!("{}", e),
+                }
             }
         }
         None => {

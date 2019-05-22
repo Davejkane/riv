@@ -30,22 +30,3 @@ pub fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
         }
     }
 }
-
-/// Constructs a normalized_path removing '.', parent_dir/'..'
-pub fn normalize_path(path: &PathBuf) -> PathBuf {
-    use std::path::Component;
-
-    let mut normalized_path = PathBuf::new();
-    for component in path.components() {
-        // skip '.'
-        if component == Component::CurDir {
-            continue;
-        // remove last appended file '..'
-        } else if component == Component::ParentDir {
-            normalized_path.pop();
-        } else {
-            normalized_path.push(component);
-        }
-    }
-    normalized_path
-}

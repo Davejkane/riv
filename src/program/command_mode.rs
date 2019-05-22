@@ -1,7 +1,7 @@
 //! File that contains Command mode functionality, command mode is a mode that allows verbose input
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
-use crate::paths::{normalize_path, push_image_path};
+use crate::paths::push_image_path;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
 use shellexpand::full;
@@ -88,7 +88,7 @@ fn glob_path(path: &str, base_dir: &PathBuf) -> Result<(PathBuf, Vec<PathBuf>), 
     // remove env vars and "\ "
     let sanitized_dir = sanitize_path(path, base_dir)?;
     // normalized path removing ".." and "."
-    let base_dir = normalize_path(&sanitized_dir);
+    let base_dir = sanitized_dir.canonicalize().map_err(|e| e.to_string())?;
 
     // Convert base_dir to a glob
     let globable_path = {
