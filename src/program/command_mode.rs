@@ -1,6 +1,7 @@
 //! File that contains Command mode functionality, command mode is a mode that allows verbose input
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
+use crate::paths::{normalize_path, push_image_path};
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
 use shellexpand::full;
@@ -67,27 +68,37 @@ impl FromStr for Commands {
     }
 }
 
-/// Converts the provided path by user to a path that can be glob'd
-/// Directories are changed from /home/etc to /home/etc/*
-fn convert_path_to_globable(path: &str) -> Result<String, String> {
+// Sanitize path by substituting env vars and removing escaped spaces
+fn sanitize_path(path: &str, base_dir: &PathBuf) -> Result<PathBuf, String> {
     let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
     // remove escaped spaces
-    let absolute_path = String::from(expanded_path).replace(r"\ ", " ");
-    // If path is a dir, add /* to glob
-    let mut pathbuf = PathBuf::from(&absolute_path);
-    if pathbuf.is_dir() {
-        pathbuf = pathbuf.join("*");
+    let non_escaped_path = String::from(expanded_path).replace(r"\ ", " ");
+    let mut path = PathBuf::from(&non_escaped_path);
+    if path.is_relative() {
+        path = base_dir.join(&path);
     }
-    Ok(pathbuf.to_string_lossy().to_string())
+    Ok(path)
 }
 
-/// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
-/// path is unexpected
-fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
-    use crate::cli::push_image_path;
-
+/// Returns a Vec of paths from globbing the path provided, a new base_dir by removing environment variables and normalizing
+/// the path
+fn glob_path(path: &str, base_dir: &PathBuf) -> Result<(PathBuf, Vec<PathBuf>), String> {
     let mut new_images: Vec<PathBuf> = Vec::new();
-    let globable_path = convert_path_to_globable(path)?;
+
+    // remove env vars and "\ "
+    let sanitized_dir = sanitize_path(path, base_dir)?;
+    // normalized path removing ".." and "."
+    let base_dir = normalize_path(&sanitized_dir);
+
+    // Convert base_dir to a glob
+    let globable_path = {
+        let mut globable_path = base_dir.clone();
+        if globable_path.is_dir() {
+            globable_path.push("*");
+        }
+        globable_path.to_string_lossy().to_string()
+    };
+    // glob path
     let path_matches = glob::glob(&globable_path).map_err(|e| e.to_string())?;
     for path in path_matches {
         match path {
@@ -100,13 +111,11 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
             }
         }
     }
-    if path.find(' ').is_some() && new_images.is_empty() {
-        return Err("Newglob accepts only one argument, but more were provided".to_string());
-    } else if new_images.is_empty() {
+    if new_images.is_empty() {
         let err_msg = format!("Path \"{}\" had no images", path);
         return Err(err_msg);
     }
-    Ok(new_images)
+    Ok((base_dir, new_images))
 }
 
 /// Separate user input into the main command and its respected arguments
@@ -129,28 +138,6 @@ fn parse_user_input(input: String) -> Result<(Commands, String), String> {
         }
     };
     Ok((command, arguments))
-}
-
-/// When provided a newglob set current_dir to the nearest directory
-fn find_new_base_dir(new_path: &str) -> Option<PathBuf> {
-    let expanded_path = match full(new_path) {
-        Ok(path) => path,
-        Err(_e) => {
-            return None;
-        }
-    };
-    let pathbuf = PathBuf::from(&expanded_path.to_string());
-    if pathbuf.is_dir() {
-        Some(pathbuf)
-    } else {
-        // Provided newglob is a path to an image or a glob
-        for parent in pathbuf.ancestors() {
-            if parent.is_dir() {
-                return Some(parent.to_path_buf());
-            }
-        }
-        None
-    }
 }
 
 impl<'a> Program<'a> {
@@ -191,7 +178,7 @@ impl<'a> Program<'a> {
 
     /// Takes a path to a directory or glob and adds these images to self.paths.images
     fn newglob(&mut self, path_to_newglob: &str) {
-        let new_images = match glob_path(path_to_newglob) {
+        let (base_dir, new_images) = match glob_path(path_to_newglob, &self.paths.base_dir) {
             Ok(new_images) => new_images,
             Err(e) => {
                 self.ui_state.mode = Mode::Error(e.to_string());
@@ -204,12 +191,8 @@ impl<'a> Program<'a> {
             None
         };
         self.paths.images = new_images;
-        // Set current directory to new one
-        let new_base_dir = find_new_base_dir(&path_to_newglob.replace("\\ ", " "));
-        match new_base_dir {
-            Some(base_dir) => self.paths.base_dir = base_dir,
-            None => {}
-        }
+        // Set base dir to new directory
+        self.paths.base_dir = base_dir;
         self.sorter.sort(&mut self.paths.images);
 
         if let Some(target_path) = target {
@@ -335,9 +318,6 @@ impl<'a> Program<'a> {
                     return Ok(());
                 }
                 self.newglob(&arguments);
-                if !self.paths.changed_dest_folder {
-                    self.paths.dest_folder = self.paths.base_dir.join("keep");
-                }
             }
             Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
@@ -367,7 +347,6 @@ impl<'a> Program<'a> {
                         return Ok(());
                     }
                 }
-                self.paths.changed_dest_folder = true;
             }
             Commands::MaximumImages => {
                 if arguments.is_empty() {
