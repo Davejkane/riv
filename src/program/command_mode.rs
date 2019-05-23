@@ -335,9 +335,6 @@ impl<'a> Program<'a> {
                     return Ok(());
                 }
                 self.newglob(&arguments);
-                if !self.paths.changed_dest_folder {
-                    self.paths.dest_folder = self.paths.base_dir.join("keep");
-                }
             }
             Commands::Help => {
                 self.ui_state.render_help = !self.ui_state.render_help;
@@ -367,7 +364,6 @@ impl<'a> Program<'a> {
                         return Ok(());
                     }
                 }
-                self.paths.changed_dest_folder = true;
             }
             Commands::MaximumImages => {
                 if arguments.is_empty() {
