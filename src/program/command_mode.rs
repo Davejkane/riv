@@ -1,7 +1,6 @@
 //! File that contains Command mode functionality, command mode is a mode that allows verbose input
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
-use crate::paths;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
 use shellexpand::full;
@@ -74,7 +73,7 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
     use crate::cli::push_image_path;
 
     let mut new_images: Vec<PathBuf> = Vec::new();
-    let globable_path = paths::convert_to_globable(path)?;
+    let globable_path = crate::convert_to_globable(path)?;
     let path_matches = glob::glob(&globable_path).map_err(|e| e.to_string())?;
     for path in path_matches {
         match path {

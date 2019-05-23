@@ -2,7 +2,6 @@
 //!
 //! The cli module is used for setting up the command line app and parsing the arguments.
 
-use crate::paths;
 use crate::sort::SortOrder;
 use clap::{App, Arg};
 use glob::glob;
@@ -84,7 +83,7 @@ pub fn cli() -> Result<Args, String> {
         Some(v) => v,
         None => panic!("No value for paths!"),
     };
-    let path_glob = paths::convert_to_globable(path_glob)?;
+    let path_glob = crate::convert_to_globable(path_glob)?;
     let glob_matches = glob(&path_glob).map_err(|e| e.to_string())?;
     for path in glob_matches {
         match path {
