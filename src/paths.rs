@@ -1,6 +1,7 @@
 //! Paths contains the Paths struct which contains all path related information required for the
 //! running of the program.
 
+use shellexpand::full;
 use std::path::PathBuf;
 
 /// Paths contains all path information related to the running of the program.
@@ -19,4 +20,18 @@ pub struct Paths {
     pub max_viewable: usize,
     /// Actual length the user said was maximum for images
     pub actual_max_viewable: usize,
+}
+
+/// Converts the provided path by user to a path that can be glob'd
+/// Directories are changed from /home/etc to /home/etc/*
+pub fn convert_to_globable(path: &str) -> Result<String, String> {
+    let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
+    // remove escaped spaces
+    let absolute_path = String::from(expanded_path).replace(r"\ ", " ");
+    // If path is a dir, add /* to glob
+    let mut pathbuf = PathBuf::from(&absolute_path);
+    if pathbuf.is_dir() {
+        pathbuf = pathbuf.join("*");
+    }
+    Ok(pathbuf.to_string_lossy().to_string())
 }
