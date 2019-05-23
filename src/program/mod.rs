@@ -49,7 +49,6 @@ impl<'a> Program<'a> {
     ) -> Result<Program<'a>, String> {
         let mut images = args.files;
         let dest_folder = args.dest_folder;
-        let changed_dest_folder = dest_folder == PathBuf::from("./keep");
         let reverse = args.reverse;
         let sort_order = args.sort_order;
         let max_length = args.max_length;
@@ -99,7 +98,6 @@ impl<'a> Program<'a> {
             paths: Paths {
                 images,
                 dest_folder,
-                changed_dest_folder,
                 index: 0,
                 base_dir,
                 max_viewable,
