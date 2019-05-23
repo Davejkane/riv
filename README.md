@@ -66,7 +66,7 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | Delete OR d      | Delete image from it's location                        |
 | t                | Toggle information bar                                 |
 | f OR F11         | Toggle fullscreen mode                                 |
-| h                | Toggle help box                                        |
+| ?                | Toggle help box                                        |
 | z OR Left Click  | Toggle actual size vs scaled image                     |
 | . (period)       | Repeat last action                                     |
 
@@ -76,7 +76,7 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | Command                     | Action                                                   |
 |-----------------------------|----------------------------------------------------------|
 | ng OR newglob [glob]        | **Required argument** the new glob/directory/file        |
-| ? OR help                   | Toggle fullscreen mode                                   |
+| ? OR help                   | Toggle help box                                          |
 | q OR quit                   | Quit                                                     |
 | sort (method)               | *Optional argument* the new method to sort by            |
 | df OR destfolder [path]     | **Required argument** new folder to move/copy images to  |
