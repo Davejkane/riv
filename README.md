@@ -7,9 +7,9 @@ Generally the options are:-
 * Preview - Clunky and really only good for viewing one image at a time
 * Others that require a GUI folder browser
 
-Riv on the other hand runs from the command line, and accepts a glob. For example:-
+Riv on the other hand runs from the command line, and accepts a path with globs in quotes (with globstar `**` for recursive search). For example:-
 
-```$ riv **/*.jpg```
+```$ riv "**/*.jpg"```
 
 ## Manual
 
@@ -17,9 +17,9 @@ Start riv with
 
 ```$ riv```. 
 
-As an optional second parameter you can add a glob, space separated filepaths or even a single filepath.
+As an optional second parameter you can add a path with globs.
 
-```$ riv **/*.png```
+```$ riv "**/*.png"```
 
 Without any second parameter, riv will look for all images in the current directory.
 
@@ -29,25 +29,7 @@ Set a destination folder for moving files with the `f` flag. The folder will be 
 
 Set a sorting order with the `s` or `--sort` flag, case insensitive.
 
-```$ riv -s alphabetical **/*.png```
-
-### Sorting Options
-
-| Options          | Description                                                                              |
-|------------------|------------------------------------------------------------------------------------------|
-| Alphabetical     | Alphabetically by filename only                                                          |
-| Date             | By date last modified, most recent first                                                 |
-| Size             | By size, largest first                                                                   |
-| DepthFirst       | [Default] Ordered by farthest depth from current directory first                         |
-| BreadthFirst     | Ordered by farthest depth from current directory last                                    |
-
-Reverse the sorting order with `r` or `--reverse` flag
-
-```$ riv -sr date **/*.png```
-
-Set the maximum number of images to be displayed `m` or `--max` flag. 0 means infinitely many images.
-
-```$ riv -m 0 **/*.png```
+```$ riv -s alphabetical "**/*.png"```
 
 ### Normal Mode Controls
 
@@ -81,6 +63,24 @@ Set the maximum number of images to be displayed `m` or `--max` flag. 0 means in
 | sort (method)               | *Optional argument* the new method to sort by            |
 | df OR destfolder [path]     | **Required argument** new folder to move/copy images to  |
 | m OR max [positive integer] | **Required argument** new maximum number of files to view|
+
+### Sorting Options
+
+| Options          | Description                                                                              |
+|------------------|------------------------------------------------------------------------------------------|
+| Alphabetical     | Alphabetically by filename only                                                          |
+| Date             | By date last modified, most recent first                                                 |
+| Size             | By size, largest first                                                                   |
+| DepthFirst       | [Default] Ordered by farthest depth from current directory first                         |
+| BreadthFirst     | Ordered by farthest depth from current directory last                                    |
+
+Reverse the sorting order with `r` or `--reverse` flag
+
+```$ riv -sr date **/*.png```
+
+Set the maximum number of images to be displayed `m` or `--max` flag. 0 means infinitely many images.
+
+```$ riv -m 0 **/*.png```
 
 
 ## Getting Started

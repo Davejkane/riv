@@ -67,27 +67,13 @@ impl FromStr for Commands {
     }
 }
 
-/// Converts the provided path by user to a path that can be glob'd
-/// Directories are changed from /home/etc to /home/etc/*
-fn convert_path_to_globable(path: &str) -> Result<String, String> {
-    let expanded_path = full(path).map_err(|e| format!("\"{}\": {}", e.var_name, e.cause))?;
-    // remove escaped spaces
-    let absolute_path = String::from(expanded_path).replace(r"\ ", " ");
-    // If path is a dir, add /* to glob
-    let mut pathbuf = PathBuf::from(&absolute_path);
-    if pathbuf.is_dir() {
-        pathbuf = pathbuf.join("*");
-    }
-    Ok(pathbuf.to_string_lossy().to_string())
-}
-
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
 /// path is unexpected
 fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
     use crate::cli::push_image_path;
 
     let mut new_images: Vec<PathBuf> = Vec::new();
-    let globable_path = convert_path_to_globable(path)?;
+    let globable_path = crate::convert_to_globable(path)?;
     let path_matches = glob::glob(&globable_path).map_err(|e| e.to_string())?;
     for path in path_matches {
         match path {

@@ -4,6 +4,7 @@
 
 use crate::sort::SortOrder;
 use clap::{App, Arg};
+use glob::glob;
 use std::path::PathBuf;
 
 /// Args contains the arguments that have been successfully parsed by the clap cli app
@@ -30,7 +31,7 @@ pub fn cli() -> Result<Args, String> {
         .about("The command line image viewer")
         .arg(
             Arg::with_name("paths")
-                .multiple(true)
+                .default_value("*")
                 .help("The directory or files to search for image files. A glob can be used here."),
         )
         .arg(
@@ -77,22 +78,17 @@ pub fn cli() -> Result<Args, String> {
                 .help("Start app in fullscreen mode"),
         )
         .get_matches();
-    match matches.values_of("paths") {
-        Some(path_matches) => {
-            for path in path_matches {
-                push_image_path(&mut files, PathBuf::from(path));
-            }
-        }
-        None => {
-            let path_matches = glob::glob("*").map_err(|e| e.to_string())?;
-            for path in path_matches {
-                match path {
-                    Ok(p) => {
-                        push_image_path(&mut files, p);
-                    }
-                    Err(e) => eprintln!("Unexpected path {}", e),
-                }
-            }
+
+    let path_glob = match matches.value_of("paths") {
+        Some(v) => v,
+        None => panic!("No value for paths!"),
+    };
+    let path_glob = crate::convert_to_globable(path_glob)?;
+    let glob_matches = glob(&path_glob).map_err(|e| e.to_string())?;
+    for path in glob_matches {
+        match path {
+            Ok(p) => push_image_path(&mut files, p),
+            Err(e) => eprintln!("Path not processable {}", e),
         }
     }
 
