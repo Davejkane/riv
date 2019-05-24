@@ -18,4 +18,3 @@ pub struct Paths {
     /// Actual length the user said was maximum for images
     pub actual_max_viewable: usize,
 }
-
