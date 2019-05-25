@@ -105,13 +105,14 @@ impl<'a> Program<'a> {
             ui_state: ui::State {
                 render_infobar: true,
                 render_help: false,
-                actual_size: false,
                 fullscreen: args.fullscreen,
                 mode: Mode::Normal,
                 last_action: Action::Noop,
                 scale: 1.0,
                 pan_x: 0.0,
                 pan_y: 0.0,
+                l_shift: false,
+                r_shift: false,
             },
             sorter,
         })
@@ -126,6 +127,7 @@ impl<'a> Program<'a> {
         }
     }
 
+    // Calculates the scale required to fit large images to screen
     fn calculate_scale_for_fit(&self) -> f32 {
         let tex = self.screen.last_texture.as_ref().unwrap();
         let query = tex.query();
@@ -217,29 +219,20 @@ impl<'a> Program<'a> {
         self.render_screen(false)
     }
 
-    /// Zoom increment
+    /// Zooms in
     fn zoom_in(&mut self) -> Result<(), String> {
         self.ui_state.scale *= 1.1;
         self.render_screen(false)
     }
 
-    /// Zoom increment
+    /// Zooms out
     fn zoom_out(&mut self) -> Result<(), String> {
         self.ui_state.scale *= 0.9;
         self.render_screen(false)
     }
 
-    /// Zoom increment
+    /// Pans left
     fn pan_left(&mut self) -> Result<(), String> {
-        self.ui_state.pan_x -= 0.05;
-        if self.ui_state.pan_x < -1.0 {
-            self.ui_state.pan_x = -1.0;
-        }
-        self.render_screen(false)
-    }
-
-    /// Zoom increment
-    fn pan_right(&mut self) -> Result<(), String> {
         self.ui_state.pan_x += 0.05;
         if self.ui_state.pan_x > 1.0 {
             self.ui_state.pan_x = 1.0;
@@ -247,7 +240,16 @@ impl<'a> Program<'a> {
         self.render_screen(false)
     }
 
-    /// Zoom increment
+    /// Pans right
+    fn pan_right(&mut self) -> Result<(), String> {
+            self.ui_state.pan_x -= 0.05;
+        if self.ui_state.pan_x < -1.0 {
+            self.ui_state.pan_x = -1.0;
+        }
+        self.render_screen(false)
+    }
+
+    /// Pans up
     fn pan_up(&mut self) -> Result<(), String> {
         self.ui_state.pan_y += 0.05;
         if self.ui_state.pan_y > 1.0 {
@@ -256,7 +258,7 @@ impl<'a> Program<'a> {
         self.render_screen(false)
     }
 
-    /// Zoom increment
+    /// Pans down
     fn pan_down(&mut self) -> Result<(), String> {
         self.ui_state.pan_y -= 0.05;
         if self.ui_state.pan_y < -1.0 {
