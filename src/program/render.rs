@@ -1,5 +1,5 @@
 use crate::infobar;
-use crate::program::{compute_center_rectangle_view, make_dst, Program};
+use crate::program::{make_dst, Program};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -42,23 +42,9 @@ impl<'a> Program<'a> {
         let query = tex.query();
         // Area to render other rectangle on
         let target = self.screen.canvas.viewport();
-        if self.ui_state.actual_size {
-            // Get slice of texture to place on screen
-            let content_slice = compute_center_rectangle_view(query.width, query.height, &target);
-            let dest = make_dst(
-                content_slice.width(),
-                content_slice.height(),
-                target.width(),
-                target.height(),
-            );
-            if let Err(e) = self.screen.canvas.copy(&tex, content_slice, dest) {
-                eprintln!("Failed to copy image to screen {}", e);
-            }
-        } else {
-            let dest = make_dst(query.width, query.height, target.width(), target.height());
-            if let Err(e) = self.screen.canvas.copy(&tex, None, dest) {
-                eprintln!("Failed to copy image to screen {}", e);
-            }
+        let dst = make_dst(&query, &target, self.ui_state.scale);
+        if let Err(e) = self.screen.canvas.copy(&tex, None, dst) {
+            eprintln!("Failed to copy image to screen {}", e);
         }
         Ok(())
     }
@@ -87,13 +73,10 @@ impl<'a> Program<'a> {
         };
 
         // Set the default state for viewing of the image
-        let query = texture.query();
-        let src = Rect::new(0, 0, query.width, query.height);
-        let dest = self.screen.canvas.viewport();
-        self.ui_state.actual_size = Program::default_actual_size(&src, &dest);
 
         self.screen.last_texture = Some(texture);
         self.screen.dirty = false;
+        self.ui_state.scale = self.calculate_scale_for_fit();
         Ok(())
     }
 
