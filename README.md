@@ -34,27 +34,22 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 ### Normal Mode Controls
 
 
-| Key                        | Action                                              |
-|----------------------------|-----------------------------------------------------|
-| Esc OR q                   | Quit                                                |
-| Left Arrow OR k            | Previous Image                                      |
-| Right Arrow OR j           | Next Image                                          |
-| Up/Down Arrow              | Zoom in/out                                         |
-| i/o                        | Zoom in/out                                         |
-| Shift + Up/Down/Left/Right | Pan up/down/left/right                              |
-| H, J, K, L                 | Pan left/down/up/right                              |
-| PageUp OR w                | Forward 10% of images                               |
-| PageDown OR b              | Backward 10% of images                              |
-| Home OR g                  | First Image                                         |
-| End OR G                   | Last Image                                          |
-| m                          | Move image to destination folder (default ./keep)   |
-| c                          | Copy image to destination folder (default ./keep)   |
-| Delete OR d                | Delete image from it's location                     |
-| t                          | Toggle information bar                              |
-| f OR F11                   | Toggle fullscreen mode                              |
-| ?                          | Toggle help box                                     |
-| z OR Left Click            | Toggle actual size vs scaled image                  |
-| . (period)                 | Repeat last action                                  |
+| Key 1      | Key 2                      | Action                                              |
+|------------|----------------------------|-----------------------------------------------------|
+| q          | Esc                        | Quit                                                |
+| k/j        | Left/Right                 | Previous/Next Image                                 |
+| i/o        | Up/Down                    | Zoom in/out                                         |
+| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |
+| b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |
+| g/G        | Home/End                   | First/Last Image                                    |
+| m          |                            | Move image to destination folder (default ./keep)   |
+| c          |                            | Copy image to destination folder (default ./keep)   |
+| d          | Delete                     | Delete image from it's location                     |
+| t          |                            | Toggle information bar                              |
+| f          | F11                        | Toggle fullscreen mode                              |
+| ?          |                            | Toggle help box                                     |
+| z          | Left Click                 | Toggle actual size vs scaled image                  |
+| . (period) |                            | Repeat last action                                  |
 
 
 ### Command Mode Controls
