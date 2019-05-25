@@ -42,7 +42,13 @@ impl<'a> Program<'a> {
         let query = tex.query();
         // Area to render other rectangle on
         let target = self.screen.canvas.viewport();
-        let dst = make_dst(&query, &target, self.ui_state.scale);
+        let dst = make_dst(
+            &query,
+            &target,
+            self.ui_state.scale,
+            self.ui_state.pan_x,
+            self.ui_state.pan_y,
+        );
         if let Err(e) = self.screen.canvas.copy(&tex, None, dst) {
             eprintln!("Failed to copy image to screen {}", e);
         }

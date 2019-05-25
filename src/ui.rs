@@ -105,6 +105,10 @@ pub struct State<'a> {
     pub last_action: Action<'a>,
     /// scale represents the scale of the image with 1.0 being the actual size of the image
     pub scale: f32,
+    /// pan_x is the degree of pan in the x axis
+    pub pan_x: f32,
+    /// pan_y is the degree of pan in the y axis
+    pub pan_y: f32,
 }
 
 impl<'a> State<'a> {

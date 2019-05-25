@@ -110,6 +110,8 @@ impl<'a> Program<'a> {
                 mode: Mode::Normal,
                 last_action: Action::Noop,
                 scale: 1.0,
+                pan_x: 0.0,
+                pan_y: 0.0,
             },
             sorter,
         })
@@ -218,35 +220,49 @@ impl<'a> Program<'a> {
     /// Zoom increment
     fn zoom_in(&mut self) -> Result<(), String> {
         self.ui_state.scale *= 1.1;
-        self.render_screen(false)?;
-        Ok(())
+        self.render_screen(false)
     }
 
     /// Zoom increment
     fn zoom_out(&mut self) -> Result<(), String> {
         self.ui_state.scale *= 0.9;
-        self.render_screen(false)?;
-        Ok(())
+        self.render_screen(false)
     }
 
     /// Zoom increment
     fn pan_left(&mut self) -> Result<(), String> {
-        Ok(())
+        self.ui_state.pan_x -= 0.05;
+        if self.ui_state.pan_x < -1.0 {
+            self.ui_state.pan_x = -1.0;
+        }
+        self.render_screen(false)
     }
 
     /// Zoom increment
     fn pan_right(&mut self) -> Result<(), String> {
-        Ok(())
+        self.ui_state.pan_x += 0.05;
+        if self.ui_state.pan_x > 1.0 {
+            self.ui_state.pan_x = 1.0;
+        }
+        self.render_screen(false)
     }
 
     /// Zoom increment
     fn pan_up(&mut self) -> Result<(), String> {
-        Ok(())
+        self.ui_state.pan_y += 0.05;
+        if self.ui_state.pan_y > 1.0 {
+            self.ui_state.pan_y = 1.0;
+        }
+        self.render_screen(false)
     }
 
     /// Zoom increment
     fn pan_down(&mut self) -> Result<(), String> {
-        Ok(())
+        self.ui_state.pan_y -= 0.05;
+        if self.ui_state.pan_y < -1.0 {
+            self.ui_state.pan_y = -1.0;
+        }
+        self.render_screen(false)
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
@@ -459,16 +475,14 @@ impl<'a> Program<'a> {
 
 /// make dst determines the parameters of a rectangle required to place an image correctly in
 /// the window
-fn make_dst(tq: &TextureQuery, vp: &Rect, scale: f32) -> Rect {
-    dbg!(tq);
-    dbg!(vp);
-    dbg!(scale);
-    let x = ((vp.width() as f32 - (tq.width as f32 * scale)) / 2.0) as i32;
-    let y = ((vp.height() as f32 - (tq.height as f32 * scale)) / 2.0) as i32;
+fn make_dst(tq: &TextureQuery, vp: &Rect, scale: f32, pan_x: f32, pan_y: f32) -> Rect {
+    let x_diff = (vp.width() as f32 - (tq.width as f32 * scale)) / 2.0;
+    let y_diff = (vp.height() as f32 - (tq.height as f32 * scale)) / 2.0;
+    let x = (x_diff - x_diff * pan_x) as i32;
+    let y = (y_diff - y_diff * pan_y) as i32;
     let width = (tq.width as f32 * scale) as u32;
     let height = (tq.height as f32 * scale) as u32;
     let r = Rect::new(x, y, width, height);
-    dbg!(r);
     r
 }
 
