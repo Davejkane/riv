@@ -122,7 +122,7 @@ impl<'a> Program<'a> {
         if self.ui_state.scale != 1.0 {
             self.ui_state.scale = 1.0
         } else {
-            self.calculate_scale_for_fit();
+            self.ui_state.scale = self.calculate_scale_for_fit();
         }
     }
 

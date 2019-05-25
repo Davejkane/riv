@@ -83,6 +83,8 @@ impl<'a> Program<'a> {
         self.screen.last_texture = Some(texture);
         self.screen.dirty = false;
         self.ui_state.scale = self.calculate_scale_for_fit();
+        self.ui_state.pan_x = 0.0;
+        self.ui_state.pan_y = 0.0;
         Ok(())
     }
 
