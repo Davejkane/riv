@@ -445,14 +445,12 @@ impl<'a> Program<'a> {
                     Action::Last => self.last()?,
                     Action::SkipForward => self.skip_forward()?,
                     Action::SkipBack => self.skip_backward()?,
-                    //////////////////////
                     Action::Zoom(ZoomAction::In) => self.zoom_in()?,
                     Action::Zoom(ZoomAction::Out) => self.zoom_out()?,
                     Action::Pan(PanAction::Left) => self.pan_left()?,
                     Action::Pan(PanAction::Right) => self.pan_right()?,
                     Action::Pan(PanAction::Up) => self.pan_up()?,
                     Action::Pan(PanAction::Down) => self.pan_down()?,
-                    //////////////////////
                     Action::Copy => match self.copy_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to copy file: {}", e),
