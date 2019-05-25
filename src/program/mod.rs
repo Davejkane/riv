@@ -159,47 +159,13 @@ impl<'a> Program<'a> {
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
-        if self.paths.images.is_empty() || self.paths.max_viewable == 1 {
-            return Ok(());
-        }
-        if self.paths.index < self.paths.max_viewable - step {
-            self.paths.index += step;
-        }
-        // Cap index at last image
-        else {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
+        self.paths.increment(step);
         self.render_screen(false)
     }
 
-    /// Removes an image from tracked images.
-    /// Upholds that the index should always be <= index of last image.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` tries to access past `self.images` bounds
-    fn remove_image(&mut self, index: usize) {
-        // Remove image
-        // Panics if index is past bounds of vec
-        self.paths.images.remove(index);
-        // Adjust index if past bounds
-        if index >= self.paths.max_viewable && self.paths.index != 0 {
-            self.paths.index -= 1;
-        }
-        // Decrease max viewable if another image won't take the deleted's place
-        if self.paths.images.len() <= self.paths.max_viewable {
-            self.paths.max_viewable -= 1;
-        }
-    }
-
+    /// Moves tracking current image down by `step`
     fn decrement(&mut self, step: usize) -> Result<(), String> {
-        if self.paths.index >= step {
-            self.paths.index -= step;
-        }
-        // Step sizes bigger than remaining index are set to first image.
-        else {
-            self.paths.index = 0;
-        }
+        self.paths.decrement(step);
         self.render_screen(false)
     }
 

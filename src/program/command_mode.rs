@@ -340,7 +340,7 @@ impl<'a> Program<'a> {
             }
             Commands::Reverse => {
                 self.paths.images.reverse();
-                self.paths.index = self.paths.max_viewable - self.paths.index - 1;
+                self.paths.index = self.paths.max_viewable() - self.paths.index - 1;
             }
             Commands::DestFolder => {
                 if arguments.is_empty() {
