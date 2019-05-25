@@ -120,7 +120,8 @@ impl<'a> Program<'a> {
 
     /// Toggle whether actual size or scaled image is rendered.
     pub fn toggle_fit(&mut self) {
-        if self.ui_state.scale != 1.0 {
+        let error = 0.001;
+        if (self.ui_state.scale - 1.0).abs() < error {
             self.ui_state.scale = 1.0
         } else {
             self.ui_state.scale = self.calculate_scale_for_fit();
