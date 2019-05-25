@@ -55,18 +55,18 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 ### Command Mode Controls
 
 
-| Short | Long       | Action                                                    |
-|-------|------------|-----------------------------------------------------------|
-| ng    | newglob    | **Required argument** the new glob/directory/file         |
-| ?     | help       | Toggle help box                                           |
-| q     | quit       | Quit                                                      |
-|       | sort       | *Optional argument* the new method to sort by             |
-| df    | destfolder | **Required argument** new folder to move/copy images to   |
-| m     | max        | **Required argument** new maximum number of files to view |
+| Short | Long       | Argument | Action                              |
+|-------|------------|------------------------------------------------|
+| ng    | newglob    | Required | The new glob/directory/file         |
+| ?     | help       | None     | Toggle help box                     |
+| q     | quit       | None     | Quit                                |
+|       | sort       | Optional | The method to sort by               |
+| df    | destfolder | Required | New folder to move/copy images to   |
+| m     | max        | Required | New maximum number of files to view |
 
 ### Sorting Options
 
-| Options          | Description                                                                              |
+| Option           | Description                                                                              |
 |------------------|------------------------------------------------------------------------------------------|
 | Alphabetical     | Alphabetically by filename only                                                          |
 | Date             | By date last modified, most recent first                                                 |
