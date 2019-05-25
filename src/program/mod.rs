@@ -111,8 +111,6 @@ impl<'a> Program<'a> {
                 scale: 1.0,
                 pan_x: 0.0,
                 pan_y: 0.0,
-                l_shift: false,
-                r_shift: false,
             },
             sorter,
         })

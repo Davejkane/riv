@@ -107,10 +107,6 @@ pub struct State<'a> {
     pub pan_x: f32,
     /// pan_y is the degree of pan in the y axis
     pub pan_y: f32,
-    /// l_shift tracks whether or not left shift is held
-    pub l_shift: bool,
-    /// r_shift tracks whether or not right shift is held
-    pub r_shift: bool,
 }
 
 impl<'a> State<'a> {
@@ -131,6 +127,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
+    use sdl2::keyboard::Mod;
 
     match event {
         Event::Quit { .. } => Action::Quit,
@@ -167,66 +164,32 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
         },
 
         Event::KeyDown {
-            keycode: Some(k), ..
-        } => match k {
-            Delete => state.process_action(Action::Delete),
-            F11 => state.process_action(Action::ToggleFullscreen),
-            Right => {
-                if state.l_shift || state.r_shift {
-                    state.process_action(Action::Pan(PanAction::Right))
-                } else {
-                    state.process_action(Action::Next)
-                }
-            }
-            Left => {
-                if state.l_shift || state.r_shift {
-                    state.process_action(Action::Pan(PanAction::Left))
-                } else {
-                    state.process_action(Action::Prev)
-                }
-            }
-            Up => {
-                if state.l_shift || state.r_shift {
-                    state.process_action(Action::Pan(PanAction::Up))
-                } else {
-                    state.process_action(Action::Zoom(ZoomAction::In))
-                }
-            }
-            Down => {
-                if state.l_shift || state.r_shift {
-                    state.process_action(Action::Pan(PanAction::Down))
-                } else {
-                    state.process_action(Action::Zoom(ZoomAction::Out))
-                }
-            }
-            Escape => Action::Quit,
-            PageUp => state.process_action(Action::SkipForward),
-            PageDown => state.process_action(Action::SkipBack),
-            Home => Action::First,
-            End => Action::Last,
-            Period => state.last_action.clone(),
-            LShift => {
-                state.l_shift = true;
-                Action::Noop
-            }
-            RShift => {
-                state.r_shift = true;
-                Action::Noop
-            }
-            _ => Action::Noop,
-        },
-        Event::KeyUp {
-            keycode: Some(k), ..
-        } => match k {
-            LShift => {
-                state.l_shift = false;
-                Action::Noop
-            }
-            RShift => {
-                state.r_shift = false;
-                Action::Noop
-            }
-            _ => Action::Noop,
+            keycode: Some(k),
+            keymod: m,
+            ..
+        } => match (k, m) {
+            (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
+                Left => state.process_action(Action::Pan(PanAction::Left)),
+                Right => state.process_action(Action::Pan(PanAction::Right)),
+                Up => state.process_action(Action::Pan(PanAction::Up)),
+                Down => state.process_action(Action::Pan(PanAction::Down)),
+                _ => Action::Noop,
+            },
+            (k, &Mod::NOMOD) | (k, _) => match k {
+                Delete => state.process_action(Action::Delete),
+                F11 => state.process_action(Action::ToggleFullscreen),
+                Escape => Action::Quit,
+                PageUp => state.process_action(Action::SkipForward),
+                PageDown => state.process_action(Action::SkipBack),
+                Home => Action::First,
+                End => Action::Last,
+                Period => state.last_action.clone(),
+                Right => state.process_action(Action::Next),
+                Left => state.process_action(Action::Prev),
+                Up => state.process_action(Action::Zoom(ZoomAction::In)),
+                Down => state.process_action(Action::Zoom(ZoomAction::Out)),
+                _ => Action::Noop,
+            },
         },
 
         Event::Window { win_event, .. } => match win_event {
