@@ -192,9 +192,8 @@ impl<'a> Program<'a> {
         self.paths.images = new_images;
         // Set current directory to new one
         let new_base_dir = find_new_base_dir(&path_to_newglob.replace("\\ ", " "));
-        match new_base_dir {
-            Some(base_dir) => self.paths.base_dir = base_dir,
-            None => {}
+        if let Some(base_dir) = new_base_dir {
+            self.paths.base_dir = base_dir
         }
         self.sorter.sort(&mut self.paths.images);
 

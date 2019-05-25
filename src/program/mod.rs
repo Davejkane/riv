@@ -483,8 +483,7 @@ fn make_dst(tq: &TextureQuery, vp: &Rect, scale: f32, pan_x: f32, pan_y: f32) ->
     let y = (y_diff - y_diff * pan_y) as i32;
     let width = (tq.width as f32 * scale) as u32;
     let height = (tq.height as f32 * scale) as u32;
-    let r = Rect::new(x, y, width, height);
-    r
+    Rect::new(x, y, width, height)
 }
 
 /// Compute increment of skips
