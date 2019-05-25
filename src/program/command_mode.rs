@@ -189,7 +189,7 @@ impl<'a> Program<'a> {
             }
         };
         let target = if !self.paths.images.is_empty() {
-            Some(self.paths.images[self.paths.index].to_owned())
+            Some(self.paths.images[self.paths.index()].to_owned())
         } else {
             None
         };
@@ -197,7 +197,7 @@ impl<'a> Program<'a> {
         // Set current directory to new one
         let new_base_dir = find_new_base_dir(&path_to_newglob.replace("\\ ", " "));
         if let Some(base_dir) = new_base_dir {
-            self.paths.base_dir = base_dir
+            self.paths.base_dir = base_dir;
         }
         self.sorter.sort(&mut self.paths.images);
 
@@ -209,19 +209,12 @@ impl<'a> Program<'a> {
                 .iter()
                 .position(|path| path == &target_path)
             {
-                Some(new_index) => self.paths.index = new_index,
+                Some(new_index) => self.paths.set_index(new_index),
                 None => {
-                    self.paths.index = 0;
+                    self.paths.set_index(0);
                 }
             }
         }
-        self.paths.max_viewable = if self.paths.actual_max_viewable > 0
-            && self.paths.actual_max_viewable <= self.paths.images.len()
-        {
-            self.paths.actual_max_viewable
-        } else {
-            self.paths.images.len()
-        };
         self.ui_state.mode = Mode::Success(format!(
             "found {} images in {}",
             self.paths.images.len(),
@@ -251,7 +244,7 @@ impl<'a> Program<'a> {
         self.sorter.set_order(new_sort_order);
         // the path to find in order to maintain that it is the current image
         let target = if !self.paths.images.is_empty() {
-            Some(self.paths.images[self.paths.index].to_owned())
+            Some(self.paths.images[self.paths.index()].to_owned())
         } else {
             None
         };
@@ -265,14 +258,14 @@ impl<'a> Program<'a> {
                 .position(|path| path == &target_path)
             {
                 Some(new_index) => {
-                    if new_index <= (self.paths.max_viewable - 1) {
-                        self.paths.index = new_index;
+                    if new_index <= (self.paths.max_viewable() - 1) {
+                        self.paths.set_index(new_index);
                     } else {
-                        self.paths.index = 0;
+                        self.paths.set_index(0);
                     }
                 }
                 None => {
-                    self.paths.index = 0;
+                    self.paths.set_index(0);
                 }
             }
         }
@@ -280,23 +273,14 @@ impl<'a> Program<'a> {
 
     /// sets the new maximum_viewable images
     fn maximum_viewable(&mut self, max: &str) {
-        self.paths.actual_max_viewable = match max.parse::<usize>() {
+        let new_actual_max = match max.parse::<usize>() {
             Ok(new_max) => new_max,
             Err(_e) => {
                 self.ui_state.mode = Mode::Error(format!("\"{}\" is not a positive integer", max));
                 return;
             }
         };
-        if self.paths.actual_max_viewable > self.paths.images.len()
-            || self.paths.actual_max_viewable == 0
-        {
-            self.paths.max_viewable = self.paths.images.len();
-        } else {
-            self.paths.max_viewable = self.paths.actual_max_viewable;
-        }
-        if self.paths.max_viewable <= self.paths.index {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
+        self.paths.set_actual_maximum(new_actual_max);
     }
 
     /// Enters command mode that gets user input and runs a set of possible commands based on user input.
@@ -340,7 +324,8 @@ impl<'a> Program<'a> {
             }
             Commands::Reverse => {
                 self.paths.images.reverse();
-                self.paths.index = self.paths.max_viewable() - self.paths.index - 1;
+                let reversed_index = self.paths.max_viewable_index() - self.paths.index();
+                self.paths.set_index(reversed_index);
             }
             Commands::DestFolder => {
                 if arguments.is_empty() {

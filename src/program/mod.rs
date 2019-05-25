@@ -7,7 +7,7 @@ mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
-use crate::paths::Paths;
+use crate::paths::{Paths, PathsBuilder};
 use crate::screen::Screen;
 use crate::sort::Sorter;
 use crate::ui::{self, Action, Mode, PanAction, ZoomAction};
@@ -53,11 +53,7 @@ impl<'a> Program<'a> {
         let sort_order = args.sort_order;
         let max_length = args.max_length;
 
-        let max_viewable = if max_length > 0 && max_length <= images.len() {
-            max_length
-        } else {
-            images.len()
-        };
+        let max_viewable = max_length;
 
         let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
@@ -84,6 +80,10 @@ impl<'a> Program<'a> {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
         };
+
+        let paths = PathsBuilder::new(images, dest_folder, base_dir)
+            .with_maximum_viewable(max_viewable)
+            .build();
         Ok(Program {
             screen: Screen {
                 sdl_context,
@@ -95,14 +95,7 @@ impl<'a> Program<'a> {
                 last_texture: None,
                 dirty: false,
             },
-            paths: Paths {
-                images,
-                dest_folder,
-                index: 0,
-                base_dir,
-                max_viewable,
-                actual_max_viewable: max_length,
-            },
+            paths,
             ui_state: ui::State {
                 render_infobar: true,
                 render_help: ui::HelpRender::None,
@@ -183,17 +176,13 @@ impl<'a> Program<'a> {
 
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
-        self.paths.index = 0;
+        self.paths.set_index(0);
         self.render_screen(false)
     }
 
     /// Go to and render last image in list
     fn last(&mut self) -> Result<(), String> {
-        if self.paths.images.is_empty() {
-            self.paths.index = 0;
-        } else {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
+        self.paths.set_index(self.paths.max_viewable_index());
         self.render_screen(false)
     }
 
@@ -296,12 +285,17 @@ impl<'a> Program<'a> {
             return Err("No image to copy".to_string());
         }
         let opt = &fs_extra::file::CopyOptions::new();
-        let filepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
-            ))
-        });
+        let filepath = self
+            .paths
+            .images
+            .get(self.paths.index())
+            .unwrap_or_else(|| {
+                panic!(format!(
+                    "image index {} > max image index {}",
+                    self.paths.index(),
+                    self.paths.max_viewable_index(),
+                ))
+            });
         let newname = self.construct_dest_filepath(filepath)?;
         copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
         Ok(format!(
@@ -317,7 +311,6 @@ impl<'a> Program<'a> {
             return Err("no images to move".to_string());
         }
         // Retrieve current image
-        assert!(self.paths.index < self.paths.max_viewable);
         let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
@@ -342,13 +335,8 @@ impl<'a> Program<'a> {
             ));
         }
         // Only if successful, remove image from tracked images
-        self.remove_image(self.paths.index);
+        self.paths.remove_current_image();
         self.screen.dirty = true;
-
-        // If index is greater than or equal to max_viewable set it to it - 1
-        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
@@ -364,7 +352,6 @@ impl<'a> Program<'a> {
         }
 
         // Retrieve current image
-        assert!(self.paths.index < self.paths.max_viewable);
         let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
             panic!(format!(
                 "image index {} > max image index {}",
@@ -387,13 +374,8 @@ impl<'a> Program<'a> {
         // If we've reached past here, there was no error deleting the image
 
         // Only if successful, remove image from tracked images
-        self.remove_image(self.paths.index);
+        self.paths.remove_current_image();
         self.screen.dirty = true;
-
-        // If index is greater than or equal to max_viewable set it to it - 1
-        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this

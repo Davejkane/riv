@@ -61,7 +61,7 @@ impl<'a> Program<'a> {
     }
 
     fn set_image_texture(&mut self, force_render: bool) -> Result<(), String> {
-        if self.paths.index == self.screen.last_index
+        if self.paths.index() == self.screen.last_index
             && self.screen.last_texture.is_some()
             && !self.screen.dirty
             && !force_render
@@ -71,10 +71,10 @@ impl<'a> Program<'a> {
         let texture = match self
             .screen
             .texture_creator
-            .load_texture(&self.paths.images[self.paths.index])
+            .load_texture(&self.paths.images[self.paths.index()])
         {
             Ok(t) => {
-                self.screen.last_index = self.paths.index;
+                self.screen.last_index = self.paths.index();
                 t
             }
             Err(e) => {

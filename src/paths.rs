@@ -4,6 +4,7 @@
 use std::path::PathBuf;
 
 /// Builds a new Paths
+#[derive(Debug)]
 pub struct PathsBuilder {
     /// images is the paths of all the images currently in the program.
     images: Vec<PathBuf>,
@@ -14,11 +15,12 @@ pub struct PathsBuilder {
     /// index is the index of the images vector of the current image to be displayed.
     index: usize,
     /// Artificial user facing length of images limited by max cli argument. 0 is unlimited
-    max_viewable: usize,
+    max_viewable: Option<usize>,
     /// Actual length the user said was maximum for images
-    actual_max_viewable: usize,
+    actual_max_viewable: Option<usize>,
 }
 /// Paths contains all path information related to the running of the program.
+#[derive(Debug)]
 pub struct Paths {
     /// images is the paths of all the images currently in the program.
     pub images: Vec<PathBuf>,
@@ -27,17 +29,11 @@ pub struct Paths {
     /// current_dir is the path of the current directory where the program was launched from
     pub base_dir: PathBuf,
     /// index is the index of the images vector of the current image to be displayed.
-    pub index: usize,
+    index: usize,
     /// Artificial user facing length of images limited by max cli argument. 0 is unlimited
-    max_viewable: Some(usize),
+    max_viewable: Option<usize>,
     /// Actual length the user said was maximum for images
-    actual_max_viewable: Some(usize),
-}
-
-impl Paths {
-    fn index(&self) -> usize {
-        self.index
-    }
+    actual_max_viewable: Option<usize>,
 }
 
 impl PathsBuilder {
@@ -58,8 +54,17 @@ impl PathsBuilder {
     }
 
     /// Caps maximum images viewable even if the glob found more
-    pub fn with_soft_cap(mut self, cap: usize) -> Self {
-        self.soft_cap = cap;
+    pub fn with_maximum_viewable(mut self, cap: usize) -> Self {
+        match cap {
+            0 => {
+                self.max_viewable = None;
+                self.actual_max_viewable = None;
+            }
+            _ => {
+                self.max_viewable = Some(cap);
+                self.actual_max_viewable = Some(cap);
+            }
+        };
         self
     }
 
@@ -77,15 +82,42 @@ impl PathsBuilder {
 }
 
 impl Paths {
+    /// Panics if passed an index bigger than vector holds
+    /// Panics if passed an index bigger than max allowed viewable
+    pub fn set_index(&mut self, i: usize) {
+        if i > self.max_viewable_index() {
+            panic!(
+                "{} is past bounds of images {}",
+                i,
+                self.max_viewable_index()
+            );
+        }
+        self.index = i;
+    }
+
+    /// Index of currently viewed image
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    /// Number of current image (ex. image 1 of 2)
+    /// Panics if index is greater than usize
+    pub fn current_image(&self) -> usize {
+        self.index.checked_add(1).unwrap()
+    }
+    /// Maximum viewable index
+    /// Returns 0 if 0 images to display
+    pub fn max_viewable_index(&self) -> usize {
+        // Account for if we only have 1 image
+        self.max_viewable().saturating_sub(1)
+    }
     /// Artificial user facing length of images limited by max cli argument
     pub fn max_viewable(&self) -> usize {
         let true_len = self.images.len();
-        if let Some(art_cap) = self.max_viewable {
-            if true_len > art_cap {
-                art_cap
-            }
+        match self.max_viewable {
+            Some(art_cap) => std::cmp::min(true_len, art_cap),
+            None => true_len,
         }
-        true_len
     }
 
     /// Removes an image from tracked images.
@@ -94,7 +126,7 @@ impl Paths {
     /// # Panics
     ///
     /// Panics if `index` tries to access past `self.images` bounds
-    fn remove_image(&mut self, index: usize) {
+    pub fn remove_image(&mut self, index: usize) {
         let len = self.images.len();
         assert!(index < len);
 
@@ -105,12 +137,13 @@ impl Paths {
         // Adjust index if past bounds
         if index >= new_len {
             // Prevent underflow by flooring at 0 index
-            self.paths.index.saturating_sub(1);
+            self.index = self.index.saturating_sub(1);
         }
-        // Decrease max viewable if another image won't take the deleted's place
-        if self.images.len() <= self.max_viewable {
-            self.max_viewable -= 1;
-        }
+    }
+
+    /// Removes current image from tracking
+    pub fn remove_current_image(&mut self) {
+        self.remove_image(self.index);
     }
 
     /// Adjusts the index of the current image to view
@@ -122,16 +155,29 @@ impl Paths {
     /// Increment the currently tracked image
     pub fn increment(&mut self, step: usize) {
         let new_index = self.index + step;
-        if new_index >= self.images.len() - 1 {
-            self.index = self.max_viewable.saturating_sub(1);
-            return;
-        }
-        // new index would be past soft cap
-        if new_index >= self.max_viewable {
-            // cap at soft cap
-            self.index = self.max_viewable;
+
+        // Cap new index at soft cap
+        if new_index >= self.max_viewable_index() {
+            self.index = self.max_viewable_index();
         } else {
             self.index = new_index;
+        }
+    }
+
+    /// Update at runtime the maximum images to display at once
+    /// Updates index to `actual_max_viewable` if index is too large
+    pub fn set_actual_maximum(&mut self, max: usize) {
+        if max == 0 {
+            self.actual_max_viewable = None;
+            self.max_viewable = None;
+            return;
+        }
+        self.actual_max_viewable = Some(max);
+        self.max_viewable = Some(max);
+
+        // Cap index if new max is smaller
+        if self.index > self.max_viewable_index() {
+            self.index = self.max_viewable_index();
         }
     }
 }
@@ -148,10 +194,65 @@ mod tests {
     }
 
     #[test]
-    fn test_soft_cap() {
-        let mut images = dummy_paths_builder(50).with_soft_cap(10).build();
+    fn test_remove_current_image_last_image_no_panic() {
+        let mut images = dummy_paths_builder(50).build();
+        images.increment(60);
+        images.remove_current_image();
+        assert_eq!(images.index(), 48);
+    }
+
+    #[test]
+    fn test_remove_current_image_middle_same_index() {
+        let mut images = dummy_paths_builder(50).build();
         images.increment(20);
-        assert_eq!(images.index, images.max_viewable);
+        assert_eq!(images.index(), 20);
+        images.remove_current_image();
+        assert_eq!(images.index(), 20);
+    }
+
+    #[test]
+    fn test_index_gives_correct_index() {
+        let mut images = dummy_paths_builder(99).build();
+        images.increment(33);
+        images.decrement(88);
+        images.increment(2);
+        assert_eq!(images.index(), 2);
+    }
+    #[test]
+    fn test_max_index_gives_valid_current_image() {
+        let max_images = 84;
+        let mut images = dummy_paths_builder(max_images).build();
+        images.increment(max_images);
+        let current_image_number = images.current_image();
+        assert_eq!(current_image_number, max_images);
+    }
+
+    #[test]
+    fn test_setting_new_actual_maximum_and_maximum_also_updates_index() {
+        let mut images = dummy_paths_builder(50).with_maximum_viewable(50).build();
+        images.increment(50);
+        images.set_actual_maximum(20);
+        assert_eq!(images.index(), 19);
+    }
+
+    #[test]
+    fn test_setting_zero_actual_maximum_removes_soft_max_no_index_disturb() {
+        let mut images = dummy_paths_builder(100).with_maximum_viewable(20).build();
+        images.increment(50);
+        assert_eq!(images.index(), 19);
+        images.set_actual_maximum(0);
+        images.increment(50);
+        assert_eq!(images.index(), 69);
+        // Still capped at last image
+        images.increment(999);
+        assert_eq!(images.index(), 99);
+    }
+
+    #[test]
+    fn test_soft_maximum_view() {
+        let mut images = dummy_paths_builder(50).with_maximum_viewable(10).build();
+        images.increment(20);
+        assert_eq!(images.index, images.max_viewable_index());
     }
 
     #[test]
@@ -162,7 +263,7 @@ mod tests {
 
         images.increment(1);
         assert_eq!(images.index, STARTING_INDEX + STEP);
-        assert_eq!(images.max_viewable, 50);
-        assert_eq!(images.actual_max_viewable, 50);
+        assert_eq!(images.max_viewable(), 50);
+        assert_eq!(images.actual_max_viewable, None);
     }
 }
