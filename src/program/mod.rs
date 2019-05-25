@@ -242,7 +242,7 @@ impl<'a> Program<'a> {
 
     /// Pans right
     fn pan_right(&mut self) -> Result<(), String> {
-            self.ui_state.pan_x -= 0.05;
+        self.ui_state.pan_x -= 0.05;
         if self.ui_state.pan_x < -1.0 {
             self.ui_state.pan_x = -1.0;
         }
