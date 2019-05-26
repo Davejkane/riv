@@ -34,39 +34,39 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 ### Normal Mode Controls
 
 
-| Key              | Action                                                 |
-|------------------|--------------------------------------------------------|
-| Esc OR q         | Quit                                                   |
-| Left Arrow OR k  | Previous Image                                         |
-| Right Arrow OR j | Next Image                                             |
-| PageUp OR w      | Forward 10% of images                                  |
-| PageDown OR b    | Backward 10% of images                                 |
-| Home OR g        | First Image                                            |
-| End OR G         | Last Image                                             |
-| m                | Move image to destination folder (default is ./keep)   |
-| c                | Copy image to destination folder (default is ./keep)   |
-| Delete OR d      | Delete image from it's location                        |
-| t                | Toggle information bar                                 |
-| f OR F11         | Toggle fullscreen mode                                 |
-| ?                | Toggle help box                                        |
-| z OR Left Click  | Toggle actual size vs scaled image                     |
-| . (period)       | Repeat last action                                     |
+| Key 1      | Key 2                      | Action                                              |
+|------------|----------------------------|-----------------------------------------------------|
+| q          | Esc                        | Quit                                                |
+| k/j        | Left/Right                 | Previous/Next Image                                 |
+| i/o        | Up/Down                    | Zoom in/out                                         |
+| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |
+| b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |
+| g/G        | Home/End                   | First/Last Image                                    |
+| m          |                            | Move image to destination folder (default ./keep)   |
+| c          |                            | Copy image to destination folder (default ./keep)   |
+| d          | Delete                     | Delete image from it's location                     |
+| t          |                            | Toggle information bar                              |
+| f          | F11                        | Toggle fullscreen mode                              |
+| ?          |                            | Toggle help box                                     |
+| z          | Left Click                 | Toggle actual size vs scaled image                  |
+| . (period) |                            | Repeat last action                                  |
+
 
 ### Command Mode Controls
 
 
-| Command                     | Action                                                   |
-|-----------------------------|----------------------------------------------------------|
-| ng OR newglob [glob]        | **Required argument** the new glob/directory/file        |
-| ? OR help                   | Toggle help box                                          |
-| q OR quit                   | Quit                                                     |
-| sort (method)               | *Optional argument* the new method to sort by            |
-| df OR destfolder [path]     | **Required argument** new folder to move/copy images to  |
-| m OR max [positive integer] | **Required argument** new maximum number of files to view|
+| Short | Long       | Argument | Action                              |
+|-------|------------|------------------------------------------------|
+| ng    | newglob    | Required | The new glob/directory/file         |
+| ?     | help       | None     | Toggle help box                     |
+| q     | quit       | None     | Quit                                |
+|       | sort       | Optional | The method to sort by               |
+| df    | destfolder | Required | New folder to move/copy images to   |
+| m     | max        | Required | New maximum number of files to view |
 
 ### Sorting Options
 
-| Options          | Description                                                                              |
+| Option           | Description                                                                              |
 |------------------|------------------------------------------------------------------------------------------|
 | Alphabetical     | Alphabetically by filename only                                                          |
 | Date             | By date last modified, most recent first                                                 |

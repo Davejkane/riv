@@ -1,5 +1,5 @@
 use crate::infobar;
-use crate::program::{compute_center_rectangle_view, make_dst, Program};
+use crate::program::{make_dst, Program};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -42,23 +42,15 @@ impl<'a> Program<'a> {
         let query = tex.query();
         // Area to render other rectangle on
         let target = self.screen.canvas.viewport();
-        if self.ui_state.actual_size {
-            // Get slice of texture to place on screen
-            let content_slice = compute_center_rectangle_view(query.width, query.height, &target);
-            let dest = make_dst(
-                content_slice.width(),
-                content_slice.height(),
-                target.width(),
-                target.height(),
-            );
-            if let Err(e) = self.screen.canvas.copy(&tex, content_slice, dest) {
-                eprintln!("Failed to copy image to screen {}", e);
-            }
-        } else {
-            let dest = make_dst(query.width, query.height, target.width(), target.height());
-            if let Err(e) = self.screen.canvas.copy(&tex, None, dest) {
-                eprintln!("Failed to copy image to screen {}", e);
-            }
+        let dst = make_dst(
+            &query,
+            &target,
+            self.ui_state.scale,
+            self.ui_state.pan_x,
+            self.ui_state.pan_y,
+        );
+        if let Err(e) = self.screen.canvas.copy(&tex, None, dst) {
+            eprintln!("Failed to copy image to screen {}", e);
         }
         Ok(())
     }
@@ -87,13 +79,12 @@ impl<'a> Program<'a> {
         };
 
         // Set the default state for viewing of the image
-        let query = texture.query();
-        let src = Rect::new(0, 0, query.width, query.height);
-        let dest = self.screen.canvas.viewport();
-        self.ui_state.actual_size = Program::default_actual_size(&src, &dest);
 
         self.screen.last_texture = Some(texture);
         self.screen.dirty = false;
+        self.ui_state.scale = self.calculate_scale_for_fit();
+        self.ui_state.pan_x = 0.0;
+        self.ui_state.pan_y = 0.0;
         Ok(())
     }
 
@@ -298,24 +289,23 @@ fn grey() -> Color {
 
 fn help_text() -> Vec<&'static str> {
     vec![
-        "+------------------+--------------------------------------------------------+",
-        "| Key              | Action                                                 |",
-        "|------------------|--------------------------------------------------------|",
-        "| Esc OR q         | Quit                                                   |",
-        "| Left Arrow OR k  | Previous Image                                         |",
-        "| Right Arrow OR j | Next Image                                             |",
-        "| PageUp OR w      | Forward 10% of images                                  |",
-        "| PageDown OR b    | Backward 10% of images                                 |",
-        "| Home OR g        | First Image                                            |",
-        "| End OR G         | Last Image                                             |",
-        "| m                | Move image to destination folder (default is ./keep)   |",
-        "| c                | Copy image to destination folder (default is ./keep)   |",
-        "| Delete OR d      | Delete image from it's location                        |",
-        "| t                | Toggle information bar                                 |",
-        "| f OR F11         | Toggle fullscreen mode                                 |",
-        "| ?                | Toggle help box                                        |",
-        "| z OR Left Click  | Toggle actual size vs scaled image                     |",
-        "| . (period)       | Repeat last action                                     |",
-        "+------------------+--------------------------------------------------------+",
+        "+------------+----------------------------+-----------------------------------------------------+",
+        "| Key 1      | Key 2                      | Action                                              |",
+        "|------------+----------------------------|-----------------------------------------------------|",
+        "| q          | Esc                        | Quit                                                |",
+        "| k/j        | Left/Right                 | Previous/Next Image                                 |",
+        "| i/o        | Up/Down                    | Zoom in/out                                         |",
+        "| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |",
+        "| b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |",
+        "| g/G        | Home/End                   | First/Last Image                                    |",
+        "| m          |                            | Move image to destination folder (default ./keep)   |",
+        "| c          |                            | Copy image to destination folder (default ./keep)   |",
+        "| d          | Delete                     | Delete image from it's location                     |",
+        "| t          |                            | Toggle information bar                              |",
+        "| f          | F11                        | Toggle fullscreen mode                              |",
+        "| ?          |                            | Toggle help box                                     |",
+        "| z          | Left Click                 | Toggle actual size vs scaled image                  |",
+        "| . (period) |                            | Repeat last action                                  |",
+        "+------------+----------------------------+-----------------------------------------------------+",
     ]
 }

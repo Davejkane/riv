@@ -38,6 +38,10 @@ pub enum Action<'a> {
     SkipForward,
     /// SkipBack rewinds the list of images by x%
     SkipBack,
+    /// Zoom zooms in or out depending on the ZoomAction variant
+    Zoom(ZoomAction),
+    /// Pan pans the picture in the direction of the PanAction variant
+    Pan(PanAction),
     /// Copy indicates the app should copy the image in response to this event
     Copy,
     /// Move indicates the app should move the image in response to this event
@@ -46,6 +50,28 @@ pub enum Action<'a> {
     Delete,
     /// Noop indicates the app should not respond to this event
     Noop,
+}
+
+/// ZoomAction contains the variants of a possible zoom action. In | Out
+#[derive(Clone)]
+pub enum ZoomAction {
+    /// In zooms in
+    In,
+    /// Out zooms out
+    Out,
+}
+
+/// PanAction contains the variants of a possible pan action. Left | Right | Up | Down
+#[derive(Clone)]
+pub enum PanAction {
+    /// Left pans left
+    Left,
+    /// Right pans right
+    Right,
+    /// Up pans up
+    Up,
+    /// Down pans down
+    Down,
 }
 
 /// Modal setting for Program, this dictates the commands that are available to the user
@@ -69,14 +95,18 @@ pub struct State<'a> {
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
     pub render_help: bool,
-    /// Should the image shown be shown in actual pixel dimensions
-    pub actual_size: bool,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
     /// current mode of the application, changes how input is interpreted
     pub mode: Mode,
     /// last_action records the last action performed. Used for repeating that action
     pub last_action: Action<'a>,
+    /// scale represents the scale of the image with 1.0 being the actual size of the image
+    pub scale: f32,
+    /// pan_x is the degree of pan in the x axis
+    pub pan_x: f32,
+    /// pan_y is the degree of pan in the y axis
+    pub pan_y: f32,
 }
 
 impl<'a> State<'a> {
@@ -97,6 +127,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
+    use sdl2::keyboard::Mod;
 
     match event {
         Event::Quit { .. } => Action::Quit,
@@ -111,9 +142,15 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
                 state.render_help = !state.render_help;
                 state.process_action(Action::ReRender)
             }
+            "H" => state.process_action(Action::Pan(PanAction::Left)),
+            "i" => state.process_action(Action::Zoom(ZoomAction::In)),
             "j" => state.process_action(Action::Next),
+            "J" => state.process_action(Action::Pan(PanAction::Down)),
             "k" => state.process_action(Action::Prev),
+            "K" => state.process_action(Action::Pan(PanAction::Up)),
+            "L" => state.process_action(Action::Pan(PanAction::Right)),
             "m" => state.process_action(Action::Move),
+            "o" => state.process_action(Action::Zoom(ZoomAction::Out)),
             "q" => Action::Quit,
             "t" => {
                 state.render_infobar = !state.render_infobar;
@@ -127,19 +164,32 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
         },
 
         Event::KeyDown {
-            keycode: Some(k), ..
-        } => match k {
-            Delete => state.process_action(Action::Delete),
-            F11 => state.process_action(Action::ToggleFullscreen),
-            Right => state.process_action(Action::Next),
-            Left => state.process_action(Action::Prev),
-            Escape => Action::Quit,
-            PageUp => state.process_action(Action::SkipForward),
-            PageDown => state.process_action(Action::SkipBack),
-            Home => Action::First,
-            End => Action::Last,
-            Period => state.last_action.clone(),
-            _ => Action::Noop,
+            keycode: Some(k),
+            keymod: m,
+            ..
+        } => match (k, m) {
+            (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
+                Left => state.process_action(Action::Pan(PanAction::Left)),
+                Right => state.process_action(Action::Pan(PanAction::Right)),
+                Up => state.process_action(Action::Pan(PanAction::Up)),
+                Down => state.process_action(Action::Pan(PanAction::Down)),
+                _ => Action::Noop,
+            },
+            (k, &Mod::NOMOD) | (k, _) => match k {
+                Delete => state.process_action(Action::Delete),
+                F11 => state.process_action(Action::ToggleFullscreen),
+                Escape => Action::Quit,
+                PageUp => state.process_action(Action::SkipForward),
+                PageDown => state.process_action(Action::SkipBack),
+                Home => Action::First,
+                End => Action::Last,
+                Period => state.last_action.clone(),
+                Right => state.process_action(Action::Next),
+                Left => state.process_action(Action::Prev),
+                Up => state.process_action(Action::Zoom(ZoomAction::In)),
+                Down => state.process_action(Action::Zoom(ZoomAction::Out)),
+                _ => Action::Noop,
+            },
         },
 
         Event::Window { win_event, .. } => match win_event {

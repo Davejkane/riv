@@ -10,14 +10,13 @@ use crate::cli;
 use crate::paths::Paths;
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action, Mode};
+use crate::ui::{self, Action, Mode, PanAction, ZoomAction};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
 use fs_extra::file::remove;
-use sdl2::rect::Point;
 use sdl2::rect::Rect;
-use sdl2::render::{Canvas, TextureCreator};
+use sdl2::render::{Canvas, TextureCreator, TextureQuery};
 use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
@@ -27,6 +26,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 const FONT_SIZE: u16 = 18;
+const PAN_PIXELS: f32 = 50.0;
 
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
@@ -106,10 +106,12 @@ impl<'a> Program<'a> {
             ui_state: ui::State {
                 render_infobar: true,
                 render_help: false,
-                actual_size: false,
                 fullscreen: args.fullscreen,
                 mode: Mode::Normal,
                 last_action: Action::Noop,
+                scale: 1.0,
+                pan_x: 0.0,
+                pan_y: 0.0,
             },
             sorter,
         })
@@ -117,7 +119,31 @@ impl<'a> Program<'a> {
 
     /// Toggle whether actual size or scaled image is rendered.
     pub fn toggle_fit(&mut self) {
-        self.ui_state.actual_size = !self.ui_state.actual_size;
+        let error = 0.001;
+        if (self.ui_state.scale - 1.0).abs() > error {
+            self.ui_state.scale = 1.0
+        } else {
+            self.ui_state.scale = self.calculate_scale_for_fit();
+        }
+    }
+
+    // Calculates the scale required to fit large images to screen
+    fn calculate_scale_for_fit(&self) -> f32 {
+        let tex = self.screen.last_texture.as_ref().unwrap();
+        let query = tex.query();
+        let (src_x, src_y) = (query.width, query.height);
+        let target = self.screen.canvas.viewport();
+        let (dst_x, dst_y) = (target.width(), target.height());
+        // case 1: both source dimensions smaller
+        if src_x < dst_x && src_y < dst_y {
+            return 1.0;
+        }
+        // case 2: source aspect ratio is larger
+        if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
+            return dst_x as f32 / src_x as f32;
+        }
+        // case 3: source aspect ratio is smaller
+        dst_y as f32 / src_y as f32
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
@@ -189,6 +215,62 @@ impl<'a> Program<'a> {
             self.paths.index = 0;
         } else {
             self.paths.index = self.paths.max_viewable - 1;
+        }
+        self.render_screen(false)
+    }
+
+    /// Zooms in
+    fn zoom_in(&mut self) -> Result<(), String> {
+        self.ui_state.scale *= 1.1;
+        self.render_screen(false)
+    }
+
+    /// Zooms out
+    fn zoom_out(&mut self) -> Result<(), String> {
+        self.ui_state.scale *= 0.9;
+        self.render_screen(false)
+    }
+
+    /// Pans left
+    fn pan_left(&mut self) -> Result<(), String> {
+        let width = self.screen.canvas.viewport().width();
+        let step = PAN_PIXELS / (self.ui_state.scale * width as f32);
+        self.ui_state.pan_x += step;
+        if self.ui_state.pan_x > 1.0 {
+            self.ui_state.pan_x = 1.0;
+        }
+        self.render_screen(false)
+    }
+
+    /// Pans right
+    fn pan_right(&mut self) -> Result<(), String> {
+        let width = self.screen.canvas.viewport().width();
+        let step = PAN_PIXELS / (self.ui_state.scale * width as f32);
+        self.ui_state.pan_x -= step;
+        if self.ui_state.pan_x < -1.0 {
+            self.ui_state.pan_x = -1.0;
+        }
+        self.render_screen(false)
+    }
+
+    /// Pans up
+    fn pan_up(&mut self) -> Result<(), String> {
+        let height = self.screen.canvas.viewport().height();
+        let step = PAN_PIXELS / (self.ui_state.scale * height as f32);
+        self.ui_state.pan_y += step;
+        if self.ui_state.pan_y > 1.0 {
+            self.ui_state.pan_y = 1.0;
+        }
+        self.render_screen(false)
+    }
+
+    /// Pans down
+    fn pan_down(&mut self) -> Result<(), String> {
+        let height = self.screen.canvas.viewport().height();
+        let step = PAN_PIXELS / (self.ui_state.scale * height as f32);
+        self.ui_state.pan_y -= step;
+        if self.ui_state.pan_y < -1.0 {
+            self.ui_state.pan_y = -1.0;
         }
         self.render_screen(false)
     }
@@ -370,6 +452,12 @@ impl<'a> Program<'a> {
                     Action::Last => self.last()?,
                     Action::SkipForward => self.skip_forward()?,
                     Action::SkipBack => self.skip_backward()?,
+                    Action::Zoom(ZoomAction::In) => self.zoom_in()?,
+                    Action::Zoom(ZoomAction::Out) => self.zoom_out()?,
+                    Action::Pan(PanAction::Left) => self.pan_left()?,
+                    Action::Pan(PanAction::Right) => self.pan_right()?,
+                    Action::Pan(PanAction::Up) => self.pan_up()?,
+                    Action::Pan(PanAction::Down) => self.pan_down()?,
                     Action::Copy => match self.copy_image() {
                         Ok(_) => (),
                         Err(e) => eprintln!("Failed to copy file: {}", e),
@@ -395,35 +483,14 @@ impl<'a> Program<'a> {
 
 /// make dst determines the parameters of a rectangle required to place an image correctly in
 /// the window
-fn make_dst(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    // case 1: both source dimensions smaller
-    if src_x < dst_x && src_y < dst_y {
-        return full_rect(src_x, src_y, dst_x, dst_y);
-    }
-    // case 2: source aspect ratio is larger
-    if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
-        return fit_x_rect(src_x, src_y, dst_x, dst_y);
-    }
-    // case 3: source aspect ratio is smaller
-    fit_y_rect(src_x, src_y, dst_x, dst_y)
-}
-
-fn full_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    let y = ((dst_y - src_y) as f32 / 2.0) as i32;
-    let x = ((dst_x - src_x) as f32 / 2.0) as i32;
-    Rect::new(x, y, src_x, src_y)
-}
-
-fn fit_x_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    let height = ((src_y as f32 / src_x as f32) * dst_x as f32) as u32;
-    let y = ((dst_y - height) as f32 / 2.0) as i32;
-    Rect::new(0, y, dst_x, height)
-}
-
-fn fit_y_rect(src_x: u32, src_y: u32, dst_x: u32, dst_y: u32) -> Rect {
-    let width = ((src_x as f32 / src_y as f32) * dst_y as f32) as u32;
-    let x = ((dst_x - width) as f32 / 2.0) as i32;
-    Rect::new(x, 0, width, dst_y)
+fn make_dst(tq: &TextureQuery, vp: &Rect, scale: f32, pan_x: f32, pan_y: f32) -> Rect {
+    let x_diff = (vp.width() as f32 - (tq.width as f32 * scale)) / 2.0;
+    let y_diff = (vp.height() as f32 - (tq.height as f32 * scale)) / 2.0;
+    let x = (x_diff - x_diff * pan_x) as i32;
+    let y = (y_diff - y_diff * pan_y) as i32;
+    let width = (tq.width as f32 * scale) as u32;
+    let height = (tq.height as f32 * scale) as u32;
+    Rect::new(x, y, width, height)
 }
 
 /// Compute increment of skips
@@ -434,36 +501,4 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
-}
-
-/// Creates a rectangle which is centered on the src dimensions.
-/// For each src dimension, if the src is larger than the destination dimension, the
-/// rectangle is capped at the destination dimension.
-fn compute_center_rectangle_view(src_width: u32, src_height: u32, target_rect: &Rect) -> Rect {
-    let tex_center = calculate_texture_center(src_width, src_height);
-
-    // create centered rectangle for texture
-    // Don't extend past max dimensions of src texture
-    let target_width = target_rect.width();
-    let target_height = target_rect.height();
-    let clip_width = if src_width > target_width {
-        target_width
-    } else {
-        src_width
-    };
-    let clip_height = if src_height > target_height {
-        target_height
-    } else {
-        src_height
-    };
-
-    // Centered slice which fits within destination boundaries
-    Rect::from_center(tex_center, clip_width, clip_height)
-}
-
-/// Primarily used for finding the center of a Texture.
-/// Computes the center of a rectangle, given the x and y points
-/// of the top-right corner of the rectangle.
-fn calculate_texture_center(src_x: u32, src_y: u32) -> Point {
-    Rect::new(0, 0, src_x, src_y).center()
 }
