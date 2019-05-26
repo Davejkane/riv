@@ -26,6 +26,7 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 const FONT_SIZE: u16 = 18;
+const PIXEL_STEP: f32 = 50.0;
 
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
@@ -232,7 +233,9 @@ impl<'a> Program<'a> {
 
     /// Pans left
     fn pan_left(&mut self) -> Result<(), String> {
-        self.ui_state.pan_x += 0.05;
+        let width = self.screen.canvas.viewport().width();
+        let step = PIXEL_STEP / (self.ui_state.scale * width as f32);
+        self.ui_state.pan_x += step;
         if self.ui_state.pan_x > 1.0 {
             self.ui_state.pan_x = 1.0;
         }
@@ -241,7 +244,9 @@ impl<'a> Program<'a> {
 
     /// Pans right
     fn pan_right(&mut self) -> Result<(), String> {
-        self.ui_state.pan_x -= 0.05;
+        let width = self.screen.canvas.viewport().width();
+        let step = PIXEL_STEP / (self.ui_state.scale * width as f32);
+        self.ui_state.pan_x -= step;
         if self.ui_state.pan_x < -1.0 {
             self.ui_state.pan_x = -1.0;
         }
@@ -250,7 +255,9 @@ impl<'a> Program<'a> {
 
     /// Pans up
     fn pan_up(&mut self) -> Result<(), String> {
-        self.ui_state.pan_y += 0.05;
+        let height = self.screen.canvas.viewport().height();
+        let step = PIXEL_STEP / (self.ui_state.scale * height as f32);
+        self.ui_state.pan_y += step;
         if self.ui_state.pan_y > 1.0 {
             self.ui_state.pan_y = 1.0;
         }
@@ -259,7 +266,9 @@ impl<'a> Program<'a> {
 
     /// Pans down
     fn pan_down(&mut self) -> Result<(), String> {
-        self.ui_state.pan_y -= 0.05;
+        let height = self.screen.canvas.viewport().height();
+        let step = PIXEL_STEP / (self.ui_state.scale * height as f32);
+        self.ui_state.pan_y -= step;
         if self.ui_state.pan_y < -1.0 {
             self.ui_state.pan_y = -1.0;
         }
