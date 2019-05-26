@@ -233,8 +233,7 @@ impl<'a> Program<'a> {
 
     /// Pans left
     fn pan_left(&mut self) -> Result<(), String> {
-        let width = self.screen.canvas.viewport().width();
-        let step = PAN_PIXELS / (self.ui_state.scale * width as f32);
+        let step = self.calc_x_step();
         self.ui_state.pan_x += step;
         if self.ui_state.pan_x > 1.0 {
             self.ui_state.pan_x = 1.0;
@@ -244,8 +243,7 @@ impl<'a> Program<'a> {
 
     /// Pans right
     fn pan_right(&mut self) -> Result<(), String> {
-        let width = self.screen.canvas.viewport().width();
-        let step = PAN_PIXELS / (self.ui_state.scale * width as f32);
+        let step = self.calc_x_step();
         self.ui_state.pan_x -= step;
         if self.ui_state.pan_x < -1.0 {
             self.ui_state.pan_x = -1.0;
@@ -255,8 +253,7 @@ impl<'a> Program<'a> {
 
     /// Pans up
     fn pan_up(&mut self) -> Result<(), String> {
-        let height = self.screen.canvas.viewport().height();
-        let step = PAN_PIXELS / (self.ui_state.scale * height as f32);
+        let step = self.calc_y_step();
         self.ui_state.pan_y += step;
         if self.ui_state.pan_y > 1.0 {
             self.ui_state.pan_y = 1.0;
@@ -266,13 +263,34 @@ impl<'a> Program<'a> {
 
     /// Pans down
     fn pan_down(&mut self) -> Result<(), String> {
-        let height = self.screen.canvas.viewport().height();
-        let step = PAN_PIXELS / (self.ui_state.scale * height as f32);
+        let step = self.calc_y_step();
         self.ui_state.pan_y -= step;
         if self.ui_state.pan_y < -1.0 {
             self.ui_state.pan_y = -1.0;
         }
         self.render_screen(false)
+    }
+
+    fn calc_x_step(&self) -> f32 {
+        let tex = self.screen.last_texture.as_ref().unwrap();
+        let src_w = tex.query().width;
+        let dst_w = self.screen.canvas.viewport().width();
+        if self.ui_state.scale * src_w as f32 > dst_w as f32 {
+            PAN_PIXELS / (self.ui_state.scale * src_w as f32)
+        } else {
+            PAN_PIXELS / dst_w as f32
+        }
+    }
+
+    fn calc_y_step(&self) -> f32 {
+        let tex = self.screen.last_texture.as_ref().unwrap();
+        let src_h = tex.query().height;
+        let dst_h = self.screen.canvas.viewport().height();
+        if self.ui_state.scale * src_h as f32 > dst_h as f32 {
+            PAN_PIXELS / (self.ui_state.scale * src_h as f32)
+        } else {
+            PAN_PIXELS / dst_h as f32
+        }
     }
 
     fn construct_dest_filepath(&self, src_path: &PathBuf) -> Result<PathBuf, String> {
