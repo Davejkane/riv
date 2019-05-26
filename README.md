@@ -56,7 +56,7 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 
 
 | Short | Long       | Argument | Action                              |
-|-------|------------|------------------------------------------------|
+|-------|------------|----------|-------------------------------------|
 | ng    | newglob    | Required | The new glob/directory/file         |
 | ?     | help       | None     | Toggle help box                     |
 | q     | quit       | None     | Quit                                |
