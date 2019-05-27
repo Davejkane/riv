@@ -118,13 +118,23 @@ impl<'a> Program<'a> {
     }
 
     /// Toggle whether actual size or scaled image is rendered.
-    pub fn toggle_fit(&mut self) {
+    pub fn toggle_fit(&mut self) -> Result<(), String> {
         let error = 0.001;
         if (self.ui_state.scale - 1.0).abs() > error {
-            self.ui_state.scale = 1.0
+            self.ui_state.scale = 1.0;
         } else {
             self.ui_state.scale = self.calculate_scale_for_fit();
+            self.ui_state.pan_x = 0.0;
+            self.ui_state.pan_y = 0.0;
         }
+        self.render_screen(false)
+    }
+
+    /// Centres the image after any panning has taken place
+    pub fn center_image(&mut self) -> Result<(), String> {
+        self.ui_state.pan_x = 0.0;
+        self.ui_state.pan_y = 0.0;
+        self.render_screen(false)
     }
 
     // Calculates the scale required to fit large images to screen
@@ -464,10 +474,8 @@ impl<'a> Program<'a> {
                         self.ui_state.mode = Mode::Command(String::new());
                         break 'mainloop;
                     }
-                    Action::ToggleFit => {
-                        self.toggle_fit();
-                        self.render_screen(false)?
-                    }
+                    Action::ToggleFit => self.toggle_fit()?,
+                    Action::CenterImage => self.center_image()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
