@@ -26,6 +26,8 @@ pub enum Action<'a> {
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
+    /// Centres the image
+    CenterImage,
     /// Next indicates the app should move to the next image in response to this event
     Next,
     /// Prev indicates the app should move to the previous image in response to this event
@@ -159,6 +161,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             "w" => state.process_action(Action::SkipForward),
             "b" => state.process_action(Action::SkipBack),
             "z" => state.process_action(Action::ToggleFit),
+            "Z" => state.process_action(Action::CenterImage),
             ":" => Action::SwitchCommandMode,
             _ => Action::Noop,
         },

@@ -49,6 +49,7 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 | f          | F11                        | Toggle fullscreen mode                              |
 | ?          |                            | Toggle help box                                     |
 | z          | Left Click                 | Toggle actual size vs scaled image                  |
+| Z          |                            | Center image                                        |
 | . (period) |                            | Repeat last action                                  |
 
 
