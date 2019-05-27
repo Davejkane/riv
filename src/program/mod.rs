@@ -137,21 +137,24 @@ impl<'a> Program<'a> {
 
     // Calculates the scale required to fit large images to screen
     fn calculate_scale_for_fit(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let query = tex.query();
-        let (src_x, src_y) = (query.width, query.height);
-        let target = self.screen.canvas.viewport();
-        let (dst_x, dst_y) = (target.width(), target.height());
-        // case 1: both source dimensions smaller
-        if src_x < dst_x && src_y < dst_y {
-            return 1.0;
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let query = tex.query();
+            let (src_x, src_y) = (query.width, query.height);
+            let target = self.screen.canvas.viewport();
+            let (dst_x, dst_y) = (target.width(), target.height());
+            // case 1: both source dimensions smaller
+            if src_x < dst_x && src_y < dst_y {
+                return 1.0;
+            }
+            // case 2: source aspect ratio is larger
+            if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
+                return dst_x as f32 / src_x as f32;
+            }
+            // case 3: source aspect ratio is smaller
+            dst_y as f32 / src_y as f32
+        } else {
+            1.0
         }
-        // case 2: source aspect ratio is larger
-        if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
-            return dst_x as f32 / src_x as f32;
-        }
-        // case 3: source aspect ratio is smaller
-        dst_y as f32 / src_y as f32
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
