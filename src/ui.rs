@@ -55,6 +55,12 @@ pub enum Action<'a> {
     Noop,
 }
 
+struct MultiAction<'a> {
+    action: &'a Action<'a>,
+    times: u32,
+}
+
+
 /// ZoomAction contains the variants of a possible zoom action. In | Out
 #[derive(Debug, Clone)]
 pub enum ZoomAction {
@@ -126,6 +132,8 @@ pub struct State<'a> {
     /// The time, from which to do a re-render will be base on.
     /// Use to clear infobar messages after inactivity
     pub rerender_time: Option<Instant>,
+    /// Unprocessed input from user
+    pub current_input: String,
 }
 
 impl<'a> Default for State<'a> {
@@ -139,6 +147,7 @@ impl<'a> Default for State<'a> {
             scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
+            current_input: String::new(),
         }
     }
 }
@@ -146,6 +155,13 @@ impl<'a> Default for State<'a> {
 impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
     fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
+        let times = if self.current_input.len() == 0 {
+            1
+        }
+        else {
+            self.current_input.parse::<u64>().expect("invalid number")
+        };
+        println!("perform {:?} {:?} times", a, times);
         match a {
             Action::Quit | Action::ReRender => a,
             _ => {
@@ -167,6 +183,11 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
         Event::Quit { .. } => Action::Quit,
 
         Event::TextInput { text, .. } => match text.as_str() {
+            // Number of times to repeat operation
+            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
+                state.current_input.push_str(text);
+                Action::Noop
+            }
             "c" => state.process_action(Action::Copy),
             "d" => state.process_action(Action::Delete),
             "f" => state.process_action(Action::ToggleFullscreen),
