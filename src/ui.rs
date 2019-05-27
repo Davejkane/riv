@@ -7,7 +7,7 @@ use sdl2::mouse::MouseButton;
 use std::time::Instant;
 
 /// Action represents the possible actions that could result from an event
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum Action<'a> {
     /// Quit indicates the app should quit in response to this event
     Quit,
@@ -56,7 +56,7 @@ pub enum Action<'a> {
 }
 
 /// ZoomAction contains the variants of a possible zoom action. In | Out
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum ZoomAction {
     /// In zooms in
     In,
@@ -65,7 +65,7 @@ pub enum ZoomAction {
 }
 
 /// PanAction contains the variants of a possible pan action. Left | Right | Up | Down
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub enum PanAction {
     /// Left pans left
     Left,
@@ -78,7 +78,7 @@ pub enum PanAction {
 }
 
 /// Modal setting for Program, this dictates the commands that are available to the user
-#[derive(PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone)]
 pub enum Mode {
     /// Default mode, allows the removal, traversal, move, and copy of images
     Normal,
@@ -126,6 +126,21 @@ pub struct State<'a> {
     /// The time, from which to do a re-render will be base on.
     /// Use to clear infobar messages after inactivity
     pub rerender_time: Option<Instant>,
+}
+
+impl<'a> Default for State<'a> {
+    fn default() -> Self {
+        Self{
+            render_infobar: true,
+            render_help: false,
+            fullscreen: false,
+            mode: Mode::Normal,
+            last_action: Action::Noop,
+            scale: 1.0,
+            pan_x: 0.0,
+            pan_y: 0.0,
+        }
+    }
 }
 
 impl<'a> State<'a> {
