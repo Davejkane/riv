@@ -52,6 +52,7 @@ impl<'a> Program<'a> {
         let reverse = args.reverse;
         let sort_order = args.sort_order;
         let max_length = args.max_length;
+        let base_dir = args.base_dir;
 
         let max_viewable = if max_length > 0 && max_length <= images.len() {
             max_length
@@ -62,10 +63,6 @@ impl<'a> Program<'a> {
         let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
 
-        let base_dir = match std::env::current_dir() {
-            Ok(c) => c,
-            Err(_) => PathBuf::new(),
-        };
         let font_bytes = include_bytes!("../../resources/Roboto-Medium.ttf");
         let font_bytes = match RWops::from_bytes(font_bytes) {
             Ok(b) => b,
