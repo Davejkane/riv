@@ -104,5 +104,8 @@ pub fn new_base_dir(path: &PathBuf) -> Result<PathBuf, String> {
             return Ok(parent.to_path_buf());
         }
     }
-    Err(format!("Failed to get new base directory"))
+    Err(format!(
+        "Failed to get new base directory for path: \"{}\"",
+        path.display()
+    ))
 }
