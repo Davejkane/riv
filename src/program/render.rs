@@ -269,6 +269,7 @@ fn mode_colors(m: &Mode) -> (Color, Color, Color) {
     match m {
         Mode::Normal => (light_blue(), blue(), grey()),
         Mode::Error(_) => (light_red(), red(), grey()),
+        Mode::Success(_) => (light_green(), green(), grey()),
         Mode::Command(_) => (light_yellow(), yellow(), grey()),
         Mode::Exit => (light_blue(), blue(), grey()),
     }
@@ -300,6 +301,14 @@ fn light_red() -> Color {
 
 fn red() -> Color {
     Color::RGB(223, 0, 0)
+}
+
+fn light_green() -> Color {
+    Color::RGB(45, 252, 45)
+}
+
+fn green() -> Color {
+    Color::RGB(0, 223, 0)
 }
 
 fn light_yellow() -> Color {

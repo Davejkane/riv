@@ -333,7 +333,7 @@ impl<'a> Program<'a> {
 
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<(), String> {
+    fn copy_image(&mut self) -> Result<String, String> {
         // Check if there are any images
         if self.paths.images.is_empty() {
             return Err("No image to copy".to_string());
@@ -346,12 +346,16 @@ impl<'a> Program<'a> {
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
+        let cloned_name = newname.clone();
         copy(filepath, newname, opt).map_err(|e| e.to_string())?;
-        Ok(())
+        Ok(format!(
+            "copied image to {} succesfully",
+            cloned_name.to_str().unwrap()
+        ))
     }
 
     /// Moves image currently being viewed to destination folder
-    fn move_image(&mut self) -> Result<(), String> {
+    fn move_image(&mut self) -> Result<String, String> {
         // Check if there is an image to move
         if self.paths.images.is_empty() {
             return Err("no images to move".to_string());
@@ -364,6 +368,7 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
+        let cloned_path = current_imagepath.clone();
 
         let newname = self.construct_dest_filepath(&current_imagepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
@@ -387,11 +392,16 @@ impl<'a> Program<'a> {
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(false)
+        self.render_screen(false)?;
+        Ok(format!(
+            "moved {} succesfully to {}",
+            cloned_path.to_str().unwrap(),
+            self.paths.dest_folder.to_str().unwrap()
+        ))
     }
 
     /// Deletes image currently being viewed
-    fn delete_image(&mut self) -> Result<(), String> {
+    fn delete_image(&mut self) -> Result<String, String> {
         // Check if there is an image to delete
         if self.paths.images.is_empty() {
             return Err("no images to delete".to_string());
@@ -405,6 +415,7 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
+        let cloned_path = current_imagepath.clone();
 
         // Attempt to remove image
         if let Err(e) = remove(&current_imagepath) {
@@ -427,7 +438,11 @@ impl<'a> Program<'a> {
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(false)
+        self.render_screen(false)?;
+        Ok(format!(
+            "deleted {} successfully",
+            cloned_path.to_str().unwrap()
+        ))
     }
 
     /// Toggles fullscreen state of app
@@ -452,6 +467,10 @@ impl<'a> Program<'a> {
                     self.render_screen(true)?;
                 }
                 Mode::Error(..) => {
+                    self.render_screen(false)?;
+                    self.ui_state.mode = Mode::Normal;
+                }
+                Mode::Success(..) => {
                     self.render_screen(false)?;
                     self.ui_state.mode = Mode::Normal;
                 }
@@ -496,23 +515,33 @@ impl<'a> Program<'a> {
                     Action::Pan(PanAction::Up) => self.pan_up()?,
                     Action::Pan(PanAction::Down) => self.pan_down()?,
                     Action::Copy => match self.copy_image() {
-                        Ok(_) => (),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            return Ok(());
+                        }
                         Err(e) => {
                             self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
                             return Ok(());
                         }
                     },
                     Action::Move => match self.move_image() {
-                        Ok(_) => (),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            return Ok(());
+                        }
                         Err(e) => {
                             self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
                             return Ok(());
                         }
                     },
                     Action::Delete => match self.delete_image() {
-                        Ok(_) => (),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            return Ok(());
+                        }
                         Err(e) => {
-                            self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                            self.ui_state.mode =
+                                Mode::Error(format!("Failed to delete file: {}", e));
                             return Ok(());
                         }
                     },

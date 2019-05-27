@@ -87,6 +87,8 @@ pub enum Mode {
     /// Mode that is meant to display errors to the user through the infobar
     /// string is the input to display on the infobar
     Error(String),
+    /// Mode that is used to display success messages
+    Success(String),
     /// Terminate condition, if this mode is set the program will stop execution
     Exit,
 }
