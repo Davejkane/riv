@@ -497,15 +497,24 @@ impl<'a> Program<'a> {
                     Action::Pan(PanAction::Down) => self.pan_down()?,
                     Action::Copy => match self.copy_image() {
                         Ok(_) => (),
-                        Err(e) => eprintln!("Failed to copy file: {}", e),
+                        Err(e) => {
+                            self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Move => match self.move_image() {
                         Ok(_) => (),
-                        Err(e) => eprintln!("Failed to move file: {}", e),
+                        Err(e) => {
+                            self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Delete => match self.delete_image() {
                         Ok(_) => (),
-                        Err(e) => eprintln!("{}", e),
+                        Err(e) => {
+                            self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Noop => {}
                     _ => {}
