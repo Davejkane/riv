@@ -124,8 +124,6 @@ impl<'a> Program<'a> {
             self.ui_state.scale = 1.0;
         } else {
             self.ui_state.scale = self.calculate_scale_for_fit();
-            self.ui_state.pan_x = 0.0;
-            self.ui_state.pan_y = 0.0;
         }
         self.render_screen(false)
     }
