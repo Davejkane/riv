@@ -1,5 +1,6 @@
 use crate::infobar;
 use crate::program::{make_dst, Program};
+use crate::ui::Mode;
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -213,24 +214,25 @@ impl<'a> Program<'a> {
     }
 
     fn render_bar(&mut self, dims: (u32, u32, u32)) -> Result<(), String> {
+        let colors = mode_colors(&self.ui_state.mode);
         let height = dims.0;
         let width = self.screen.canvas.viewport().width();
         let y = (self.screen.canvas.viewport().height() - height) as i32;
         let mut x = 0;
         let mut w = dims.1 + HALF_PAD as u32 * 3;
-        self.screen.canvas.set_draw_color(light_blue());
+        self.screen.canvas.set_draw_color(colors.0);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.2 + PADDING as u32 * 2;
-        self.screen.canvas.set_draw_color(blue());
+        self.screen.canvas.set_draw_color(colors.1);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = width;
-        self.screen.canvas.set_draw_color(grey());
+        self.screen.canvas.set_draw_color(colors.2);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
@@ -263,6 +265,15 @@ impl<'a> Program<'a> {
     }
 }
 
+fn mode_colors(m: &Mode) -> (Color, Color, Color) {
+    match m {
+        Mode::Normal => (light_blue(), blue(), grey()),
+        Mode::Error(_) => (light_red(), red(), grey()),
+        Mode::Command(_) => (light_yellow(), yellow(), grey()),
+        Mode::Exit => (light_blue(), blue(), grey()),
+    }
+}
+
 fn dark_grey() -> Color {
     Color::RGB(45, 45, 45)
 }
@@ -281,6 +292,22 @@ fn light_blue() -> Color {
 
 fn blue() -> Color {
     Color::RGB(0, 180, 204)
+}
+
+fn light_red() -> Color {
+    Color::RGB(252, 45, 45)
+}
+
+fn red() -> Color {
+    Color::RGB(223, 0, 0)
+}
+
+fn light_yellow() -> Color {
+    Color::RGB(255, 255, 170)
+}
+
+fn yellow() -> Color {
+    Color::RGB(255, 255, 130)
 }
 
 fn grey() -> Color {
