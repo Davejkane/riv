@@ -135,6 +135,7 @@ We use [SemVer](http://semver.org/) for versioning. For the versions available, 
 
 * **[Dave Kane](https://github.com/Davejkane)** - *Initial Implementation*
 * **[Alex Gurganus](https://github.com/gurgalex)** - *Implementing core features since 0.1.0*
+* **[Nick Hackman](https://github.com/nickhackman)** - *Implementing core features since 0.2.0*
 
 See also the list of [contributors](https://github.com/davejkane/riv/contributors) who participated in this project.
 
