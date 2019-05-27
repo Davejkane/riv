@@ -282,28 +282,34 @@ impl<'a> Program<'a> {
     }
 
     fn calc_x_step(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let src_w = tex.query().width;
-        let dst_w = self.screen.canvas.viewport().width();
-        if self.ui_state.scale * src_w as f32 > dst_w as f32 {
-            (PAN_PIXELS / (self.ui_state.scale * src_w as f32))
-                / (1.0 - (dst_w as f32 / src_w as f32 * self.ui_state.scale))
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let src_w = tex.query().width;
+            let dst_w = self.screen.canvas.viewport().width();
+            if self.ui_state.scale * src_w as f32 > dst_w as f32 {
+                (PAN_PIXELS / (self.ui_state.scale * src_w as f32))
+                    / (1.0 - (dst_w as f32 / src_w as f32 * self.ui_state.scale))
+            } else {
+                (PAN_PIXELS / dst_w as f32)
+                    / (1.0 - (src_w as f32 * self.ui_state.scale / dst_w as f32))
+            }
         } else {
-            (PAN_PIXELS / dst_w as f32)
-                / (1.0 - (src_w as f32 * self.ui_state.scale / dst_w as f32))
+            0.0
         }
     }
 
     fn calc_y_step(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let src_h = tex.query().height;
-        let dst_h = self.screen.canvas.viewport().height();
-        if self.ui_state.scale * src_h as f32 > dst_h as f32 {
-            (PAN_PIXELS / (self.ui_state.scale * src_h as f32))
-                / (1.0 - (dst_h as f32 / src_h as f32 * self.ui_state.scale))
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let src_h = tex.query().height;
+            let dst_h = self.screen.canvas.viewport().height();
+            if self.ui_state.scale * src_h as f32 > dst_h as f32 {
+                (PAN_PIXELS / (self.ui_state.scale * src_h as f32))
+                    / (1.0 - (dst_h as f32 / src_h as f32 * self.ui_state.scale))
+            } else {
+                (PAN_PIXELS / dst_h as f32)
+                    / (1.0 - (src_h as f32 * self.ui_state.scale / dst_h as f32))
+            }
         } else {
-            (PAN_PIXELS / dst_h as f32)
-                / (1.0 - (src_h as f32 * self.ui_state.scale / dst_h as f32))
+            0.0
         }
     }
 
