@@ -14,7 +14,7 @@ pub struct PathsBuilder {
     base_dir: PathBuf,
     /// index is the index of the images vector of the current image to be displayed.
     index: usize,
-    /// Artificial user facing length of images limited by max cli argument. 0 is unlimited
+    /// Artificial user facing length of images limited by max cli argument. None is unlimited
     max_viewable: Option<usize>,
     /// Actual length the user said was maximum for images
     actual_max_viewable: Option<usize>,
