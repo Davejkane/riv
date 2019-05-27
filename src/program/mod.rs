@@ -115,13 +115,21 @@ impl<'a> Program<'a> {
     }
 
     /// Toggle whether actual size or scaled image is rendered.
-    pub fn toggle_fit(&mut self) {
+    pub fn toggle_fit(&mut self) -> Result<(), String> {
         let error = 0.001;
         if (self.ui_state.scale - 1.0).abs() > error {
-            self.ui_state.scale = 1.0
+            self.ui_state.scale = 1.0;
         } else {
             self.ui_state.scale = self.calculate_scale_for_fit();
         }
+        self.render_screen(false)
+    }
+
+    /// Centres the image after any panning has taken place
+    pub fn center_image(&mut self) -> Result<(), String> {
+        self.ui_state.pan_x = 0.0;
+        self.ui_state.pan_y = 0.0;
+        self.render_screen(false)
     }
 
     // Calculates the scale required to fit large images to screen
@@ -269,24 +277,34 @@ impl<'a> Program<'a> {
     }
 
     fn calc_x_step(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let src_w = tex.query().width;
-        let dst_w = self.screen.canvas.viewport().width();
-        if self.ui_state.scale * src_w as f32 > dst_w as f32 {
-            PAN_PIXELS / (self.ui_state.scale * src_w as f32)
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let src_w = tex.query().width;
+            let dst_w = self.screen.canvas.viewport().width();
+            if self.ui_state.scale * src_w as f32 > dst_w as f32 {
+                (PAN_PIXELS / (self.ui_state.scale * src_w as f32))
+                    / (1.0 - (dst_w as f32 / src_w as f32 * self.ui_state.scale))
+            } else {
+                (PAN_PIXELS / dst_w as f32)
+                    / (1.0 - (src_w as f32 * self.ui_state.scale / dst_w as f32))
+            }
         } else {
-            PAN_PIXELS / dst_w as f32
+            0.0
         }
     }
 
     fn calc_y_step(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let src_h = tex.query().height;
-        let dst_h = self.screen.canvas.viewport().height();
-        if self.ui_state.scale * src_h as f32 > dst_h as f32 {
-            PAN_PIXELS / (self.ui_state.scale * src_h as f32)
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let src_h = tex.query().height;
+            let dst_h = self.screen.canvas.viewport().height();
+            if self.ui_state.scale * src_h as f32 > dst_h as f32 {
+                (PAN_PIXELS / (self.ui_state.scale * src_h as f32))
+                    / (1.0 - (dst_h as f32 / src_h as f32 * self.ui_state.scale))
+            } else {
+                (PAN_PIXELS / dst_h as f32)
+                    / (1.0 - (src_h as f32 * self.ui_state.scale / dst_h as f32))
+            }
         } else {
-            PAN_PIXELS / dst_h as f32
+            0.0
         }
     }
 
@@ -457,10 +475,8 @@ impl<'a> Program<'a> {
                         self.ui_state.mode = Mode::Command(String::new());
                         break 'mainloop;
                     }
-                    Action::ToggleFit => {
-                        self.toggle_fit();
-                        self.render_screen(false)?
-                    }
+                    Action::ToggleFit => self.toggle_fit()?,
+                    Action::CenterImage => self.center_image()?,
                     Action::Next => self.increment(1)?,
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
