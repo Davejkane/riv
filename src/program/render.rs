@@ -305,6 +305,7 @@ fn help_text() -> Vec<&'static str> {
         "| f          | F11                        | Toggle fullscreen mode                              |",
         "| ?          |                            | Toggle help box                                     |",
         "| z          | Left Click                 | Toggle actual size vs scaled image                  |",
+        "| Z          |                            | Center image                                        |",
         "| . (period) |                            | Repeat last action                                  |",
         "+------------+----------------------------+-----------------------------------------------------+",
     ]
