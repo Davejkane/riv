@@ -2,7 +2,7 @@
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
 use crate::sort::SortOrder;
-use crate::ui::{process_command_mode, Action, Mode};
+use crate::ui::{process_command_mode, Action, HelpRender, Mode};
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -327,9 +327,12 @@ impl<'a> Program<'a> {
                 }
                 self.newglob(&arguments);
             }
-            Commands::Help => {
-                self.ui_state.render_help = !self.ui_state.render_help;
-            }
+            Commands::Help => match self.ui_state.render_help {
+                HelpRender::None | HelpRender::Normal => {
+                    self.ui_state.render_help = HelpRender::Command
+                }
+                HelpRender::Command => self.ui_state.render_help = HelpRender::None,
+            },
             Commands::Quit => {
                 self.ui_state.mode = Mode::Exit;
             }

@@ -105,7 +105,7 @@ impl<'a> Program<'a> {
             },
             ui_state: ui::State {
                 render_infobar: true,
-                render_help: false,
+                render_help: ui::HelpRender::None,
                 fullscreen: args.fullscreen,
                 mode: Mode::Normal,
                 last_action: Action::Noop,
