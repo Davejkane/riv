@@ -425,6 +425,36 @@ impl<'a> Program<'a> {
     /// Mode to input how many times to repeat a normal mode action
     /// Previous input from normal mode is in `self.ui_state.current_input`
     fn run_multi_normal_mode(&mut self) -> Result<(), String> {
+        use ui::MultiNormalAction;
+        'mainloop: loop {
+            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
+                let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, event);
+
+                match multi_action {
+                    MultiNormalAction::Repeat(process) => {
+                        self.ui_state.process_action(process.action.clone());
+                        match process {
+                            ProcessAction {
+                                action: a,
+                                times: n,
+                            } => {
+                                dbg!((a, n));
+                            }
+                        }
+                    }
+                    MultiNormalAction::SwitchBackNormalMode => {
+                        self.ui_state.mode = Mode::Normal;
+                        break 'mainloop;
+                    }
+                    MultiNormalAction::Quit => {
+                        self.ui_state.mode = Mode::Exit;
+                        break 'mainloop;
+                    }
+                    _ => continue,
+                }
+                std::thread::sleep(Duration::from_millis(1000 / 60));
+            }
+        }
         Ok(())
     }
 
