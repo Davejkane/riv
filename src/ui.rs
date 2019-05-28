@@ -3,6 +3,7 @@
 //! The UI module contains logic for matching keyboard and system events
 
 use sdl2::event::Event;
+use sdl2::keyboard::Mod;
 use sdl2::mouse::MouseButton;
 use std::time::Instant;
 
@@ -24,6 +25,8 @@ pub enum Action<'a> {
     KeyboardInput(&'a str),
     /// switches modes back to normal mode
     SwitchNormalMode,
+    /// Switches to MultiNormalMode for bulk actions
+    SwitchMultiNormalMode,
     /// The app should switch its current image viewing preference of fitting the
     /// image to screen or displaying the actual size as actual size
     ToggleFit,
@@ -55,11 +58,44 @@ pub enum Action<'a> {
     Noop,
 }
 
-struct MultiAction<'a> {
-    action: &'a Action<'a>,
-    times: u32,
+/// Actions to perform while in MultiNormal Mode
+#[derive(Clone, Debug)]
+pub enum MultiNormalAction<'a> {
+    /// Rerender screen
+    ReRender,
+    /// Keep listening for input, but store the current partial repeat number
+    Repeat(ProcessAction<'a>),
+    /// Switch back to normal mode
+    SwitchBackNormalMode,
+    /// Cancels input for entering how many times to repeat
+    /// Switches back to Normal mode as well.
+    Cancel,
+    /// Notify to quit out of program
+    Quit,
+    /// Do not respond to event
+    Noop,
 }
 
+impl<'a> From<ProcessAction<'a>> for MultiNormalAction<'a> {
+    fn from(item: ProcessAction<'a>) -> Self {
+        MultiNormalAction::Repeat(item)
+    }
+}
+
+/// Perform an Action `times` times
+#[derive(Clone, Debug)]
+pub struct ProcessAction<'a> {
+    /// The action to perform
+    pub action: Action<'a>,
+    /// The amount of times to perform
+    pub times: usize,
+}
+
+impl<'a> ProcessAction<'a> {
+    fn new(action: Action<'a>, times: usize) -> Self {
+        Self { action, times }
+    }
+}
 
 /// ZoomAction contains the variants of a possible zoom action. In | Out
 #[derive(Debug, Clone)]
@@ -88,6 +124,9 @@ pub enum PanAction {
 pub enum Mode {
     /// Default mode, allows the removal, traversal, move, and copy of images
     Normal,
+    /// Normal mode is switched to receiving the amount of times to perform
+    /// the same action
+    MultiNormal,
     /// Mode that is built off of user input, allows switching the current glob
     /// string is the input to display on the infobar
     Command(String),
@@ -134,11 +173,14 @@ pub struct State<'a> {
     pub rerender_time: Option<Instant>,
     /// Unprocessed input from user
     pub current_input: String,
+    /// Times to repeat an action
+    /// Primarily used as intermediate storage when in multiNormal Mode
+    pub repeat: usize,
 }
 
 impl<'a> Default for State<'a> {
     fn default() -> Self {
-        Self{
+        Self {
             render_infobar: true,
             render_help: false,
             fullscreen: false,
@@ -147,21 +189,14 @@ impl<'a> Default for State<'a> {
             scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
-            current_input: String::new(),
+            repeat: 1,
         }
     }
 }
 
 impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
-    fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
-        let times = if self.current_input.len() == 0 {
-            1
-        }
-        else {
-            self.current_input.parse::<u64>().expect("invalid number")
-        };
-        println!("perform {:?} {:?} times", a, times);
+    pub fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
         match a {
             Action::Quit | Action::ReRender => a,
             _ => {
