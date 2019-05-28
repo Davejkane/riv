@@ -1,6 +1,6 @@
 use crate::infobar;
 use crate::program::{make_dst, Program};
-use crate::ui::{Mode, HelpRender};
+use crate::ui::{HelpRender, Mode};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -171,7 +171,6 @@ impl<'a> Program<'a> {
             HelpRender::None => return Ok(()),
             HelpRender::Normal => normal_help_text(),
             HelpRender::Command => command_help_text(),
-
         };
         let total_height = LINE_HEIGHT * text.len() as i32 + LINE_PADDING * (text.len() as i32 - 1);
         let mut y = (self.screen.canvas.viewport().height() as f32 / 2.0
@@ -388,23 +387,23 @@ fn normal_help_text() -> Vec<&'static str> {
 
 fn command_help_text() -> Vec<&'static str> {
     vec![
-    "+-------+------------+----------+-------------------------------------+",
-    "| Short | Long       | Argument | Action                              |",
-    "+-------+------------+----------+-------------------------------------+",
-    "| ng    | newglob    | Required | The new glob/directory/file         |",
-    "| ?     | help       | None     | Toggle help box                     |",
-    "| q     | quit       | None     | Quit                                |",
-    "|       | sort       | Optional | The method to sort by               |",
-    "| df    | destfolder | Required | New folder to move/copy images to   |",
-    "| m     | max        | Required | New maximum number of files to view |",
-    "+---------------------------------------------------------------------+",
-    "| Sorting Options                                                     |",
-    "+---------------------------------------------------------------------+",
-    "| Alphabetical                                                        |",
-    "| Date                                                                |",
-    "| Size                                                                |",
-    "| DepthFirst                                                          |",
-    "| BreadthFirst                                                        |",
-    "+---------------------------------------------------------------------+"
+        "+-------+------------+----------+-------------------------------------+",
+        "| Short | Long       | Argument | Action                              |",
+        "+-------+------------+----------+-------------------------------------+",
+        "| ng    | newglob    | Required | The new glob/directory/file         |",
+        "| ?     | help       | None     | Toggle help box                     |",
+        "| q     | quit       | None     | Quit                                |",
+        "|       | sort       | Optional | The method to sort by               |",
+        "| df    | destfolder | Required | New folder to move/copy images to   |",
+        "| m     | max        | Required | New maximum number of files to view |",
+        "+---------------------------------------------------------------------+",
+        "| Sorting Options                                                     |",
+        "+---------------------------------------------------------------------+",
+        "| Alphabetical                                                        |",
+        "| Date                                                                |",
+        "| Size                                                                |",
+        "| DepthFirst                                                          |",
+        "| BreadthFirst                                                        |",
+        "+---------------------------------------------------------------------+",
     ]
 }
