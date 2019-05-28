@@ -177,6 +177,7 @@ impl<'a> Program<'a> {
 
     /// Takes a path to a directory or glob and adds these images to self.paths.images
     fn newglob(&mut self, path_to_newglob: &str) {
+        let msg = path_to_newglob.to_owned();
         let new_images = match glob_path(path_to_newglob) {
             Ok(new_images) => new_images,
             Err(e) => {
@@ -218,6 +219,11 @@ impl<'a> Program<'a> {
         } else {
             self.paths.images.len()
         };
+        self.ui_state.mode = Mode::Success(format!(
+            "found {} images in {}",
+            self.paths.images.len(),
+            msg
+        ));
     }
 
     /// Providing no additional arguments just sorts the current images with the already set sorting
@@ -340,8 +346,14 @@ impl<'a> Program<'a> {
                 }
                 match full(&arguments) {
                     Ok(path) => {
-                        self.paths.dest_folder =
-                            PathBuf::from(path.to_string().replace("\\ ", " "));
+                        let p = PathBuf::from(path.to_string().replace("\\ ", " "));
+                        let success_msg = format!(
+                            "destination folder successfully set to {}",
+                            &p.to_str().unwrap().to_string()
+                        );
+                        self.paths.dest_folder = p;
+                        self.ui_state.mode = Mode::Success(success_msg);
+                        return Ok(());
                     }
                     Err(e) => {
                         self.ui_state.mode =
