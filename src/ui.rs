@@ -207,8 +207,82 @@ impl<'a> State<'a> {
     }
 }
 
+/// Process SDL2 events while getting number of times to repeat action
+pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> MultiNormalAction<'a> {
+    use sdl2::event::WindowEvent::*;
+    use sdl2::keyboard::Keycode::*;
+
+    match event {
+        Event::Quit { .. } => MultiNormalAction::Quit,
+
+        Event::TextInput { text, .. } => match text.as_str() {
+            // Number of times to repeat operation
+            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
+                let previous_count = state.repeat;
+                // Safe to unwrap as only digits were matched
+                let next_digit = text.parse::<usize>().unwrap();
+                // Cap at highest possible value if overflow would occur
+                let new_count = (previous_count.saturating_mul(10)).saturating_add(next_digit);
+                // Save new count
+                state.repeat = new_count;
+                MultiNormalAction::Noop
+            }
+            "c" => ProcessAction::new(Action::Copy, state.repeat).into(),
+            "d" => ProcessAction::new(Action::Delete, state.repeat).into(),
+            "H" => ProcessAction::new(Action::Pan(PanAction::Left), state.repeat).into(),
+            "i" => ProcessAction::new(Action::Zoom(ZoomAction::In), state.repeat).into(),
+            "j" => ProcessAction::new(Action::Next, state.repeat).into(),
+            "J" => ProcessAction::new(Action::Pan(PanAction::Down), state.repeat).into(),
+            "k" => ProcessAction::new(Action::Prev, state.repeat).into(),
+            "K" => ProcessAction::new(Action::Pan(PanAction::Up), state.repeat).into(),
+            "L" => ProcessAction::new(Action::Pan(PanAction::Right), state.repeat).into(),
+            "m" => ProcessAction::new(Action::Move, state.repeat).into(),
+            "o" => ProcessAction::new(Action::Zoom(ZoomAction::Out), state.repeat).into(),
+            "q" => MultiNormalAction::Quit,
+            "w" => ProcessAction::new(Action::SkipForward, state.repeat).into(),
+            "b" => ProcessAction::new(Action::SkipBack, state.repeat).into(),
+
+            _ => MultiNormalAction::Noop,
+        },
+
+        Event::KeyDown {
+            keycode: Some(k),
+            keymod: m,
+            ..
+        } => match (k, m) {
+            (k, Mod::LSHIFTMOD) | (k, Mod::RSHIFTMOD) => match k {
+                Left => ProcessAction::new(Action::Pan(PanAction::Left), state.repeat).into(),
+                Right => ProcessAction::new(Action::Pan(PanAction::Right), state.repeat).into(),
+                Up => ProcessAction::new(Action::Pan(PanAction::Up), state.repeat).into(),
+                Down => ProcessAction::new(Action::Pan(PanAction::Down), state.repeat).into(),
+                _ => MultiNormalAction::Noop,
+            },
+            (k, Mod::NOMOD) | (k, _) => match k {
+                Delete => ProcessAction::new(Action::Delete, state.repeat).into(),
+                Escape => MultiNormalAction::Cancel,
+                PageUp => ProcessAction::new(Action::SkipForward, state.repeat).into(),
+                PageDown => ProcessAction::new(Action::SkipBack, state.repeat).into(),
+                Period => ProcessAction::new(state.last_action.clone(), state.repeat).into(),
+                Right => ProcessAction::new(Action::Next, state.repeat).into(),
+                Left => ProcessAction::new(Action::Prev, state.repeat).into(),
+                Up => ProcessAction::new(Action::Zoom(ZoomAction::In), state.repeat).into(),
+                Down => ProcessAction::new(Action::Zoom(ZoomAction::Out), state.repeat).into(),
+                _ => MultiNormalAction::Noop,
+            },
+        },
+
+        Event::Window { win_event, .. } => match win_event {
+            // Exposed: Rerender if the window was not changed by us.
+            Exposed | Resized(..) | SizeChanged(..) | Maximized => MultiNormalAction::ReRender,
+            _ => MultiNormalAction::Noop,
+        },
+
+        _ => MultiNormalAction::Noop,
+    }
+}
+
 /// event_action returns which action should be performed in response to this event
-pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'a> {
+pub fn process_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Action<'a> {
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
@@ -219,40 +293,44 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
 
         Event::TextInput { text, .. } => match text.as_str() {
             // Number of times to repeat operation
-            "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
-                state.current_input.push_str(text);
-                Action::Noop
+            // 0 is not captured for first digit as it does not impact counts
+            "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" => {
+                // Safe to unwrap as only digits were matched
+                let first_digit = text.parse::<usize>().unwrap();
+                // Save the first digit before switching
+                state.repeat = first_digit;
+                Action::SwitchMultiNormalMode
             }
-            "c" => state.process_action(Action::Copy),
-            "d" => state.process_action(Action::Delete),
-            "f" => state.process_action(Action::ToggleFullscreen),
-            "g" => state.process_action(Action::First),
-            "G" => state.process_action(Action::Last),
+            "c" => Action::Copy,
+            "d" => Action::Delete,
+            "f" => Action::ToggleFullscreen,
+            "g" => Action::First,
+            "G" => Action::Last,
             "?" => {
                 match state.render_help {
                     HelpRender::Normal => state.render_help = HelpRender::None,
                     _ => state.render_help = HelpRender::Normal,
                 }
-                state.process_action(Action::ReRender)
+                Action::ReRender
             }
-            "H" => state.process_action(Action::Pan(PanAction::Left)),
-            "i" => state.process_action(Action::Zoom(ZoomAction::In)),
-            "j" => state.process_action(Action::Next),
-            "J" => state.process_action(Action::Pan(PanAction::Down)),
-            "k" => state.process_action(Action::Prev),
-            "K" => state.process_action(Action::Pan(PanAction::Up)),
-            "L" => state.process_action(Action::Pan(PanAction::Right)),
-            "m" => state.process_action(Action::Move),
-            "o" => state.process_action(Action::Zoom(ZoomAction::Out)),
+            "H" => Action::Pan(PanAction::Left),
+            "i" => Action::Zoom(ZoomAction::In),
+            "j" => Action::Next,
+            "J" => Action::Pan(PanAction::Down),
+            "k" => Action::Prev,
+            "K" => Action::Pan(PanAction::Up),
+            "L" => Action::Pan(PanAction::Right),
+            "m" => Action::Move,
+            "o" => Action::Zoom(ZoomAction::Out),
             "q" => Action::Quit,
             "t" => {
                 state.render_infobar = !state.render_infobar;
-                state.process_action(Action::ReRender)
+                Action::ReRender
             }
-            "w" => state.process_action(Action::SkipForward),
-            "b" => state.process_action(Action::SkipBack),
-            "z" => state.process_action(Action::ToggleFit),
-            "Z" => state.process_action(Action::CenterImage),
+            "w" => Action::SkipForward,
+            "b" => Action::SkipBack,
+            "z" => Action::ToggleFit,
+            "Z" => Action::CenterImage,
             ":" => Action::SwitchCommandMode,
             _ => Action::Noop,
         },
@@ -262,26 +340,26 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             keymod: m,
             ..
         } => match (k, m) {
-            (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
-                Left => state.process_action(Action::Pan(PanAction::Left)),
-                Right => state.process_action(Action::Pan(PanAction::Right)),
-                Up => state.process_action(Action::Pan(PanAction::Up)),
-                Down => state.process_action(Action::Pan(PanAction::Down)),
+            (k, Mod::LSHIFTMOD) | (k, Mod::RSHIFTMOD) => match k {
+                Left => Action::Pan(PanAction::Left),
+                Right => Action::Pan(PanAction::Right),
+                Up => Action::Pan(PanAction::Up),
+                Down => Action::Pan(PanAction::Down),
                 _ => Action::Noop,
             },
-            (k, &Mod::NOMOD) | (k, _) => match k {
-                Delete => state.process_action(Action::Delete),
-                F11 => state.process_action(Action::ToggleFullscreen),
+            (k, Mod::NOMOD) | (k, _) => match k {
+                Delete => Action::Delete,
+                F11 => Action::ToggleFullscreen,
                 Escape => Action::Quit,
-                PageUp => state.process_action(Action::SkipForward),
-                PageDown => state.process_action(Action::SkipBack),
+                PageUp => Action::SkipForward,
+                PageDown => Action::SkipBack,
                 Home => Action::First,
                 End => Action::Last,
                 Period => state.last_action.clone(),
-                Right => state.process_action(Action::Next),
-                Left => state.process_action(Action::Prev),
-                Up => state.process_action(Action::Zoom(ZoomAction::In)),
-                Down => state.process_action(Action::Zoom(ZoomAction::Out)),
+                Right => Action::Next,
+                Left => Action::Prev,
+                Up => Action::Zoom(ZoomAction::In),
+                Down => Action::Zoom(ZoomAction::Out),
                 _ => Action::Noop,
             },
         },
@@ -293,7 +371,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
         },
 
         Event::MouseButtonUp { mouse_btn: btn, .. } => match btn {
-            MouseButton::Left => state.process_action(Action::ToggleFit),
+            MouseButton::Left => Action::ToggleFit,
             _ => Action::Noop,
         },
         _ => Action::Noop,

@@ -10,7 +10,7 @@ use crate::cli;
 use crate::paths::{Paths, PathsBuilder};
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action, Mode, PanAction, ZoomAction};
+use crate::ui::{self, Action, Mode, PanAction, ProcessAction, ZoomAction};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
@@ -399,6 +399,10 @@ impl<'a> Program<'a> {
                     self.run_normal_mode()?;
                     self.render_screen(true)?;
                 }
+                Mode::MultiNormal => {
+                    self.run_multi_normal_mode()?;
+                    self.render_screen(true)?;
+                }
                 Mode::Command(..) => {
                     self.run_command_mode()?;
                     // Force renders in order to remove "Command" and other info from bar
@@ -418,12 +422,20 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
+    /// Mode to input how many times to repeat a normal mode action
+    /// Previous input from normal mode is in `self.ui_state.current_input`
+    fn run_multi_normal_mode(&mut self) -> Result<(), String> {
+        Ok(())
+    }
+
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
     /// normal mode
     fn run_normal_mode(&mut self) -> Result<(), String> {
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                match ui::process_normal_mode(&mut self.ui_state, &event) {
+                let action = ui::process_normal_mode(&mut self.ui_state, event);
+                self.ui_state.process_action(action.clone());
+                match action {
                     Action::Quit => {
                         self.ui_state.mode = Mode::Exit;
                         break 'mainloop;
@@ -436,6 +448,10 @@ impl<'a> Program<'a> {
                     Action::ReRender => self.render_screen(false)?,
                     Action::SwitchCommandMode => {
                         self.ui_state.mode = Mode::Command(String::new());
+                        break 'mainloop;
+                    }
+                    Action::SwitchMultiNormalMode => {
+                        self.ui_state.mode = Mode::MultiNormal;
                         break 'mainloop;
                     }
                     Action::ToggleFit => self.toggle_fit()?,
