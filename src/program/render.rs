@@ -1,5 +1,6 @@
 use crate::infobar;
 use crate::program::{make_dst, Program};
+use crate::ui::Mode;
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -9,6 +10,12 @@ const PADDING: i32 = 30;
 const HALF_PAD: i32 = 15;
 const LINE_HEIGHT: i32 = 22;
 const LINE_PADDING: i32 = 5;
+
+struct Colors {
+    primary: Color,
+    secondary: Color,
+    tertiary: Color,
+}
 
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
@@ -96,13 +103,14 @@ impl<'a> Program<'a> {
     }
 
     fn render_infobar(&mut self) -> Result<(), String> {
+        let text_color = mode_text_color(&self.ui_state.mode);
         let text = infobar::Text::update(&self.ui_state.mode, &self.paths);
         // Load the filename texture
         let filename_surface = self
             .screen
             .font
             .render(&text.information)
-            .blended(text_color())
+            .blended(text_color)
             .map_err(|e| e.to_string())?;
         let filename_texture = self
             .screen
@@ -115,7 +123,7 @@ impl<'a> Program<'a> {
             .screen
             .font
             .render(&text.mode)
-            .blended(text_color())
+            .blended(text_color)
             .map_err(|e| e.to_string())?;
         let index_texture = self
             .screen
@@ -170,7 +178,7 @@ impl<'a> Program<'a> {
                 .screen
                 .mono_font
                 .render(text[0])
-                .blended(text_color())
+                .blended(dark_text_color())
                 .map_err(|e| e.to_string())?;
             let texture = self
                 .screen
@@ -189,7 +197,7 @@ impl<'a> Program<'a> {
                 .screen
                 .mono_font
                 .render(line)
-                .blended(text_color())
+                .blended(dark_text_color())
                 .map_err(|e| e.to_string())?;
             let texture = self
                 .screen
@@ -213,24 +221,25 @@ impl<'a> Program<'a> {
     }
 
     fn render_bar(&mut self, dims: (u32, u32, u32)) -> Result<(), String> {
+        let colors = mode_colors(&self.ui_state.mode);
         let height = dims.0;
         let width = self.screen.canvas.viewport().width();
         let y = (self.screen.canvas.viewport().height() - height) as i32;
         let mut x = 0;
         let mut w = dims.1 + HALF_PAD as u32 * 3;
-        self.screen.canvas.set_draw_color(light_blue());
+        self.screen.canvas.set_draw_color(colors.primary);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = dims.2 + PADDING as u32 * 2;
-        self.screen.canvas.set_draw_color(blue());
+        self.screen.canvas.set_draw_color(colors.secondary);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
         x += w as i32;
         w = width;
-        self.screen.canvas.set_draw_color(grey());
+        self.screen.canvas.set_draw_color(colors.tertiary);
         if let Err(e) = self.screen.canvas.fill_rect(Rect::new(x, y, w, height)) {
             eprintln!("Failed to draw bar {}", e);
         }
@@ -263,12 +272,53 @@ impl<'a> Program<'a> {
     }
 }
 
+fn mode_colors(m: &Mode) -> Colors {
+    match m {
+        Mode::Normal => Colors {
+            primary: light_blue(),
+            secondary: blue(),
+            tertiary: grey(),
+        },
+        Mode::Error(_) => Colors {
+            primary: light_red(),
+            secondary: red(),
+            tertiary: grey(),
+        },
+        Mode::Success(_) => Colors {
+            primary: light_green(),
+            secondary: green(),
+            tertiary: grey(),
+        },
+        Mode::Command(_) => Colors {
+            primary: light_yellow(),
+            secondary: yellow(),
+            tertiary: grey(),
+        },
+        Mode::Exit => Colors {
+            primary: light_blue(),
+            secondary: blue(),
+            tertiary: grey(),
+        },
+    }
+}
+
+fn mode_text_color(m: &Mode) -> Color {
+    match m {
+        Mode::Normal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => dark_text_color(),
+        Mode::Error(_) => light_text_color(),
+    }
+}
+
 fn dark_grey() -> Color {
     Color::RGB(45, 45, 45)
 }
 
-fn text_color() -> Color {
+fn dark_text_color() -> Color {
     Color::RGBA(52, 56, 56, 255)
+}
+
+fn light_text_color() -> Color {
+    Color::RGBA(255, 255, 255, 255)
 }
 
 fn help_background_color() -> Color {
@@ -281,6 +331,30 @@ fn light_blue() -> Color {
 
 fn blue() -> Color {
     Color::RGB(0, 180, 204)
+}
+
+fn light_red() -> Color {
+    Color::RGB(252, 45, 45)
+}
+
+fn red() -> Color {
+    Color::RGB(223, 0, 0)
+}
+
+fn light_green() -> Color {
+    Color::RGB(45, 252, 45)
+}
+
+fn green() -> Color {
+    Color::RGB(0, 223, 0)
+}
+
+fn light_yellow() -> Color {
+    Color::RGB(255, 255, 170)
+}
+
+fn yellow() -> Color {
+    Color::RGB(255, 255, 130)
 }
 
 fn grey() -> Color {
