@@ -346,11 +346,10 @@ impl<'a> Program<'a> {
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
-        let cloned_name = newname.clone();
-        copy(filepath, newname, opt).map_err(|e| e.to_string())?;
+        copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
         Ok(format!(
             "copied image to {} succesfully",
-            cloned_name.to_str().unwrap()
+            newname.to_str().unwrap()
         ))
     }
 
@@ -368,16 +367,20 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
-        let cloned_path = current_imagepath.clone();
+        let success_msg = format!(
+            "moved {} succesfully to {}",
+            &current_imagepath.to_str().unwrap(),
+            self.paths.dest_folder.to_str().unwrap()
+        );
 
         let newname = self.construct_dest_filepath(&current_imagepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
 
         // Attempt to move image
-        if let Err(e) = move_file(current_imagepath, newname, opt) {
+        if let Err(e) = move_file(&current_imagepath, newname, opt) {
             return Err(format!(
                 "Failed to remove image `{:?}`: {}",
-                current_imagepath,
+                &current_imagepath,
                 e.to_string()
             ));
         }
@@ -393,11 +396,7 @@ impl<'a> Program<'a> {
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
         self.render_screen(false)?;
-        Ok(format!(
-            "moved {} succesfully to {}",
-            cloned_path.to_str().unwrap(),
-            self.paths.dest_folder.to_str().unwrap()
-        ))
+        Ok(success_msg)
     }
 
     /// Deletes image currently being viewed
@@ -415,7 +414,10 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
-        let cloned_path = current_imagepath.clone();
+        let success_msg = format!(
+            "deleted {} successfully",
+            &current_imagepath.to_str().unwrap()
+        );
 
         // Attempt to remove image
         if let Err(e) = remove(&current_imagepath) {
@@ -439,10 +441,7 @@ impl<'a> Program<'a> {
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
         self.render_screen(false)?;
-        Ok(format!(
-            "deleted {} successfully",
-            cloned_path.to_str().unwrap()
-        ))
+        Ok(success_msg)
     }
 
     /// Toggles fullscreen state of app

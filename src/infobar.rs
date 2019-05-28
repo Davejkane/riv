@@ -48,7 +48,7 @@ impl Text {
             }
             Mode::Error(msg) => ("Error".to_string(), msg.to_string()),
             Mode::Success(msg) => ("Success".to_string(), msg.to_string()),
-            _ => ("Exit".to_string(), "Exiting... Goodbye".to_string()),
+            Mode::Exit => ("Exit".to_string(), "Exiting... Goodbye".to_string()),
         };
         Text { information, mode }
     }
