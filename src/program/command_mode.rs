@@ -6,7 +6,7 @@ use crate::ui::{process_command_mode, Action, HelpRender, Mode};
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Available commands in Command mode
 ///
@@ -224,6 +224,7 @@ impl<'a> Program<'a> {
             self.paths.images.len(),
             msg
         ));
+        self.ui_state.rerender_time = Some(Instant::now());
     }
 
     /// Providing no additional arguments just sorts the current images with the already set sorting
@@ -356,6 +357,7 @@ impl<'a> Program<'a> {
                         );
                         self.paths.dest_folder = p;
                         self.ui_state.mode = Mode::Success(success_msg);
+                        self.ui_state.rerender_time = Some(Instant::now());
                         return Ok(());
                     }
                     Err(e) => {

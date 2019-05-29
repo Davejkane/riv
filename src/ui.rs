@@ -4,6 +4,7 @@
 
 use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
+use std::time::Instant;
 
 /// Action represents the possible actions that could result from an event
 #[derive(Clone)]
@@ -122,6 +123,9 @@ pub struct State<'a> {
     pub pan_x: f32,
     /// pan_y is the degree of pan in the y axis
     pub pan_y: f32,
+    /// The time, from which to do a re-render will be base on.
+    /// Use to clear infobar messages after inactivity
+    pub rerender_time: Option<Instant>,
 }
 
 impl<'a> State<'a> {
