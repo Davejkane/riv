@@ -199,7 +199,7 @@ impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
     pub fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
         match a {
-            Action::Quit | Action::ReRender | Action::SwitchMultiNormalMode => a,
+            Action::Noop | Action::Quit | Action::ReRender | Action::SwitchMultiNormalMode => a,
             _ => {
                 self.last_action = a.clone();
                 a

@@ -448,17 +448,18 @@ impl<'a> Program<'a> {
             match mode {
                 Mode::Normal => {
                     self.run_normal_mode()?;
-                    self.render_screen(true)?;
+                    // Don't reset image zoom and offset when changing modes
+                    self.render_screen(false)?;
                 }
                 Mode::MultiNormal => {
                     self.run_multi_normal_mode()?;
-                    // Keep image preserved!
-                    self.render_screen(true)?;
+                    // Keep image zoom and offset when going back to Normal mode
+                    self.render_screen(false)?;
                 }
                 Mode::Command(..) => {
                     self.run_command_mode()?;
                     // Force renders in order to remove "Command" and other info from bar
-                    self.render_screen(true)?;
+                    self.render_screen(false)?;
                 }
                 Mode::Error(..) => {
                     self.render_screen(false)?;
@@ -478,15 +479,21 @@ impl<'a> Program<'a> {
     /// Previous input from normal mode is in `self.ui_state.current_input`
     fn run_multi_normal_mode(&mut self) -> Result<(), String> {
         use ui::MultiNormalAction;
-        'mainloop: loop {
-            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
 
+        let mut complete_action = false;
+        while !complete_action {
+            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, event);
 
+                // Assume input is finished unless set by other actions
+                complete_action = true;
+
                 match multi_action {
+                    MultiNormalAction::MoreInput => {
+                        complete_action = false;
+                    }
                     MultiNormalAction::Cancel => {
                         self.ui_state.mode = Mode::Normal;
-                        break 'mainloop;
                     }
                     MultiNormalAction::Repeat(process) => {
 
@@ -512,20 +519,14 @@ impl<'a> Program<'a> {
                             },
                         }
                         self.ui_state.mode = Mode::Normal;
-                        // Need to figure out how to not reset scale when
-                        // changing out of MultiNormal mode
-
                         // clear repeat register
                         self.ui_state.repeat = 1;
-                        break 'mainloop;
                     }
                     MultiNormalAction::SwitchBackNormalMode => {
                         self.ui_state.mode = Mode::Normal;
-                        break 'mainloop;
                     }
                     MultiNormalAction::Quit => {
                         self.ui_state.mode = Mode::Exit;
-                        break 'mainloop;
                     }
                     _ => {},
                 }
