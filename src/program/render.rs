@@ -1,6 +1,6 @@
 use crate::infobar;
 use crate::program::{make_dst, Program};
-use crate::ui::Mode;
+use crate::ui::{HelpRender, Mode};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -30,9 +30,7 @@ impl<'a> Program<'a> {
         if self.ui_state.render_infobar {
             self.render_infobar()?;
         }
-        if self.ui_state.render_help {
-            self.render_help()?;
-        }
+        self.render_help()?;
 
         // Present to screen
         self.screen.canvas.present();
@@ -169,7 +167,11 @@ impl<'a> Program<'a> {
     }
 
     fn render_help(&mut self) -> Result<(), String> {
-        let text = help_text();
+        let text = match self.ui_state.render_help {
+            HelpRender::None => return Ok(()),
+            HelpRender::Normal => normal_help_text(),
+            HelpRender::Command => command_help_text(),
+        };
         let total_height = LINE_HEIGHT * text.len() as i32 + LINE_PADDING * (text.len() as i32 - 1);
         let mut y = (self.screen.canvas.viewport().height() as f32 / 2.0
             - total_height as f32 / 2.0) as i32;
@@ -264,9 +266,7 @@ impl<'a> Program<'a> {
         if self.ui_state.render_infobar {
             self.render_infobar()?;
         }
-        if self.ui_state.render_help {
-            self.render_help()?;
-        }
+        self.render_help()?;
         self.screen.canvas.present();
         Ok(())
     }
@@ -361,11 +361,11 @@ fn grey() -> Color {
     Color::RGB(52, 56, 56)
 }
 
-fn help_text() -> Vec<&'static str> {
+fn normal_help_text() -> Vec<&'static str> {
     vec![
         "+------------+----------------------------+-----------------------------------------------------+",
         "| Key 1      | Key 2                      | Action                                              |",
-        "|------------+----------------------------|-----------------------------------------------------|",
+        "+------------+----------------------------+-----------------------------------------------------+",
         "| q          | Esc                        | Quit                                                |",
         "| k/j        | Left/Right                 | Previous/Next Image                                 |",
         "| i/o        | Up/Down                    | Zoom in/out                                         |",
@@ -382,5 +382,28 @@ fn help_text() -> Vec<&'static str> {
         "| Z          |                            | Center image                                        |",
         "| . (period) |                            | Repeat last action                                  |",
         "+------------+----------------------------+-----------------------------------------------------+",
+    ]
+}
+
+fn command_help_text() -> Vec<&'static str> {
+    vec![
+        "+-------+------------+----------+-------------------------------------+",
+        "| Short | Long       | Argument | Action                              |",
+        "+-------+------------+----------+-------------------------------------+",
+        "| ng    | newglob    | Required | The new glob/directory/file         |",
+        "| ?     | help       | None     | Toggle help box                     |",
+        "| q     | quit       | None     | Quit                                |",
+        "|       | sort       | Optional | The method to sort by               |",
+        "| df    | destfolder | Required | New folder to move/copy images to   |",
+        "| m     | max        | Required | New maximum number of files to view |",
+        "+---------------------------------------------------------------------+",
+        "| Sorting Options                                                     |",
+        "+---------------------------------------------------------------------+",
+        "| Alphabetical                                                        |",
+        "| Date                                                                |",
+        "| Size                                                                |",
+        "| DepthFirst                                                          |",
+        "| BreadthFirst                                                        |",
+        "+---------------------------------------------------------------------+",
     ]
 }

@@ -2,7 +2,7 @@
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
 use crate::sort::SortOrder;
-use crate::ui::{process_command_mode, Action, Mode};
+use crate::ui::{process_command_mode, Action, HelpRender, Mode};
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -62,7 +62,10 @@ impl FromStr for Commands {
             "r" | "reverse" => Ok(Commands::Reverse),
             "df" | "destfolder" => Ok(Commands::DestFolder),
             "m" | "max" => Ok(Commands::MaximumImages),
-            _ => Err(format!("No such command \"{}\"", s)),
+            _ => Err(format!(
+                "No such command \"{}\", type :? for command help",
+                s
+            )),
         }
     }
 }
@@ -328,9 +331,10 @@ impl<'a> Program<'a> {
                 }
                 self.newglob(&arguments);
             }
-            Commands::Help => {
-                self.ui_state.render_help = !self.ui_state.render_help;
-            }
+            Commands::Help => match self.ui_state.render_help {
+                HelpRender::Command => self.ui_state.render_help = HelpRender::None,
+                _ => self.ui_state.render_help = HelpRender::Command,
+            },
             Commands::Quit => {
                 self.ui_state.mode = Mode::Exit;
             }
