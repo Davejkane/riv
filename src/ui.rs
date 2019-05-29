@@ -213,7 +213,6 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Mul
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
 
-
     match event {
         Event::Quit { .. } => MultiNormalAction::Quit,
 

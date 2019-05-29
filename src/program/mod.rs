@@ -319,7 +319,7 @@ impl<'a> Program<'a> {
         };
 
         // Store errors for possible future use
-        let mut failures: Vec<String> =  Vec::new();
+        let mut failures: Vec<String> = Vec::new();
         for imagepath in paths {
             let newname = match self.construct_dest_filepath(imagepath) {
                 Ok(path) => path,
@@ -327,12 +327,11 @@ impl<'a> Program<'a> {
                     eprintln!("{}", e);
                     failures.push(e);
                     continue;
-                },
+                }
             };
 
             let opt = &fs_extra::file::CopyOptions::new();
-            if let Err(e) = copy(imagepath, newname, opt).map_err(|e| e.to_string())
-            {
+            if let Err(e) = copy(imagepath, newname, opt).map_err(|e| e.to_string()) {
                 eprintln!("{}", e);
                 failures.push(e);
                 continue;
@@ -344,9 +343,12 @@ impl<'a> Program<'a> {
                 paths.len(),
                 self.paths.dest_folder.to_str().unwrap(),
             ))
-        }
-        else {
-            Err(format!("Failed to copy {} of {} images", failures.len(), paths.len()))
+        } else {
+            Err(format!(
+                "Failed to copy {} of {} images",
+                failures.len(),
+                paths.len()
+            ))
         }
     }
 
@@ -480,7 +482,6 @@ impl<'a> Program<'a> {
                         self.ui_state.mode = Mode::Normal;
                     }
                     MultiNormalAction::Repeat(process) => {
-
                         self.ui_state.process_action(process.action.clone());
                         match process {
                             ProcessAction {
@@ -512,7 +513,7 @@ impl<'a> Program<'a> {
                     MultiNormalAction::Quit => {
                         self.ui_state.mode = Mode::Exit;
                     }
-                    _ => {},
+                    _ => {}
                 }
                 std::thread::sleep(Duration::from_millis(1000 / 60));
             }
