@@ -274,7 +274,7 @@ dependencies = [
 
 [[package]]
 name = "riv"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clap 2.33.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "fs_extra 1.1.0 (registry+https://github.com/rust-lang/crates.io-index)",

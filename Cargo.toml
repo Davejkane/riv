@@ -1,7 +1,7 @@
 [package]
 name = "riv"
-version = "0.2.0"
-authors = ["davejkane", "gurgalex"]
+version = "0.3.0"
+authors = ["davejkane", "gurgalex", "nickhackman"]
 edition = "2018"
 
 [dependencies]

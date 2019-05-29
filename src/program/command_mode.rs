@@ -2,12 +2,12 @@
 //! from the user to perform tasks or edit stored data in the application during runtime
 use super::Program;
 use crate::sort::SortOrder;
-use crate::ui::{process_command_mode, Action, Mode};
+use crate::ui::{process_command_mode, Action, HelpRender, Mode};
 use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 /// Available commands in Command mode
 ///
@@ -63,7 +63,10 @@ impl FromStr for Commands {
             "r" | "reverse" => Ok(Commands::Reverse),
             "df" | "destfolder" => Ok(Commands::DestFolder),
             "m" | "max" => Ok(Commands::MaximumImages),
-            _ => Err(format!("No such command \"{}\"", s)),
+            _ => Err(format!(
+                "No such command \"{}\", type :? for command help",
+                s
+            )),
         }
     }
 }
@@ -160,6 +163,7 @@ impl<'a> Program<'a> {
                 return;
             }
         };
+        let msg = path_to_newglob.to_owned();
         let new_images = match glob_path(&path) {
             Ok(new_images) => new_images,
             Err(e) => {
@@ -201,6 +205,12 @@ impl<'a> Program<'a> {
         } else {
             self.paths.images.len()
         };
+        self.ui_state.mode = Mode::Success(format!(
+            "found {} images in {}",
+            self.paths.images.len(),
+            msg
+        ));
+        self.ui_state.rerender_time = Some(Instant::now());
     }
 
     /// Providing no additional arguments just sorts the current images with the already set sorting
@@ -304,9 +314,10 @@ impl<'a> Program<'a> {
                 }
                 self.newglob(&arguments);
             }
-            Commands::Help => {
-                self.ui_state.render_help = !self.ui_state.render_help;
-            }
+            Commands::Help => match self.ui_state.render_help {
+                HelpRender::Command => self.ui_state.render_help = HelpRender::None,
+                _ => self.ui_state.render_help = HelpRender::Command,
+            },
             Commands::Quit => {
                 self.ui_state.mode = Mode::Exit;
             }
@@ -336,7 +347,11 @@ impl<'a> Program<'a> {
                                 .replace_all(&path, "$1")
                                 .to_string();
                         }
+                        let success_msg =
+                            format!("destination folder successfully set to {}", path.display());
                         self.paths.dest_folder = PathBuf::from(path);
+                        self.ui_state.mode = Mode::Success(success_msg);
+                        self.ui_state.rerender_time = Some(Instant::now());
                     }
                     Err(e) => {
                         self.ui_state.mode =

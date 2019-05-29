@@ -30,7 +30,7 @@ pub struct Args {
 pub fn cli() -> Result<Args, String> {
     let mut files = Vec::new();
     let matches = App::new("riv")
-        .version("0.2.0")
+        .version("0.3.0")
         .about("The command line image viewer")
         .arg(
             Arg::with_name("paths")

@@ -23,7 +23,7 @@ use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
@@ -102,13 +102,14 @@ impl<'a> Program<'a> {
             },
             ui_state: ui::State {
                 render_infobar: true,
-                render_help: false,
+                render_help: ui::HelpRender::None,
                 fullscreen: args.fullscreen,
                 mode: Mode::Normal,
                 last_action: Action::Noop,
                 scale: 1.0,
                 pan_x: 0.0,
                 pan_y: 0.0,
+                rerender_time: None,
             },
             sorter,
         })
@@ -134,21 +135,24 @@ impl<'a> Program<'a> {
 
     // Calculates the scale required to fit large images to screen
     fn calculate_scale_for_fit(&self) -> f32 {
-        let tex = self.screen.last_texture.as_ref().unwrap();
-        let query = tex.query();
-        let (src_x, src_y) = (query.width, query.height);
-        let target = self.screen.canvas.viewport();
-        let (dst_x, dst_y) = (target.width(), target.height());
-        // case 1: both source dimensions smaller
-        if src_x < dst_x && src_y < dst_y {
-            return 1.0;
+        if let Some(tex) = self.screen.last_texture.as_ref() {
+            let query = tex.query();
+            let (src_x, src_y) = (query.width, query.height);
+            let target = self.screen.canvas.viewport();
+            let (dst_x, dst_y) = (target.width(), target.height());
+            // case 1: both source dimensions smaller
+            if src_x < dst_x && src_y < dst_y {
+                return 1.0;
+            }
+            // case 2: source aspect ratio is larger
+            if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
+                return dst_x as f32 / src_x as f32;
+            }
+            // case 3: source aspect ratio is smaller
+            dst_y as f32 / src_y as f32
+        } else {
+            1.0
         }
-        // case 2: source aspect ratio is larger
-        if src_x as f32 / src_y as f32 > dst_x as f32 / dst_y as f32 {
-            return dst_x as f32 / src_x as f32;
-        }
-        // case 3: source aspect ratio is smaller
-        dst_y as f32 / src_y as f32
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
@@ -280,13 +284,8 @@ impl<'a> Program<'a> {
         if let Some(tex) = self.screen.last_texture.as_ref() {
             let src_w = tex.query().width;
             let dst_w = self.screen.canvas.viewport().width();
-            if self.ui_state.scale * src_w as f32 > dst_w as f32 {
-                (PAN_PIXELS / (self.ui_state.scale * src_w as f32))
-                    / (1.0 - (dst_w as f32 / src_w as f32 * self.ui_state.scale))
-            } else {
-                (PAN_PIXELS / dst_w as f32)
-                    / (1.0 - (src_w as f32 * self.ui_state.scale / dst_w as f32))
-            }
+            let x_diff = (dst_w as f32 - (src_w as f32 * self.ui_state.scale)) / 2.0;
+            (PAN_PIXELS / x_diff).abs()
         } else {
             0.0
         }
@@ -296,13 +295,8 @@ impl<'a> Program<'a> {
         if let Some(tex) = self.screen.last_texture.as_ref() {
             let src_h = tex.query().height;
             let dst_h = self.screen.canvas.viewport().height();
-            if self.ui_state.scale * src_h as f32 > dst_h as f32 {
-                (PAN_PIXELS / (self.ui_state.scale * src_h as f32))
-                    / (1.0 - (dst_h as f32 / src_h as f32 * self.ui_state.scale))
-            } else {
-                (PAN_PIXELS / dst_h as f32)
-                    / (1.0 - (src_h as f32 * self.ui_state.scale / dst_h as f32))
-            }
+            let y_diff = (dst_h as f32 - (src_h as f32 * self.ui_state.scale)) / 2.0;
+            (PAN_PIXELS / y_diff).abs()
         } else {
             0.0
         }
@@ -327,7 +321,7 @@ impl<'a> Program<'a> {
 
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<(), String> {
+    fn copy_image(&mut self) -> Result<String, String> {
         // Check if there are any images
         if self.paths.images.is_empty() {
             return Err("No image to copy".to_string());
@@ -340,12 +334,15 @@ impl<'a> Program<'a> {
             ))
         });
         let newname = self.construct_dest_filepath(filepath)?;
-        copy(filepath, newname, opt).map_err(|e| e.to_string())?;
-        Ok(())
+        copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
+        Ok(format!(
+            "copied image to {} succesfully",
+            newname.to_str().unwrap()
+        ))
     }
 
     /// Moves image currently being viewed to destination folder
-    fn move_image(&mut self) -> Result<(), String> {
+    fn move_image(&mut self) -> Result<String, String> {
         // Check if there is an image to move
         if self.paths.images.is_empty() {
             return Err("no images to move".to_string());
@@ -358,15 +355,20 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
+        let success_msg = format!(
+            "moved {} succesfully to {}",
+            &current_imagepath.to_str().unwrap(),
+            self.paths.dest_folder.to_str().unwrap()
+        );
 
         let newname = self.construct_dest_filepath(&current_imagepath)?;
         let opt = &fs_extra::file::CopyOptions::new();
 
         // Attempt to move image
-        if let Err(e) = move_file(current_imagepath, newname, opt) {
+        if let Err(e) = move_file(&current_imagepath, newname, opt) {
             return Err(format!(
                 "Failed to remove image `{:?}`: {}",
-                current_imagepath,
+                &current_imagepath,
                 e.to_string()
             ));
         }
@@ -381,11 +383,12 @@ impl<'a> Program<'a> {
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(false)
+        self.render_screen(false)?;
+        Ok(success_msg)
     }
 
     /// Deletes image currently being viewed
-    fn delete_image(&mut self) -> Result<(), String> {
+    fn delete_image(&mut self) -> Result<String, String> {
         // Check if there is an image to delete
         if self.paths.images.is_empty() {
             return Err("no images to delete".to_string());
@@ -399,6 +402,10 @@ impl<'a> Program<'a> {
                 self.paths.index, self.paths.max_viewable
             ))
         });
+        let success_msg = format!(
+            "deleted {} successfully",
+            &current_imagepath.to_str().unwrap()
+        );
 
         // Attempt to remove image
         if let Err(e) = remove(&current_imagepath) {
@@ -421,7 +428,8 @@ impl<'a> Program<'a> {
 
         // Removing the image automatically advanced to next image
         // Adjust our view to reflect this
-        self.render_screen(false)
+        self.render_screen(false)?;
+        Ok(success_msg)
     }
 
     /// Toggles fullscreen state of app
@@ -446,6 +454,10 @@ impl<'a> Program<'a> {
                     self.render_screen(true)?;
                 }
                 Mode::Error(..) => {
+                    self.render_screen(false)?;
+                    self.ui_state.mode = Mode::Normal;
+                }
+                Mode::Success(..) => {
                     self.render_screen(false)?;
                     self.ui_state.mode = Mode::Normal;
                 }
@@ -490,19 +502,47 @@ impl<'a> Program<'a> {
                     Action::Pan(PanAction::Up) => self.pan_up()?,
                     Action::Pan(PanAction::Down) => self.pan_down()?,
                     Action::Copy => match self.copy_image() {
-                        Ok(_) => (),
-                        Err(e) => eprintln!("Failed to copy file: {}", e),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Move => match self.move_image() {
-                        Ok(_) => (),
-                        Err(e) => eprintln!("Failed to move file: {}", e),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Delete => match self.delete_image() {
-                        Ok(_) => (),
-                        Err(e) => eprintln!("{}", e),
+                        Ok(s) => {
+                            self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
+                            return Ok(());
+                        }
+                        Err(e) => {
+                            self.ui_state.mode =
+                                Mode::Error(format!("Failed to delete file: {}", e));
+                            return Ok(());
+                        }
                     },
                     Action::Noop => {}
                     _ => {}
+                }
+            }
+            if let Some(ts) = self.ui_state.rerender_time {
+                if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
+                    self.ui_state.rerender_time = None;
+                    self.render_screen(false)?;
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));

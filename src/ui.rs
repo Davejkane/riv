@@ -4,6 +4,7 @@
 
 use sdl2::event::Event;
 use sdl2::mouse::MouseButton;
+use std::time::Instant;
 
 /// Action represents the possible actions that could result from an event
 #[derive(Clone)]
@@ -87,8 +88,21 @@ pub enum Mode {
     /// Mode that is meant to display errors to the user through the infobar
     /// string is the input to display on the infobar
     Error(String),
+    /// Mode that is used to display success messages
+    Success(String),
     /// Terminate condition, if this mode is set the program will stop execution
     Exit,
+}
+
+/// Determines which form of help message to render
+#[derive(PartialEq, Clone)]
+pub enum HelpRender {
+    /// Should not be rendered
+    None,
+    /// Should render normal mode help
+    Normal,
+    /// Should render command mode help
+    Command,
 }
 
 /// State tracks events that will change the behaviour of future events. Such as key modifiers.
@@ -96,7 +110,7 @@ pub struct State<'a> {
     /// render_infobar determines whether or not the info bar should be rendered.
     pub render_infobar: bool,
     /// render_help determines whether or not the help info should be rendered.
-    pub render_help: bool,
+    pub render_help: HelpRender,
     /// Tracks fullscreen state of app.
     pub fullscreen: bool,
     /// current mode of the application, changes how input is interpreted
@@ -109,6 +123,9 @@ pub struct State<'a> {
     pub pan_x: f32,
     /// pan_y is the degree of pan in the y axis
     pub pan_y: f32,
+    /// The time, from which to do a re-render will be base on.
+    /// Use to clear infobar messages after inactivity
+    pub rerender_time: Option<Instant>,
 }
 
 impl<'a> State<'a> {
@@ -141,7 +158,10 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             "g" => state.process_action(Action::First),
             "G" => state.process_action(Action::Last),
             "?" => {
-                state.render_help = !state.render_help;
+                match state.render_help {
+                    HelpRender::Normal => state.render_help = HelpRender::None,
+                    _ => state.render_help = HelpRender::Normal,
+                }
                 state.process_action(Action::ReRender)
             }
             "H" => state.process_action(Action::Pan(PanAction::Left)),
