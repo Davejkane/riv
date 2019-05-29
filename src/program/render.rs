@@ -22,7 +22,7 @@ impl<'a> Program<'a> {
     /// rendered
     pub fn render_screen(&mut self, force_render: bool) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
-        if self.paths.images.is_empty() {
+        if self.paths.images().is_empty() {
             return self.render_blank();
         }
         self.screen.canvas.clear();
@@ -60,6 +60,7 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
+    /// Renders the image at the current index
     fn set_image_texture(&mut self, force_render: bool) -> Result<(), String> {
         if self.paths.index() == self.screen.last_index
             && self.screen.last_texture.is_some()
@@ -68,11 +69,13 @@ impl<'a> Program<'a> {
         {
             return Ok(());
         }
-        let texture = match self
-            .screen
-            .texture_creator
-            .load_texture(&self.paths.images[self.paths.index()])
-        {
+        let current_imagepath = match self.paths.current_image_path() {
+            Some(path) => path,
+            // No images were found, so no image to load
+            None => return Ok(()),
+        };
+
+        let texture = match self.screen.texture_creator.load_texture(current_imagepath) {
             Ok(t) => {
                 self.screen.last_index = self.paths.index();
                 t
@@ -274,7 +277,7 @@ impl<'a> Program<'a> {
 
 fn mode_colors(m: &Mode) -> Colors {
     match m {
-        Mode::Normal => Colors {
+        Mode::Normal | Mode::MultiNormal => Colors {
             primary: light_blue(),
             secondary: blue(),
             tertiary: grey(),
@@ -304,7 +307,9 @@ fn mode_colors(m: &Mode) -> Colors {
 
 fn mode_text_color(m: &Mode) -> Color {
     match m {
-        Mode::Normal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => dark_text_color(),
+        Mode::Normal | Mode::MultiNormal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => {
+            dark_text_color()
+        }
         Mode::Error(_) => light_text_color(),
     }
 }

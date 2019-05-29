@@ -30,17 +30,21 @@ impl Text {
         let (mode, information) = match current_mode {
             Mode::Command(msg) => ("Command".to_string(), format!(":{}", msg)),
             Mode::Normal => {
-                let information = match paths.images.get(paths.index()) {
+                let information = match paths.current_image_path() {
                     Some(path) => match path.to_str() {
                         Some(name) => name.to_string(),
                         None => "No file".to_string(),
                     },
                     None => "No file selected".to_string(),
                 };
-                let mode = if paths.images.is_empty() {
+                let mode = if paths.images().is_empty() {
                     "No files in path".to_string()
                 } else {
-                    format!("{} of {}", paths.current_image(), paths.max_viewable())
+                    format!(
+                        "{} of {}",
+                        paths.current_image().unwrap(),
+                        paths.max_viewable().unwrap()
+                    )
                 };
                 (mode, information)
             }

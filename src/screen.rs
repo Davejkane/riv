@@ -19,7 +19,7 @@ pub struct Screen<'a> {
     /// mono_font is used for printing mono spaced text
     pub mono_font: Font<'a, 'static>,
     /// last_index is the index of the last texture rendered
-    pub last_index: usize,
+    pub last_index: Option<usize>,
     /// last_texture is the last image texture rendered
     pub last_texture: Option<sdl2::render::Texture<'a>>,
     /// dirty, if true indicates that last texture must be discarded

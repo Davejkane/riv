@@ -91,7 +91,7 @@ impl<'a> Program<'a> {
                 texture_creator,
                 font,
                 mono_font,
-                last_index: 0,
+                last_index: None,
                 last_texture: None,
                 dirty: false,
             },
@@ -164,26 +164,43 @@ impl<'a> Program<'a> {
 
     /// Skips forward by the default skip increment and renders the image
     pub fn skip_forward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.paths.images);
+        let skip_size = compute_skip_size(self.paths.images());
         self.increment(skip_size)
     }
 
     /// Skips backward by the default skip increment and renders the image
     fn skip_backward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.paths.images);
+        let skip_size = compute_skip_size(self.paths.images());
         self.decrement(skip_size)
     }
 
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
-        self.paths.set_index(0);
-        self.render_screen(false)
+        // If there is at least one image
+        match self.paths.index() {
+            Some(_) => {
+                // Set the current image to the first index
+                self.paths.set_index(0);
+                self.render_screen(false)
+            }
+            None => {
+                // Nothing to do
+                Ok(())
+            }
+        }
     }
 
     /// Go to and render last image in list
     fn last(&mut self) -> Result<(), String> {
-        self.paths.set_index(self.paths.max_viewable_index());
-        self.render_screen(false)
+        // If there is at least one image
+        if let Some(last) = self.paths.max_viewable_index() {
+            // Set the current image to the last viewable index
+            self.paths.set_index(last);
+            self.render_screen(false)
+        } else {
+            // No images means no last index
+            Ok(())
+        }
     }
 
     /// Zooms in
@@ -281,21 +298,12 @@ impl<'a> Program<'a> {
     /// TODO: Handle when file already exists in dest directory
     fn copy_image(&mut self) -> Result<String, String> {
         // Check if there are any images
-        if self.paths.images.is_empty() {
-            return Err("No image to copy".to_string());
-        }
+        let filepath = match self.paths.current_image_path() {
+            Some(path) => path,
+            None => return Err("no images to copy".to_string()),
+        };
+
         let opt = &fs_extra::file::CopyOptions::new();
-        let filepath = self
-            .paths
-            .images
-            .get(self.paths.index())
-            .unwrap_or_else(|| {
-                panic!(format!(
-                    "image index {} > max image index {}",
-                    self.paths.index(),
-                    self.paths.max_viewable_index(),
-                ))
-            });
         let newname = self.construct_dest_filepath(filepath)?;
         copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
         Ok(format!(
@@ -307,16 +315,11 @@ impl<'a> Program<'a> {
     /// Moves image currently being viewed to destination folder
     fn move_image(&mut self) -> Result<String, String> {
         // Check if there is an image to move
-        if self.paths.images.is_empty() {
-            return Err("no images to move".to_string());
-        }
-        // Retrieve current image
-        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
-            ))
-        });
+        let current_imagepath = match self.paths.current_image_path() {
+            Some(path) => path,
+            None => return Err("no images to move".to_string()),
+        };
+
         let success_msg = format!(
             "moved {} succesfully to {}",
             &current_imagepath.to_str().unwrap(),
@@ -347,17 +350,11 @@ impl<'a> Program<'a> {
     /// Deletes image currently being viewed
     fn delete_image(&mut self) -> Result<String, String> {
         // Check if there is an image to delete
-        if self.paths.images.is_empty() {
-            return Err("no images to delete".to_string());
-        }
+        let current_imagepath = match self.paths.current_image_path() {
+            Some(path) => path,
+            None => return Err("no images to delete".to_string()),
+        };
 
-        // Retrieve current image
-        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
-            ))
-        });
         let success_msg = format!(
             "deleted {} successfully",
             &current_imagepath.to_str().unwrap()

@@ -42,7 +42,7 @@ impl Sorter {
     }
 
     /// Sorts the images based on sort_order, reverses if necessary
-    pub fn sort<'a>(&self, paths: &'a mut Vec<PathBuf>) -> &'a mut Vec<PathBuf> {
+    pub fn sort<'a>(&self, paths: &'a mut [PathBuf]) -> &'a mut [PathBuf] {
         paths.sort_by(|a, b| self.sort_order.file_compare(&a, &b));
         if self.reverse {
             paths.reverse();
