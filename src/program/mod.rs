@@ -329,41 +329,36 @@ impl<'a> Program<'a> {
             }
         };
 
+        // Store errors for possible future use
+        let mut failures: Vec<String> =  Vec::new();
         for imagepath in paths {
-            let newname = self.construct_dest_filepath(imagepath)?;
-            self.copy_image(imagepath, &newname)?;
+            let newname = match self.construct_dest_filepath(imagepath) {
+                Ok(path) => path,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    failures.push(e);
+                    continue;
+                },
+            };
+
+            let opt = &fs_extra::file::CopyOptions::new();
+            if let Err(e) = copy(imagepath, newname, opt).map_err(|e| e.to_string())
+            {
+                eprintln!("{}", e);
+                failures.push(e);
+                continue;
+            }
         }
-
-        Ok(format!(
-            "copied {} image(s) to {} succesfully",
-            paths.len(),
-            self.paths.dest_folder.to_str().unwrap(),
-        ))
-    }
-
-    /// Copies currently rendered image to dest directory
-    /// TODO: Handle when file already exists in dest directory
-    fn copy_current_image(&self) -> Result<String, String> {
-        // Check if there are any images
-        let filepath = match self.paths.current_image_path() {
-            Some(path) => path,
-            None => return Err("no images to copy".to_string()),
-        };
-
-        let newname = self.construct_dest_filepath(filepath)?;
-        self.copy_image(filepath, &newname)?;
-
-        Ok(format!(
-            "copied image to {} succesfully",
-            newname.to_str().unwrap()
-        ))
-    }
-
-    /// Helper method to copy images
-    fn copy_image(&self, src_file: &PathBuf, dest_file: &PathBuf) -> Result<(), String> {
-        let opt = &fs_extra::file::CopyOptions::new();
-        copy(src_file, dest_file, opt).map_err(|e| e.to_string())?;
-        Ok(())
+        if failures.is_empty() {
+            Ok(format!(
+                "copied {} image(s) to {} succesfully",
+                paths.len(),
+                self.paths.dest_folder.to_str().unwrap(),
+            ))
+        }
+        else {
+            Err(format!("Failed to copy {} of {} images", failures.len(), paths.len()))
+        }
     }
 
     /// Moves image currently being viewed to destination folder
@@ -576,7 +571,7 @@ impl<'a> Program<'a> {
                     Action::Pan(PanAction::Right) => self.pan_right()?,
                     Action::Pan(PanAction::Up) => self.pan_up()?,
                     Action::Pan(PanAction::Down) => self.pan_down()?,
-                    Action::Copy => match self.copy_current_image() {
+                    Action::Copy => match self.copy_images(1) {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
                             self.ui_state.rerender_time = Some(Instant::now());
