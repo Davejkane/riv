@@ -364,4 +364,15 @@ mod tests {
         assert_eq!(images.max_viewable(), Some(50));
         assert_eq!(images.soft_cap_set, Some(50));
     }
+
+    #[test]
+    fn test_replacing_images_caps_index() {
+        let mut images = dummy_paths_builder(50).build();
+        let less_images = dummy_paths_builder(10).build();
+
+        images.increment(30);
+        images.reload_images(less_images.images);
+        assert_eq!(images.index(), Some(9));
+        assert_eq!(images.max_viewable_index(), Some(9));
+    }
 }
