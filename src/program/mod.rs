@@ -296,7 +296,7 @@ impl<'a> Program<'a> {
 
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<String, String> {
+    fn copy_image(&self) -> Result<String, String> {
         // Check if there are any images
         let filepath = match self.paths.current_image_path() {
             Some(path) => path,
