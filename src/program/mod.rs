@@ -198,19 +198,13 @@ impl<'a> Program<'a> {
 
     /// Zooms in
     fn zoom_in(&mut self, times: usize) -> Result<(), String> {
-        let zoom_factor: f32 = 1.1;
-        let zoom_times = cap_zoom_times(times);
-
-        self.ui_state.scale *= zoom_factor.powi(zoom_times);
+        self.ui_state.zoom_in(times);
         self.render_screen(false)
     }
 
     /// Zooms out
     fn zoom_out(&mut self, times: usize) -> Result<(), String> {
-        let zoom_factor: f32 = 1.1;
-        let zoom_times = cap_zoom_times(times);
-
-        self.ui_state.scale /= zoom_factor.powi(zoom_times);
+        self.ui_state.zoom_out(times);
         self.render_screen(false)
     }
 
@@ -632,15 +626,4 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
-}
-
-/// Set zoom times to 1 if times is too big for i32 value or times is 0
-fn cap_zoom_times(times: usize) -> i32 {
-    let zoom_times = (times) as i32;
-    // Malicious huge numbers overflow and 0 check
-    if zoom_times.is_positive() {
-        zoom_times
-    } else {
-        1
-    }
 }

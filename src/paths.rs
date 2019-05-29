@@ -302,7 +302,7 @@ mod tests {
 
     #[test]
     fn test_get_indexes() {
-        let mut images = dummy_paths_builder(10).build();
+        let images = dummy_paths_builder(10).build();
         let slice = images.get(5);
         let multi_slice = images.get(1..=5);
         dbg!(slice);

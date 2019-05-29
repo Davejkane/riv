@@ -196,6 +196,24 @@ impl<'a> Default for State<'a> {
 }
 
 impl<'a> State<'a> {
+    /// Increases zoom scale. Does not render image
+    pub fn zoom_in(&mut self, times: usize) {
+        let zoom_factor: f32 = 1.1;
+        let zoom_times = cap_zoom_times(times);
+
+        self.scale *= zoom_factor.powi(zoom_times);
+    }
+
+    /// Decreases zoom scale. Does not render image
+    pub fn zoom_out(&mut self, times: usize) {
+        let zoom_factor: f32 = 1.1;
+        let zoom_times = cap_zoom_times(times);
+
+        self.scale /= zoom_factor.powi(zoom_times);
+    }
+}
+
+impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
     pub fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
         match a {
@@ -406,5 +424,44 @@ pub fn process_command_mode(event: &Event) -> Action {
             _ => Action::Noop,
         },
         _ => Action::Noop,
+    }
+}
+
+/// Set zoom times to 1 if times is too big for i32 value or times is 0
+fn cap_zoom_times(times: usize) -> i32 {
+    let zoom_times = (times) as i32;
+    // Malicious huge numbers overflow and 0 check
+    if zoom_times.is_positive() {
+        zoom_times
+    } else {
+        1
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::State;
+    #[test]
+    fn test_zoom_in_and_then_out_gives_same_zoom_factor() {
+        let mut state = State {
+            ..Default::default()
+        };
+        state.zoom_in(1);
+        state.zoom_out(1);
+        assert_eq!(state.scale, 1.0);
+    }
+
+    #[test]
+    fn test_mutliple_zoom_in_and_then_out_gives_same_zoom_factor() {
+        let mut state = State {
+            ..Default::default()
+        };
+        state.zoom_in(2);
+        state.zoom_out(1);
+        state.zoom_out(1);
+        state.zoom_out(2);
+        state.zoom_in(1);
+        state.zoom_in(1);
+        assert_eq!(state.scale, 1.0);
     }
 }
