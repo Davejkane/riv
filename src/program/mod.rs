@@ -97,15 +97,8 @@ impl<'a> Program<'a> {
             },
             paths,
             ui_state: ui::State {
-                render_infobar: true,
-                render_help: ui::HelpRender::None,
                 fullscreen: args.fullscreen,
-                mode: Mode::Normal,
-                last_action: Action::Noop,
-                scale: 1.0,
-                pan_x: 0.0,
-                pan_y: 0.0,
-                rerender_time: None,
+                ..Default::default()
             },
             sorter,
         })

@@ -173,8 +173,6 @@ pub struct State<'a> {
     /// The time, from which to do a re-render will be base on.
     /// Use to clear infobar messages after inactivity
     pub rerender_time: Option<Instant>,
-    /// Unprocessed input from user
-    pub current_input: String,
     /// Times to repeat an action
     /// Primarily used as intermediate storage when in multiNormal Mode
     pub repeat: usize,
@@ -184,13 +182,14 @@ impl<'a> Default for State<'a> {
     fn default() -> Self {
         Self {
             render_infobar: true,
-            render_help: false,
+            render_help: HelpRender::None,
             fullscreen: false,
             mode: Mode::Normal,
             last_action: Action::Noop,
             scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
+            rerender_time: None,
             repeat: 1,
         }
     }
