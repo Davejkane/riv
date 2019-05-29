@@ -3,6 +3,7 @@
 use super::Program;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, Mode};
+use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -322,12 +323,18 @@ impl<'a> Program<'a> {
                 }
                 match full(&arguments) {
                     Ok(path) => {
-                        const ESCAPED_SPACE: &str = "\\ ";
-                        const SPACE: &str = " ";
-
                         let mut path = path.to_string();
                         if cfg!(unix) {
-                            path = path.replace(ESCAPED_SPACE, SPACE);
+                            lazy_static! {
+                                static ref REGEX_REMOVE_ESCAPED_CHARS: Regex =
+                                    match Regex::new(r"\\(.)") {
+                                        Ok(regex) => regex,
+                                        Err(e) => panic!("Logic Error: {}", e),
+                                    };
+                            }
+                            path = REGEX_REMOVE_ESCAPED_CHARS
+                                .replace_all(&path, "$1")
+                                .to_string();
                         }
                         self.paths.dest_folder = PathBuf::from(path);
                     }

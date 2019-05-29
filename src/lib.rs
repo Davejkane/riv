@@ -14,6 +14,9 @@
 
 #[macro_use]
 extern crate clap;
+extern crate regex;
+#[macro_use]
+extern crate lazy_static;
 
 pub mod cli;
 pub mod infobar;
@@ -23,6 +26,7 @@ pub mod screen;
 pub mod sort;
 pub mod ui;
 
+use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
 
@@ -34,16 +38,22 @@ use std::path::PathBuf;
 /// Directories are changed from /home/etc to /home/etc/*
 /// Symlinks are followed
 pub fn path_to_glob(current_dir: &PathBuf, path: &str) -> Result<PathBuf, String> {
-    const ESCAPED_SPACE: &str = r"\ ";
-    const SPACE: &str = " ";
     const GLOB: &str = "*";
 
     let mut expanded_path = match full(path) {
         Ok(path) => {
             let mut path_str = path.to_string();
-            // remove escaped spaces for Unix
+            // remove escaped characters for Unix
             if cfg!(unix) {
-                path_str = path_str.replace(ESCAPED_SPACE, SPACE);
+                lazy_static! {
+                    static ref REGEX_REMOVE_ESCAPED_CHARS: Regex = match Regex::new(r"\\(.)") {
+                        Ok(regex) => regex,
+                        Err(e) => panic!("Logic Error: {}", e),
+                    };
+                }
+                path_str = REGEX_REMOVE_ESCAPED_CHARS
+                    .replace_all(&path_str, "$1")
+                    .to_string();
             }
             PathBuf::from(&path_str)
         }
@@ -89,6 +99,16 @@ fn normalize_path(path: PathBuf) -> PathBuf {
         }
     }
     normalized
+}
+
+#[test]
+fn escaped_mess() {
+    let current_dir = PathBuf::from("/home/nick");
+    let new_path = r"Down\\\ loads";
+    assert_eq!(
+        path_to_glob(&current_dir, new_path),
+        Ok(PathBuf::from(r"/home/nick/Down\\\ loads/*"))
+    );
 }
 
 /// Takes in the output of path_to_glob and finds the closest parent in that path
