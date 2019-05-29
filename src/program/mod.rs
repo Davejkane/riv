@@ -553,7 +553,7 @@ impl<'a> Program<'a> {
                 }
             }
             if let Some(ts) = self.ui_state.rerender_time {
-                if Instant::now().duration_since(ts) > Duration::from_secs(2) {
+                if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
                     self.ui_state.rerender_time = None;
                     self.render_screen(false)?;
                 }
