@@ -204,14 +204,31 @@ impl<'a> Program<'a> {
     }
 
     /// Zooms in
-    fn zoom_in(&mut self) -> Result<(), String> {
-        self.ui_state.scale *= 1.1;
+    fn zoom_in(&mut self, times: usize) -> Result<(), String> {
+        let zoom_factor: f32 = 1.1;
+        let zoom_times = (times) as i32;
+        // Malicious huge numbers
+        let zoom_times = if zoom_times.is_positive() {
+            zoom_times
+        } else {
+            1
+        };
+        self.ui_state.scale *= zoom_factor.powi(zoom_times);
         self.render_screen(false)
     }
 
     /// Zooms out
-    fn zoom_out(&mut self) -> Result<(), String> {
-        self.ui_state.scale *= 0.9;
+    fn zoom_out(&mut self, times: usize) -> Result<(), String> {
+        let zoom_factor: f32 = 0.9;
+        // When taking to a power, increase the times by 1
+        let zoom_times = (times) as i32;
+        // Malicious huge numbers or 0 check
+        let zoom_times = if zoom_times.is_positive() {
+            zoom_times
+        } else {
+            1
+        };
+        self.ui_state.scale *= zoom_factor.powi(zoom_times);
         self.render_screen(false)
     }
 
@@ -442,6 +459,7 @@ impl<'a> Program<'a> {
                 }
                 Mode::MultiNormal => {
                     self.run_multi_normal_mode()?;
+                    // Keep image preserved!
                     self.render_screen(true)?;
                 }
                 Mode::Command(..) => {
@@ -469,10 +487,16 @@ impl<'a> Program<'a> {
         use ui::MultiNormalAction;
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
+
                 let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, event);
 
                 match multi_action {
+                    MultiNormalAction::Cancel => {
+                        self.ui_state.mode = Mode::Normal;
+                        break 'mainloop;
+                    }
                     MultiNormalAction::Repeat(process) => {
+
                         self.ui_state.process_action(process.action.clone());
                         match process {
                             ProcessAction {
@@ -489,9 +513,18 @@ impl<'a> Program<'a> {
                                         return Ok(());
                                     }
                                 },
+                                (Action::Zoom(ZoomAction::In), n) => self.zoom_in(n)?,
+                                (Action::Zoom(ZoomAction::Out), n) => self.zoom_out(n)?,
                                 (_, _) => println!("Not multi followed"),
                             },
                         }
+                        self.ui_state.mode = Mode::Normal;
+                        // Need to figure out how to not reset scale when
+                        // changing out of MultiNormal mode
+
+                        // clear repeat register
+                        self.ui_state.repeat = 1;
+                        break 'mainloop;
                     }
                     MultiNormalAction::SwitchBackNormalMode => {
                         self.ui_state.mode = Mode::Normal;
@@ -501,7 +534,7 @@ impl<'a> Program<'a> {
                         self.ui_state.mode = Mode::Exit;
                         break 'mainloop;
                     }
-                    _ => continue,
+                    _ => {},
                 }
                 std::thread::sleep(Duration::from_millis(1000 / 60));
             }
@@ -543,8 +576,8 @@ impl<'a> Program<'a> {
                     Action::Last => self.last()?,
                     Action::SkipForward => self.skip_forward()?,
                     Action::SkipBack => self.skip_backward()?,
-                    Action::Zoom(ZoomAction::In) => self.zoom_in()?,
-                    Action::Zoom(ZoomAction::Out) => self.zoom_out()?,
+                    Action::Zoom(ZoomAction::In) => self.zoom_in(1)?,
+                    Action::Zoom(ZoomAction::Out) => self.zoom_out(1)?,
                     Action::Pan(PanAction::Left) => self.pan_left()?,
                     Action::Pan(PanAction::Right) => self.pan_right()?,
                     Action::Pan(PanAction::Up) => self.pan_up()?,

@@ -63,7 +63,9 @@ pub enum Action<'a> {
 pub enum MultiNormalAction<'a> {
     /// Rerender screen
     ReRender,
-    /// Keep listening for input, but store the current partial repeat number
+    /// Keep listening for input. Update display with current input
+    MoreInput,
+    /// Done getting Input. Repeat the command the specified times
     Repeat(ProcessAction<'a>),
     /// Switch back to normal mode
     SwitchBackNormalMode,
@@ -198,7 +200,7 @@ impl<'a> State<'a> {
     /// update_last_action takes an action, sets the last_action to said action, and returns the Action
     pub fn process_action(&mut self, a: Action<'a>) -> Action<'a> {
         match a {
-            Action::Quit | Action::ReRender => a,
+            Action::Quit | Action::ReRender | Action::SwitchMultiNormalMode => a,
             _ => {
                 self.last_action = a.clone();
                 a
@@ -211,6 +213,7 @@ impl<'a> State<'a> {
 pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> MultiNormalAction<'a> {
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
+
 
     match event {
         Event::Quit { .. } => MultiNormalAction::Quit,
@@ -225,7 +228,7 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Mul
                 let new_count = (previous_count.saturating_mul(10)).saturating_add(next_digit);
                 // Save new count
                 state.repeat = new_count;
-                MultiNormalAction::Noop
+                MultiNormalAction::MoreInput
             }
             "c" => ProcessAction::new(Action::Copy, state.repeat).into(),
             "d" => ProcessAction::new(Action::Delete, state.repeat).into(),
