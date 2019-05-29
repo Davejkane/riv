@@ -23,7 +23,7 @@ use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 use std::io::ErrorKind;
 use std::path::PathBuf;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
@@ -112,6 +112,7 @@ impl<'a> Program<'a> {
                 scale: 1.0,
                 pan_x: 0.0,
                 pan_y: 0.0,
+                rerender_time: None,
             },
             sorter,
         })
@@ -506,6 +507,7 @@ impl<'a> Program<'a> {
                     Action::Copy => match self.copy_image() {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
                             return Ok(());
                         }
                         Err(e) => {
@@ -516,6 +518,7 @@ impl<'a> Program<'a> {
                     Action::Move => match self.move_image() {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
                             return Ok(());
                         }
                         Err(e) => {
@@ -526,6 +529,7 @@ impl<'a> Program<'a> {
                     Action::Delete => match self.delete_image() {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
+                            self.ui_state.rerender_time = Some(Instant::now());
                             return Ok(());
                         }
                         Err(e) => {
@@ -536,6 +540,12 @@ impl<'a> Program<'a> {
                     },
                     Action::Noop => {}
                     _ => {}
+                }
+            }
+            if let Some(ts) = self.ui_state.rerender_time {
+                if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
+                    self.ui_state.rerender_time = None;
+                    self.render_screen(false)?;
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));
