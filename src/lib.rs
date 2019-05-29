@@ -69,7 +69,6 @@ pub fn path_to_glob(current_dir: &PathBuf, path: &str) -> Result<PathBuf, String
 ///
 /// This implementation is preferred to using std::fs::canonicalize due to canonicalize requiring
 /// the path to exist, causing all globbing to fail and having to remove the glob, normalize then add it back on
-/// which is quadratic time complexity versus linear in the size of the path
 fn normalize_path(path: PathBuf) -> PathBuf {
     use std::fs::read_link;
     use std::path::Component;
