@@ -1,7 +1,9 @@
 //! Paths contains the Paths struct which contains all path related information required for the
 //! running of the program.
 
+use std::ops::RangeInclusive;
 use std::path::PathBuf;
+use std::slice::SliceIndex;
 
 /// Builds a new Paths
 #[derive(Debug)]
@@ -117,6 +119,35 @@ impl Paths {
         self.index = Some(i);
     }
 
+    /// Get the image path at the specified index range
+    /// If the range is greater than the maximum viewable index
+    /// it is capped at the maximum viewable index
+    /// None is returned if there are no images
+    pub fn get_range(&self, range: &RangeInclusive<usize>) -> Option<&[PathBuf]> {
+        let max_index = self.max_viewable_index()?;
+        if *range.start() > max_index {
+            return None;
+        }
+
+        let new_start = *range.start();
+        let new_end = if *range.end() > max_index {
+            // cap at max index
+            max_index
+        } else {
+            *range.end()
+        };
+
+        Some(self.get(new_start..=new_end).unwrap())
+    }
+
+    // Copied signature from stdlib Vec get
+    // https://doc.rust-lang.org/std/vec/struct.Vec.html#method.get
+    fn get<I>(&self, index: I) -> Option<&I::Output>
+    where
+        I: SliceIndex<[PathBuf]>,
+    {
+        self.images.get(index)
+    }
     /// Index of currently viewed image
     pub fn index(&self) -> Option<usize> {
         self.index
@@ -267,6 +298,17 @@ mod tests {
     fn dummy_paths_builder(n: usize) -> PathsBuilder {
         let images = repeat(PathBuf::new()).take(n).collect::<Vec<PathBuf>>();
         PathsBuilder::new(images, "./keep".into(), ".".into())
+    }
+
+    #[test]
+    fn test_get_indexes() {
+        let mut images = dummy_paths_builder(10).build();
+        let slice = images.get(5);
+        let multi_slice = images.get(1..=5);
+        dbg!(slice);
+        dbg!(multi_slice);
+        assert_eq!(slice, Some(&PathBuf::from("")));
+        assert_eq!(multi_slice.unwrap().len(), 5);
     }
 
     #[test]

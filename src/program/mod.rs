@@ -294,22 +294,66 @@ impl<'a> Program<'a> {
         Ok(newname)
     }
 
+    /// Copies the current image and (n-1) next images
+    /// Does nothing if supplied 0 for an amount
+    fn copy_images(&self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to copy".to_string());
+        }
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to copy".to_string()),
+        };
+
+        let copy_range = current_index..=(current_index.saturating_add(amount - 1));
+        let paths = self.paths.get_range(&copy_range);
+        let paths = match paths {
+            Some(paths) => paths,
+            None => {
+                return Err(format!(
+                    "Image range {}..={} is out of range",
+                    copy_range.start(),
+                    copy_range.end()
+                ))
+            }
+        };
+
+        for imagepath in paths {
+            let newname = self.construct_dest_filepath(imagepath)?;
+            self.copy_image(imagepath, &newname)?;
+        }
+
+        Ok(format!(
+            "copied {} image(s) to {} succesfully",
+            paths.len(),
+            self.paths.dest_folder.to_str().unwrap(),
+        ))
+    }
+
     /// Copies currently rendered image to dest directory
     /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&self) -> Result<String, String> {
+    fn copy_current_image(&self) -> Result<String, String> {
         // Check if there are any images
         let filepath = match self.paths.current_image_path() {
             Some(path) => path,
             None => return Err("no images to copy".to_string()),
         };
 
-        let opt = &fs_extra::file::CopyOptions::new();
         let newname = self.construct_dest_filepath(filepath)?;
-        copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
+        self.copy_image(filepath, &newname)?;
+
         Ok(format!(
             "copied image to {} succesfully",
             newname.to_str().unwrap()
         ))
+    }
+
+    /// Helper method to copy images
+    fn copy_image(&self, src_file: &PathBuf, dest_file: &PathBuf) -> Result<(), String> {
+        let opt = &fs_extra::file::CopyOptions::new();
+        copy(src_file, dest_file, opt).map_err(|e| e.to_string())?;
+        Ok(())
     }
 
     /// Moves image currently being viewed to destination folder
@@ -434,9 +478,19 @@ impl<'a> Program<'a> {
                             ProcessAction {
                                 action: a,
                                 times: n,
-                            } => {
-                                dbg!((a, n));
-                            }
+                            } => match (a, n) {
+                                (Action::Copy, n) => match self.copy_images(n) {
+                                    Ok(s) => {
+                                        self.ui_state.mode = Mode::Success(s);
+                                        return Ok(());
+                                    }
+                                    Err(e) => {
+                                        self.ui_state.mode = Mode::Error(e);
+                                        return Ok(());
+                                    }
+                                },
+                                (_, _) => println!("Not multi followed"),
+                            },
                         }
                     }
                     MultiNormalAction::SwitchBackNormalMode => {
@@ -495,7 +549,7 @@ impl<'a> Program<'a> {
                     Action::Pan(PanAction::Right) => self.pan_right()?,
                     Action::Pan(PanAction::Up) => self.pan_up()?,
                     Action::Pan(PanAction::Down) => self.pan_down()?,
-                    Action::Copy => match self.copy_image() {
+                    Action::Copy => match self.copy_current_image() {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
                             self.ui_state.rerender_time = Some(Instant::now());
