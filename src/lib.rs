@@ -101,16 +101,6 @@ fn normalize_path(path: PathBuf) -> PathBuf {
     normalized
 }
 
-#[test]
-fn escaped_mess() {
-    let current_dir = PathBuf::from("/home/nick");
-    let new_path = r"Down\\\ loads";
-    assert_eq!(
-        path_to_glob(&current_dir, new_path),
-        Ok(PathBuf::from(r"/home/nick/Down\\\ loads/*"))
-    );
-}
-
 /// Takes in the output of path_to_glob and finds the closest parent in that path
 /// This is the new base directory
 pub fn new_base_dir(path: &PathBuf) -> Result<PathBuf, String> {
