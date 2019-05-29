@@ -63,7 +63,6 @@ pub fn path_to_glob(current_dir: &PathBuf, path: &str) -> Result<PathBuf, String
     if expanded_path.is_relative() {
         expanded_path = current_dir.join(expanded_path);
     }
-    // normalize path
     let mut expanded_path = normalize_path(expanded_path);
     // If path is a dir, add /* to glob
     if expanded_path.is_dir() {
