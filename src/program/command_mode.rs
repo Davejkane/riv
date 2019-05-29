@@ -348,7 +348,7 @@ impl<'a> Program<'a> {
                                 .to_string();
                         }
                         let success_msg =
-                            format!("destination folder successfully set to {}", path.display());
+                            format!("destination folder successfully set to {}", path);
                         self.paths.dest_folder = PathBuf::from(path);
                         self.ui_state.mode = Mode::Success(success_msg);
                         self.ui_state.rerender_time = Some(Instant::now());
