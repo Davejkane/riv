@@ -159,10 +159,8 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             "G" => state.process_action(Action::Last),
             "?" => {
                 match state.render_help {
-                    HelpRender::None | HelpRender::Command => {
-                        state.render_help = HelpRender::Normal
-                    }
                     HelpRender::Normal => state.render_help = HelpRender::None,
+                    _ => state.render_help = HelpRender::Normal,
                 }
                 state.process_action(Action::ReRender)
             }

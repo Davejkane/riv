@@ -62,7 +62,10 @@ impl FromStr for Commands {
             "r" | "reverse" => Ok(Commands::Reverse),
             "df" | "destfolder" => Ok(Commands::DestFolder),
             "m" | "max" => Ok(Commands::MaximumImages),
-            _ => Err(format!("No such command \"{}\"", s)),
+            _ => Err(format!(
+                "No such command \"{}\", type :? for command help",
+                s
+            )),
         }
     }
 }
@@ -329,10 +332,8 @@ impl<'a> Program<'a> {
                 self.newglob(&arguments);
             }
             Commands::Help => match self.ui_state.render_help {
-                HelpRender::None | HelpRender::Normal => {
-                    self.ui_state.render_help = HelpRender::Command
-                }
                 HelpRender::Command => self.ui_state.render_help = HelpRender::None,
+                _ => self.ui_state.render_help = HelpRender::Command,
             },
             Commands::Quit => {
                 self.ui_state.mode = Mode::Exit;
