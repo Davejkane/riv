@@ -587,7 +587,9 @@ impl<'a> Program<'a> {
                                         return Ok(());
                                     }
                                 },
-                                (a @ _, n @_) => {unimplemented!("unimplemented multimode: {:?} {:?}", a, n);}
+                                (a, n) => {
+                                    unimplemented!("unimplemented multimode: {:?} {:?}", a, n);
+                                }
                             },
                         }
                         self.ui_state.mode = Mode::Normal;

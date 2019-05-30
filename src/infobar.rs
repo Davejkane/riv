@@ -49,13 +49,9 @@ impl Text {
                 (mode, information)
             }
             Mode::MultiNormal => {
-
                 let times = state.repeat;
-                (
-                    times.to_string(),
-                    " ".to_string(),
-                )
-            },
+                (times.to_string(), " ".to_string())
+            }
             Mode::Error(msg) => ("Error".to_string(), msg.to_string()),
             Mode::Success(msg) => ("Success".to_string(), msg.to_string()),
             Mode::Exit => ("Exit".to_string(), "Exiting... Goodbye".to_string()),
