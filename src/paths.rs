@@ -148,6 +148,7 @@ impl Paths {
     {
         self.images.get(index)
     }
+
     /// Index of currently viewed image
     pub fn index(&self) -> Option<usize> {
         self.index

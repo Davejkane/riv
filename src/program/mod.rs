@@ -346,72 +346,109 @@ impl<'a> Program<'a> {
         }
     }
 
-    /// Moves image currently being viewed to destination folder
-    fn move_image(&mut self) -> Result<String, String> {
-        // Check if there is an image to move
-        let current_imagepath = match self.paths.current_image_path() {
-            Some(path) => path,
+    /// Moves the current image and (n-1) next images
+    /// Does nothing if supplied 0 for an amount
+    fn move_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to move".to_string());
+        }
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
             None => return Err("no images to move".to_string()),
         };
 
-        let success_msg = format!(
-            "moved {} succesfully to {}",
-            &current_imagepath.to_str().unwrap(),
-            self.paths.dest_folder.to_str().unwrap()
-        );
+        // Safe to unwrap as max_index is always present if index is present
+        let max_index = self.paths.max_viewable_index().unwrap();
 
-        let newname = self.construct_dest_filepath(&current_imagepath)?;
-        let opt = &fs_extra::file::CopyOptions::new();
+        // Compute actual number of images to remove
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_removes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        for _ in 0..total_removes {
+            let current_path = self.paths.current_image_path().unwrap();
+            let newname = self.construct_dest_filepath(current_path)?;
+            let opt = &fs_extra::file::CopyOptions::new();
 
-        // Attempt to move image
-        if let Err(e) = move_file(&current_imagepath, newname, opt) {
-            return Err(format!(
-                "Failed to remove image `{:?}`: {}",
-                &current_imagepath,
-                e.to_string()
-            ));
+            // Attempt to move as many images as possible
+            if let Err(e) = move_file(current_path, &newname, opt) {
+                eprintln!("{}", e);
+                failures.push(e.to_string());
+                continue;
+            }
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
         }
-        // Only if successful, remove image from tracked images
-        self.paths.remove_current_image();
-        self.screen.dirty = true;
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
+        self.screen.dirty = true;
         self.render_screen(false)?;
-        Ok(success_msg)
+        if failures.is_empty() {
+            let success_msg = format!(
+                "moved {} image(s) succesfully to {}",
+                total_removes,
+                self.paths.dest_folder.to_str().unwrap()
+            );
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to move {} of {} images",
+                failures.len(),
+                total_removes,
+            ))
+        }
     }
 
     /// Deletes image currently being viewed
-    fn delete_image(&mut self) -> Result<String, String> {
-        // Check if there is an image to delete
-        let current_imagepath = match self.paths.current_image_path() {
-            Some(path) => path,
+    /// Does nothing if supplied 0 for an amount
+    fn delete_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to delete".to_string());
+        }
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
             None => return Err("no images to delete".to_string()),
         };
 
-        let success_msg = format!(
-            "deleted {} successfully",
-            &current_imagepath.to_str().unwrap()
-        );
+        let max_index = self.paths.max_viewable_index().unwrap();
 
-        // Attempt to remove image
-        if let Err(e) = remove(&current_imagepath) {
-            return Err(format!(
-                "Failed to remove image `{:?}`: {}",
-                current_imagepath,
-                e.to_string()
-            ));
+        // Compute actual number of images to remove
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_removes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        // Attempt to delete as many images as possible
+        for _ in 0..total_removes {
+            let current_path = self.paths.current_image_path().unwrap();
+            if let Err(e) = remove(current_path) {
+                eprintln!("{}", e);
+                failures.push(e.to_string());
+                continue;
+            }
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
         }
-        // If we've reached past here, there was no error deleting the image
 
-        // Only if successful, remove image from tracked images
-        self.paths.remove_current_image();
-        self.screen.dirty = true;
-
-        // Removing the image automatically advanced to next image
+        // Deletes the image automatically advanced to next image
         // Adjust our view to reflect this
+        self.screen.dirty = true;
         self.render_screen(false)?;
-        Ok(success_msg)
+        if failures.is_empty() {
+            let success_msg = format!("Deleted {} image(s)", total_removes);
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to delete {} of {} images",
+                failures.len(),
+                total_removes,
+            ))
+        }
     }
 
     /// Toggles fullscreen state of app
@@ -492,9 +529,29 @@ impl<'a> Program<'a> {
                                         return Ok(());
                                     }
                                 },
+                                (Action::Move, n) => match self.move_images(n) {
+                                    Ok(s) => {
+                                        self.ui_state.mode = Mode::Success(s);
+                                        return Ok(());
+                                    }
+                                    Err(e) => {
+                                        self.ui_state.mode = Mode::Error(e);
+                                        return Ok(());
+                                    }
+                                },
+                                (Action::Delete, n) => match self.delete_images(n) {
+                                    Ok(s) => {
+                                        self.ui_state.mode = Mode::Success(s);
+                                        return Ok(());
+                                    }
+                                    Err(e) => {
+                                        self.ui_state.mode = Mode::Error(e);
+                                        return Ok(());
+                                    }
+                                },
                                 (Action::Zoom(ZoomAction::In), n) => self.zoom_in(n)?,
                                 (Action::Zoom(ZoomAction::Out), n) => self.zoom_out(n)?,
-                                (_, _) => println!("Not multi followed"),
+                                (_, _) => {}
                             },
                         }
                         self.ui_state.mode = Mode::Normal;
@@ -566,7 +623,7 @@ impl<'a> Program<'a> {
                             return Ok(());
                         }
                     },
-                    Action::Move => match self.move_image() {
+                    Action::Move => match self.move_images(1) {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
                             self.ui_state.rerender_time = Some(Instant::now());
@@ -577,7 +634,7 @@ impl<'a> Program<'a> {
                             return Ok(());
                         }
                     },
-                    Action::Delete => match self.delete_image() {
+                    Action::Delete => match self.delete_images(1) {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
                             self.ui_state.rerender_time = Some(Instant::now());
