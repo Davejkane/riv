@@ -306,7 +306,6 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Action<'a
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
-    use sdl2::keyboard::Mod;
 
     match event {
         Event::Quit { .. } => Action::Quit,
