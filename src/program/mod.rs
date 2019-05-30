@@ -156,15 +156,15 @@ impl<'a> Program<'a> {
     }
 
     /// Skips forward by the default skip increment and renders the image
-    pub fn skip_forward(&mut self) -> Result<(), String> {
+    pub fn skip_forward(&mut self, times: usize) -> Result<(), String> {
         let skip_size = compute_skip_size(self.paths.images());
-        self.increment(skip_size)
+        self.increment(skip_size * times)
     }
 
     /// Skips backward by the default skip increment and renders the image
-    fn skip_backward(&mut self) -> Result<(), String> {
+    fn skip_backward(&mut self, times: usize) -> Result<(), String> {
         let skip_size = compute_skip_size(self.paths.images());
-        self.decrement(skip_size)
+        self.decrement(skip_size * times)
     }
 
     /// Go to and render first image in list
@@ -209,9 +209,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans left
-    fn pan_left(&mut self) -> Result<(), String> {
+    fn pan_left(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_x_step();
-        self.ui_state.pan_x += step;
+        self.ui_state.pan_x += step * times as f32;
         if self.ui_state.pan_x > 1.0 {
             self.ui_state.pan_x = 1.0;
         }
@@ -219,9 +219,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans right
-    fn pan_right(&mut self) -> Result<(), String> {
+    fn pan_right(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_x_step();
-        self.ui_state.pan_x -= step;
+        self.ui_state.pan_x -= step * times as f32;
         if self.ui_state.pan_x < -1.0 {
             self.ui_state.pan_x = -1.0;
         }
@@ -229,9 +229,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans up
-    fn pan_up(&mut self) -> Result<(), String> {
+    fn pan_up(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_y_step();
-        self.ui_state.pan_y += step;
+        self.ui_state.pan_y += step * times as f32;
         if self.ui_state.pan_y > 1.0 {
             self.ui_state.pan_y = 1.0;
         }
@@ -239,9 +239,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans down
-    fn pan_down(&mut self) -> Result<(), String> {
+    fn pan_down(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_y_step();
-        self.ui_state.pan_y -= step;
+        self.ui_state.pan_y -= step * times as f32;
         if self.ui_state.pan_y < -1.0 {
             self.ui_state.pan_y = -1.0;
         }
@@ -519,6 +519,36 @@ impl<'a> Program<'a> {
                                 action: a,
                                 times: n,
                             } => match (a, n) {
+                                (Action::Quit, _) => {
+                                    self.ui_state.mode = Mode::Exit;
+                                }
+                                (Action::ToggleFullscreen, _) => {
+                                    self.toggle_fullscreen();
+                                    self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                                    self.render_screen(false)?
+                                }
+
+                                (Action::ReRender, _) => self.render_screen(false)?,
+                                (Action::SwitchCommandMode, _) => {
+                                    self.ui_state.mode = Mode::Command(String::new());
+                                }
+                                (Action::SwitchMultiNormalMode, _) => {
+                                    self.ui_state.mode = Mode::MultiNormal;
+                                }
+                                (Action::ToggleFit, _) => self.toggle_fit()?,
+                                (Action::CenterImage, _) => self.center_image()?,
+                                (Action::Next, n) => self.increment(n)?,
+                                (Action::Prev, n) => self.decrement(n)?,
+                                (Action::First, _) => self.first()?,
+                                (Action::Last, _) => self.last()?,
+                                (Action::SkipForward, n) => self.skip_forward(n)?,
+                                (Action::SkipBack, n) => self.skip_backward(n)?,
+                                (Action::Zoom(ZoomAction::In), n) => self.zoom_in(n)?,
+                                (Action::Zoom(ZoomAction::Out), n) => self.zoom_out(n)?,
+                                (Action::Pan(PanAction::Left), n) => self.pan_left(n)?,
+                                (Action::Pan(PanAction::Right), n) => self.pan_right(n)?,
+                                (Action::Pan(PanAction::Up), n) => self.pan_up(n)?,
+                                (Action::Pan(PanAction::Down), n) => self.pan_down(n)?,
                                 (Action::Copy, n) => match self.copy_images(n) {
                                     Ok(s) => {
                                         self.ui_state.mode = Mode::Success(s);
@@ -529,6 +559,7 @@ impl<'a> Program<'a> {
                                         return Ok(());
                                     }
                                 },
+
                                 (Action::Move, n) => match self.move_images(n) {
                                     Ok(s) => {
                                         self.ui_state.mode = Mode::Success(s);
@@ -549,9 +580,7 @@ impl<'a> Program<'a> {
                                         return Ok(());
                                     }
                                 },
-                                (Action::Zoom(ZoomAction::In), n) => self.zoom_in(n)?,
-                                (Action::Zoom(ZoomAction::Out), n) => self.zoom_out(n)?,
-                                (_, _) => {}
+                                (a @ _, n @_) => {unimplemented!("unimplemented multimode: {:?} {:?}", a, n);}
                             },
                         }
                         self.ui_state.mode = Mode::Normal;
@@ -604,14 +633,14 @@ impl<'a> Program<'a> {
                     Action::Prev => self.decrement(1)?,
                     Action::First => self.first()?,
                     Action::Last => self.last()?,
-                    Action::SkipForward => self.skip_forward()?,
-                    Action::SkipBack => self.skip_backward()?,
+                    Action::SkipForward => self.skip_forward(1)?,
+                    Action::SkipBack => self.skip_backward(1)?,
                     Action::Zoom(ZoomAction::In) => self.zoom_in(1)?,
                     Action::Zoom(ZoomAction::Out) => self.zoom_out(1)?,
-                    Action::Pan(PanAction::Left) => self.pan_left()?,
-                    Action::Pan(PanAction::Right) => self.pan_right()?,
-                    Action::Pan(PanAction::Up) => self.pan_up()?,
-                    Action::Pan(PanAction::Down) => self.pan_down()?,
+                    Action::Pan(PanAction::Left) => self.pan_left(1)?,
+                    Action::Pan(PanAction::Right) => self.pan_right(1)?,
+                    Action::Pan(PanAction::Up) => self.pan_up(1)?,
+                    Action::Pan(PanAction::Down) => self.pan_down(1)?,
                     Action::Copy => match self.copy_images(1) {
                         Ok(s) => {
                             self.ui_state.mode = Mode::Success(s);
