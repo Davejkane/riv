@@ -36,6 +36,7 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 
 | Key 1      | Key 2                      | Action                                              |
 |------------|----------------------------|-----------------------------------------------------|
+| 0-9        |                            | Perform the below actions in bulk                   |
 | q          | Esc                        | Quit                                                |
 | k/j        | Left/Right                 | Previous/Next Image                                 |
 | i/o        | Up/Down                    | Zoom in/out                                         |
