@@ -142,6 +142,7 @@ impl Paths {
 
     // Copied signature from stdlib Vec get
     // https://doc.rust-lang.org/std/vec/struct.Vec.html#method.get
+    /// Immutable access to any image in images storage. Bypasses max viewable check
     fn get<I>(&self, index: I) -> Option<&I::Output>
     where
         I: SliceIndex<[PathBuf]>,
