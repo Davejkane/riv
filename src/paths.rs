@@ -87,7 +87,7 @@ pub struct Paths {
     pub base_dir: PathBuf,
     /// index is the index of the images vector of the current image to be displayed.
     index: Option<usize>,
-    /// Artificial user facing length of images limited by max cli argument. 0 is unlimited
+    /// Artificial user facing length of images limited by max cli argument. None is unlimited
     soft_cap: Option<usize>,
     /// Actual length the user said was maximum for images
     soft_cap_set: Option<usize>,
@@ -105,6 +105,9 @@ impl Paths {
         self.images.as_mut_slice()
     }
 
+    /// Sets which image index is the current image
+    ///
+    /// # Panics
     /// Panics if passed an index bigger than vector holds
     /// Panics if no images are present
     /// Panics if passed an index bigger than max allowed viewable
