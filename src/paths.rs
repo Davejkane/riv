@@ -404,6 +404,22 @@ mod tests {
     }
 
     #[test]
+    fn test_soft_maximum_limits_current_glob_on_image_delete() {
+        let mut images = dummy_paths_builder(50).with_maximum_viewable(2).build();
+        images.increment(99);
+        images.remove_current_image();
+        assert_eq!(images.max_viewable_index(), Some(0));
+    }
+
+    #[test]
+    fn test_soft_cap_after_delete_at_end() {
+        let mut images = dummy_paths_builder(50).build();
+        images.increment(99);
+        images.remove_current_image();
+        assert_eq!(images.max_viewable_index(), Some(48));
+    }
+
+    #[test]
     fn test_increment_image() {
         let mut images = dummy_paths_builder(50).build();
 
