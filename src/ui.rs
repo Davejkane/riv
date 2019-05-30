@@ -286,6 +286,7 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Mul
                 Left => ProcessAction::new(Action::Prev, state.repeat).into(),
                 Up => ProcessAction::new(Action::Zoom(ZoomAction::In), state.repeat).into(),
                 Down => ProcessAction::new(Action::Zoom(ZoomAction::Out), state.repeat).into(),
+                Backspace => ProcessAction::new(Action::Backspace, 1).into(),
                 _ => MultiNormalAction::Noop,
             },
         },

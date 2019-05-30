@@ -3,7 +3,7 @@
 //! Module InfoBar provides structures and functions for building and rendering an infobar
 
 use crate::paths::Paths;
-use crate::ui::Mode;
+use crate::ui::{Mode, State};
 
 /// Text contains the strings required to print the infobar.
 pub struct Text {
@@ -26,7 +26,7 @@ impl Text {
     /// Error Mode:
     ///     mode = "Error"
     ///     information = error message to display
-    pub fn update(current_mode: &Mode, paths: &Paths) -> Self {
+    pub fn update(current_mode: &Mode, paths: &Paths, state: &State) -> Self {
         let (mode, information) = match current_mode {
             Mode::Command(msg) => ("Command".to_string(), format!(":{}", msg)),
             Mode::Normal => {
@@ -48,10 +48,14 @@ impl Text {
                 };
                 (mode, information)
             }
-            Mode::MultiNormal => (
-                "Entered MultiNormal mode".to_string(),
-                "IT WORKS".to_string(),
-            ),
+            Mode::MultiNormal => {
+
+                let times = state.repeat;
+                (
+                    times.to_string(),
+                    " ".to_string(),
+                )
+            },
             Mode::Error(msg) => ("Error".to_string(), msg.to_string()),
             Mode::Success(msg) => ("Success".to_string(), msg.to_string()),
             Mode::Exit => ("Exit".to_string(), "Exiting... Goodbye".to_string()),

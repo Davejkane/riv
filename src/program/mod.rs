@@ -519,6 +519,13 @@ impl<'a> Program<'a> {
                                 action: a,
                                 times: n,
                             } => match (a, n) {
+                                (Action::Backspace, _) => {
+                                    // Divide repeat by int 10 to remove last digit
+                                    self.ui_state.repeat /= 10;
+                                    complete_action = false;
+                                    self.render_screen(false)?;
+                                    continue;
+                                }
                                 (Action::Quit, _) => {
                                     self.ui_state.mode = Mode::Exit;
                                 }

@@ -105,7 +105,7 @@ impl<'a> Program<'a> {
 
     fn render_infobar(&mut self) -> Result<(), String> {
         let text_color = mode_text_color(&self.ui_state.mode);
-        let text = infobar::Text::update(&self.ui_state.mode, &self.paths);
+        let text = infobar::Text::update(&self.ui_state.mode, &self.paths, &self.ui_state);
         // Load the filename texture
         let filename_surface = self
             .screen
