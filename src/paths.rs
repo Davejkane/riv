@@ -250,15 +250,16 @@ impl Paths {
         }
     }
 
-    /// Adjusts the index of the current image to view
-    /// Does not overflow
+    /// Decrement which image is currently tracked
+    /// Floors at the first image (0 index)
+    /// Does nothing if no images are present
     pub fn decrement(&mut self, step: usize) {
         if let Some(index) = self.index() {
             self.index = Some(index.saturating_sub(step));
         }
     }
 
-    /// Increment the currently tracked image
+    /// Advance which image is currently tracked
     pub fn increment(&mut self, step: usize) {
         let new_index = match self.index {
             Some(i) => i + step,
