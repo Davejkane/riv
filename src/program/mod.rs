@@ -28,12 +28,23 @@ use std::time::{Duration, Instant};
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
+struct Register<'a> {
+    cur_action: Option<Action<'a>>,
+}
+
+impl<'a> Default for Register<'a> {
+    fn default() -> Self {
+        Self { cur_action: None }
+    }
+}
+
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State<'a>,
     sorter: Sorter,
+    register: Register<'a>,
 }
 
 impl<'a> Program<'a> {
@@ -101,6 +112,9 @@ impl<'a> Program<'a> {
                 ..Default::default()
             },
             sorter,
+            register: Register {
+                ..Default::default()
+            },
         })
     }
 
@@ -526,75 +540,12 @@ impl<'a> Program<'a> {
                                     self.render_screen(false)?;
                                     continue;
                                 }
-                                (Action::Quit, _) => {
-                                    self.ui_state.mode = Mode::Exit;
-                                }
-                                (Action::ToggleFullscreen, _) => {
-                                    self.toggle_fullscreen();
-                                    self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                                    self.render_screen(false)?
-                                }
-
-                                (Action::ReRender, _) => self.render_screen(false)?,
-                                (Action::SwitchCommandMode, _) => {
-                                    self.ui_state.mode = Mode::Command(String::new());
-                                }
-                                (Action::SwitchMultiNormalMode, _) => {
-                                    self.ui_state.mode = Mode::MultiNormal;
-                                }
-                                (Action::ToggleFit, _) => self.toggle_fit()?,
-                                (Action::CenterImage, _) => self.center_image()?,
-                                (Action::Next, n) => self.increment(n)?,
-                                (Action::Prev, n) => self.decrement(n)?,
-                                (Action::First, _) => self.first()?,
-                                (Action::Last, _) => self.last()?,
-                                (Action::SkipForward, n) => self.skip_forward(n)?,
-                                (Action::SkipBack, n) => self.skip_backward(n)?,
-                                (Action::Zoom(ZoomAction::In), n) => self.zoom_in(n)?,
-                                (Action::Zoom(ZoomAction::Out), n) => self.zoom_out(n)?,
-                                (Action::Pan(PanAction::Left), n) => self.pan_left(n)?,
-                                (Action::Pan(PanAction::Right), n) => self.pan_right(n)?,
-                                (Action::Pan(PanAction::Up), n) => self.pan_up(n)?,
-                                (Action::Pan(PanAction::Down), n) => self.pan_down(n)?,
-                                (Action::Copy, n) => match self.copy_images(n) {
-                                    Ok(s) => {
-                                        self.ui_state.mode = Mode::Success(s);
-                                        return Ok(());
-                                    }
-                                    Err(e) => {
-                                        self.ui_state.mode = Mode::Error(e);
-                                        return Ok(());
-                                    }
-                                },
-
-                                (Action::Move, n) => match self.move_images(n) {
-                                    Ok(s) => {
-                                        self.ui_state.mode = Mode::Success(s);
-                                        return Ok(());
-                                    }
-                                    Err(e) => {
-                                        self.ui_state.mode = Mode::Error(e);
-                                        return Ok(());
-                                    }
-                                },
-                                (Action::Delete, n) => match self.delete_images(n) {
-                                    Ok(s) => {
-                                        self.ui_state.mode = Mode::Success(s);
-                                        return Ok(());
-                                    }
-                                    Err(e) => {
-                                        self.ui_state.mode = Mode::Error(e);
-                                        return Ok(());
-                                    }
-                                },
-                                (a, n) => {
-                                    unimplemented!("unimplemented multimode: {:?} {:?}", a, n);
+                                (a, _) => {
+                                    self.register.cur_action = Some(a);
+                                    self.ui_state.mode = Mode::Normal;
                                 }
                             },
                         }
-                        self.ui_state.mode = Mode::Normal;
-                        // clear repeat register
-                        self.ui_state.repeat = 1;
                     }
                     MultiNormalAction::SwitchBackNormalMode => {
                         self.ui_state.mode = Mode::Normal;
@@ -604,10 +555,87 @@ impl<'a> Program<'a> {
                     }
                     _ => {}
                 }
-                std::thread::sleep(Duration::from_millis(1000 / 60));
             }
+            std::thread::sleep(Duration::from_millis(1000 / 60));
         }
-        Ok(())
+        return Ok(());
+    }
+
+    fn dispatch_normal(&mut self, action: Action) -> Result<CompleteType, String> {
+        let repeat = self.ui_state.repeat;
+        // Reset repeat register to 1 after grabbing the repeat amount
+        self.ui_state.repeat = 1;
+
+        match action {
+            Action::Quit => {
+                self.ui_state.mode = Mode::Exit;
+                return Ok(CompleteType::Break);
+            }
+            Action::ToggleFullscreen => {
+                self.toggle_fullscreen();
+                self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                self.render_screen(false)?
+            }
+            Action::ReRender => self.render_screen(false)?,
+            Action::SwitchCommandMode => {
+                self.ui_state.mode = Mode::Command(String::new());
+                return Ok(CompleteType::Break);
+            }
+            Action::SwitchMultiNormalMode => {
+                self.ui_state.mode = Mode::MultiNormal;
+                return Ok(CompleteType::Break);
+            }
+            Action::ToggleFit => self.toggle_fit()?,
+            Action::CenterImage => self.center_image()?,
+            Action::Next => self.increment(repeat)?,
+            Action::Prev => self.decrement(repeat)?,
+            Action::First => self.first()?,
+            Action::Last => self.last()?,
+            Action::SkipForward => self.skip_forward(repeat)?,
+            Action::SkipBack => self.skip_backward(repeat)?,
+            Action::Zoom(ZoomAction::In) => self.zoom_in(repeat)?,
+            Action::Zoom(ZoomAction::Out) => self.zoom_out(repeat)?,
+            Action::Pan(PanAction::Left) => self.pan_left(repeat)?,
+            Action::Pan(PanAction::Right) => self.pan_right(repeat)?,
+            Action::Pan(PanAction::Up) => self.pan_up(repeat)?,
+            Action::Pan(PanAction::Down) => self.pan_down(repeat)?,
+            Action::Copy => match self.copy_images(repeat) {
+                Ok(s) => {
+                    self.ui_state.mode = Mode::Success(s);
+                    self.ui_state.rerender_time = Some(Instant::now());
+                    return Ok(CompleteType::Break);
+                }
+                Err(e) => {
+                    self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                    return Ok(CompleteType::Break);
+                }
+            },
+            Action::Move => match self.move_images(repeat) {
+                Ok(s) => {
+                    self.ui_state.mode = Mode::Success(s);
+                    self.ui_state.rerender_time = Some(Instant::now());
+                    return Ok(CompleteType::Break);
+                }
+                Err(e) => {
+                    self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
+                    return Ok(CompleteType::Break);
+                }
+            },
+            Action::Delete => match self.delete_images(repeat) {
+                Ok(s) => {
+                    self.ui_state.mode = Mode::Success(s);
+                    self.ui_state.rerender_time = Some(Instant::now());
+                    return Ok(CompleteType::Break);
+                }
+                Err(e) => {
+                    self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                    return Ok(CompleteType::Break);
+                }
+            },
+            Action::Noop => return Ok(CompleteType::Complete),
+            _ => return Ok(CompleteType::Complete),
+        }
+        return Ok(CompleteType::Complete);
     }
 
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
@@ -617,86 +645,27 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 let action = ui::process_normal_mode(&mut self.ui_state, event);
                 self.ui_state.process_action(action.clone());
-                match action {
-                    Action::Quit => {
-                        self.ui_state.mode = Mode::Exit;
-                        break 'mainloop;
-                    }
-                    Action::ToggleFullscreen => {
-                        self.toggle_fullscreen();
-                        self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                        self.render_screen(false)?
-                    }
-                    Action::ReRender => self.render_screen(false)?,
-                    Action::SwitchCommandMode => {
-                        self.ui_state.mode = Mode::Command(String::new());
-                        break 'mainloop;
-                    }
-                    Action::SwitchMultiNormalMode => {
-                        self.ui_state.mode = Mode::MultiNormal;
-                        break 'mainloop;
-                    }
-                    Action::ToggleFit => self.toggle_fit()?,
-                    Action::CenterImage => self.center_image()?,
-                    Action::Next => self.increment(1)?,
-                    Action::Prev => self.decrement(1)?,
-                    Action::First => self.first()?,
-                    Action::Last => self.last()?,
-                    Action::SkipForward => self.skip_forward(1)?,
-                    Action::SkipBack => self.skip_backward(1)?,
-                    Action::Zoom(ZoomAction::In) => self.zoom_in(1)?,
-                    Action::Zoom(ZoomAction::Out) => self.zoom_out(1)?,
-                    Action::Pan(PanAction::Left) => self.pan_left(1)?,
-                    Action::Pan(PanAction::Right) => self.pan_right(1)?,
-                    Action::Pan(PanAction::Up) => self.pan_up(1)?,
-                    Action::Pan(PanAction::Down) => self.pan_down(1)?,
-                    Action::Copy => match self.copy_images(1) {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Move => match self.move_images(1) {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Delete => match self.delete_images(1) {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode =
-                                Mode::Error(format!("Failed to delete file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Noop => {}
-                    _ => {}
+                let br = self.dispatch_normal(action)?;
+                if let CompleteType::Break = br {
+                    break 'mainloop;
                 }
-            }
-            if let Some(ts) = self.ui_state.rerender_time {
-                if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
-                    self.ui_state.rerender_time = None;
-                    self.render_screen(false)?;
-                }
-            }
-            std::thread::sleep(Duration::from_millis(1000 / 60));
-        }
 
+                if let Some(action) = self.register.cur_action.clone() {
+                    self.dispatch_normal(action)?;
+                    self.register.cur_action = None;
+                }
+
+                if let Some(ts) = self.ui_state.rerender_time {
+                    if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
+                        self.ui_state.rerender_time = None;
+                        self.ui_state.mode = Mode::Normal;
+                        return Ok(());
+                        //self.render_screen(false)?;
+                    }
+                }
+                std::thread::sleep(Duration::from_millis(1000 / 60));
+            }
+        }
         Ok(())
     }
 }
@@ -721,4 +690,9 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
+}
+
+enum CompleteType {
+    Complete,
+    Break,
 }
