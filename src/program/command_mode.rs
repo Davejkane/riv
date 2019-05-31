@@ -270,7 +270,7 @@ impl<'a> Program<'a> {
             .position(|path| path == target_path)
             // Safe to unwrap as we just got the target path above
             .unwrap();
-        // Safe to unwrap as we know there is at least 1 image
+
         if new_index <= max_index {
             self.paths.set_index(new_index);
         } else {
