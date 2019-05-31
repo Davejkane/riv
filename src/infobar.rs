@@ -46,7 +46,7 @@ impl Text {
                 (mode, information)
             }
             Mode::MultiNormal => {
-                let times = state.repeat;
+                let times = state.register.cur_action.times;
                 (times.to_string(), " ".to_string())
             }
             Mode::Error(msg) => ("Error".to_string(), msg.to_string()),

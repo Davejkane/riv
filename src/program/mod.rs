@@ -28,23 +28,12 @@ use std::time::{Duration, Instant};
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
-struct Register<'a> {
-    cur_action: Option<Action<'a>>,
-}
-
-impl<'a> Default for Register<'a> {
-    fn default() -> Self {
-        Self { cur_action: None }
-    }
-}
-
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State<'a>,
     sorter: Sorter,
-    register: Register<'a>,
 }
 
 impl<'a> Program<'a> {
@@ -112,9 +101,6 @@ impl<'a> Program<'a> {
                 ..Default::default()
             },
             sorter,
-            register: Register {
-                ..Default::default()
-            },
         })
     }
 
@@ -521,7 +507,6 @@ impl<'a> Program<'a> {
         while !complete_action {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, &event);
-
                 // Assume input is finished unless set by other actions
                 complete_action = true;
 
@@ -535,7 +520,7 @@ impl<'a> Program<'a> {
                         self.ui_state.mode = Mode::Normal;
                     }
                     MultiNormalAction::Repeat(process) => {
-                        self.ui_state.process_action(process.action.clone());
+                        self.ui_state.process_action(process.clone());
                         match process {
                             ProcessAction {
                                 action: a,
@@ -543,18 +528,19 @@ impl<'a> Program<'a> {
                             } => match (a, n) {
                                 (Action::Backspace, _) => {
                                     // Divide repeat by int 10 to remove last digit
-                                    self.ui_state.repeat /= 10;
+                                    self.ui_state.register.cur_action.times /= 10;
                                     complete_action = false;
                                     self.render_screen(false)?;
                                     continue;
                                 }
                                 (Action::Last, _) => {
-                                    let requested_index = self.ui_state.repeat - 1;
+                                    let requested_index =
+                                        self.ui_state.register.cur_action.times - 1;
                                     self.jump_to_image_index(requested_index)?;
                                     self.ui_state.mode = Mode::Normal;
                                 }
                                 (a, _) => {
-                                    self.register.cur_action = Some(a);
+                                    self.ui_state.register.cur_action.action = a;
                                     self.ui_state.mode = Mode::Normal;
                                 }
                             },
@@ -576,77 +562,79 @@ impl<'a> Program<'a> {
 
     /// Processes Normal Mode Actions
     /// Ok result tells whether to continue or break out of the current Mode
-    fn dispatch_normal(&mut self, action: Action) -> Result<CompleteType, String> {
-        let repeat = self.ui_state.repeat;
-
-        match action {
-            Action::Quit => {
-                self.ui_state.mode = Mode::Exit;
-                return Ok(CompleteType::Break);
-            }
-            Action::ToggleFullscreen => {
-                self.toggle_fullscreen();
-                self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                self.render_screen(false)?
-            }
-            Action::ReRender => self.render_screen(false)?,
-            Action::SwitchCommandMode => {
-                self.ui_state.mode = Mode::Command(String::new());
-                return Ok(CompleteType::Break);
-            }
-            Action::SwitchMultiNormalMode => {
-                self.ui_state.mode = Mode::MultiNormal;
-                return Ok(CompleteType::Break);
-            }
-            Action::ToggleFit => self.toggle_fit()?,
-            Action::CenterImage => self.center_image()?,
-            Action::Next => self.increment(repeat)?,
-            Action::Prev => self.decrement(repeat)?,
-            Action::First => self.first()?,
-            Action::Last => self.last()?,
-            Action::SkipForward => self.skip_forward(repeat)?,
-            Action::SkipBack => self.skip_backward(repeat)?,
-            Action::Zoom(ZoomAction::In) => self.zoom_in(repeat)?,
-            Action::Zoom(ZoomAction::Out) => self.zoom_out(repeat)?,
-            Action::Pan(PanAction::Left) => self.pan_left(repeat)?,
-            Action::Pan(PanAction::Right) => self.pan_right(repeat)?,
-            Action::Pan(PanAction::Up) => self.pan_up(repeat)?,
-            Action::Pan(PanAction::Down) => self.pan_down(repeat)?,
-            Action::Copy => match self.copy_images(repeat) {
-                Ok(s) => {
-                    self.ui_state.mode = Mode::Success(s);
-                    self.ui_state.rerender_time = Some(Instant::now());
+    fn dispatch_normal(&mut self, process_action: ProcessAction) -> Result<CompleteType, String> {
+        //let action = self.ui_state.register.cur_action.action;
+        //let times = self.ui_state.register.cur_action.times;
+        match process_action {
+            ProcessAction { action, times } => match action {
+                Action::Quit => {
+                    self.ui_state.mode = Mode::Exit;
                     return Ok(CompleteType::Break);
                 }
-                Err(e) => {
-                    self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                Action::ToggleFullscreen => {
+                    self.toggle_fullscreen();
+                    self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                    self.render_screen(false)?
+                }
+                Action::ReRender => self.render_screen(false)?,
+                Action::SwitchCommandMode => {
+                    self.ui_state.mode = Mode::Command(String::new());
                     return Ok(CompleteType::Break);
                 }
+                Action::SwitchMultiNormalMode => {
+                    self.ui_state.mode = Mode::MultiNormal;
+                    return Ok(CompleteType::Break);
+                }
+                Action::ToggleFit => self.toggle_fit()?,
+                Action::CenterImage => self.center_image()?,
+                Action::Next => self.increment(times)?,
+                Action::Prev => self.decrement(times)?,
+                Action::First => self.first()?,
+                Action::Last => self.last()?,
+                Action::SkipForward => self.skip_forward(times)?,
+                Action::SkipBack => self.skip_backward(times)?,
+                Action::Zoom(ZoomAction::In) => self.zoom_in(times)?,
+                Action::Zoom(ZoomAction::Out) => self.zoom_out(times)?,
+                Action::Pan(PanAction::Left) => self.pan_left(times)?,
+                Action::Pan(PanAction::Right) => self.pan_right(times)?,
+                Action::Pan(PanAction::Up) => self.pan_up(times)?,
+                Action::Pan(PanAction::Down) => self.pan_down(times)?,
+                Action::Copy => match self.copy_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Move => match self.move_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Delete => match self.delete_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Noop => return Ok(CompleteType::Complete),
+                _ => return Ok(CompleteType::Complete),
             },
-            Action::Move => match self.move_images(repeat) {
-                Ok(s) => {
-                    self.ui_state.mode = Mode::Success(s);
-                    self.ui_state.rerender_time = Some(Instant::now());
-                    return Ok(CompleteType::Break);
-                }
-                Err(e) => {
-                    self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
-                    return Ok(CompleteType::Break);
-                }
-            },
-            Action::Delete => match self.delete_images(repeat) {
-                Ok(s) => {
-                    self.ui_state.mode = Mode::Success(s);
-                    self.ui_state.rerender_time = Some(Instant::now());
-                    return Ok(CompleteType::Break);
-                }
-                Err(e) => {
-                    self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
-                    return Ok(CompleteType::Break);
-                }
-            },
-            Action::Noop => return Ok(CompleteType::Complete),
-            _ => return Ok(CompleteType::Complete),
         }
 
         Ok(CompleteType::Complete)
@@ -659,23 +647,31 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 let action = ui::process_normal_mode(&mut self.ui_state, &event);
                 self.ui_state.process_action(action.clone());
-                let next_step = self.dispatch_normal(action)?;
+                let next_step = self.dispatch_normal(action.clone())?;
                 if let CompleteType::Break = next_step {
                     break 'mainloop;
                 }
 
                 // Were we just in multiMode
-                if let Some(action) = self.register.cur_action.clone() {
-                    // Process the action we need to perform in bulk
-                    let next_step = self.dispatch_normal(action)?;
-                    // Clear out stored action for next bulk action
-                    self.register.cur_action = None;
-                    // Reset repeat register to 1 after performing the action i bulk
-                    self.ui_state.repeat = 1;
+                match self.ui_state.register.cur_action {
+                    ProcessAction {
+                        action: Action::Noop,
+                        ..
+                    } => {}
+                    _ => {
+                        // Process the action we need to perform in bulk
+                        let next_step =
+                            self.dispatch_normal(self.ui_state.register.cur_action.clone())?;
+                        // Clear out stored action for next bulk action
+                        self.ui_state.register.cur_action = ProcessAction::default();
 
-                    // Switch modes if action needs to modify the UI
-                    if let CompleteType::Break = next_step {
-                        break 'mainloop;
+                        // Reset repeat register to 1 after performing the action i bulk
+                        //self.ui_state.register.cur_action.times = 1;
+
+                        // Switch modes if action needs to modify the UI
+                        if let CompleteType::Break = next_step {
+                            break 'mainloop;
+                        }
                     }
                 }
             }
