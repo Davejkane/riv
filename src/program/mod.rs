@@ -507,7 +507,7 @@ impl<'a> Program<'a> {
     }
 
     /// Mode to input how many times to repeat a normal mode action
-    /// Previous input from normal mode is in `self.ui_state.current_input`
+    /// Previous input from normal mode is in `self.ui_state.repeat`
     fn run_multi_normal_mode(&mut self) -> Result<(), String> {
         use ui::MultiNormalAction;
 
