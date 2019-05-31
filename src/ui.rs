@@ -257,6 +257,16 @@ pub fn process_multi_normal_mode<'a>(
             }
             "c" => Action::Copy.into(),
             "d" => Action::Delete.into(),
+            "f" => Action::ToggleFullscreen.into(),
+            "g" => Action::First.into(),
+            "G" => Action::Last.into(),
+            "?" => {
+                match state.render_help {
+                    HelpRender::Normal => state.render_help = HelpRender::None,
+                    _ => state.render_help = HelpRender::Normal,
+                }
+                Action::ReRender.into()
+            }
             "H" => Action::Pan(PanAction::Left).into(),
             "i" => Action::Zoom(ZoomAction::In).into(),
             "j" => Action::Next.into(),
@@ -267,9 +277,14 @@ pub fn process_multi_normal_mode<'a>(
             "m" => Action::Move.into(),
             "o" => Action::Zoom(ZoomAction::Out).into(),
             "q" => MultiNormalAction::Quit,
+            "t" => {
+                state.render_infobar = !state.render_infobar;
+                Action::ReRender.into()
+            }
             "w" => Action::SkipForward.into(),
             "b" => Action::SkipBack.into(),
-
+            "z" => Action::ToggleFit.into(),
+            "Z" => Action::CenterImage.into(),
             _ => MultiNormalAction::Noop,
         },
 
