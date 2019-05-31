@@ -514,7 +514,7 @@ impl<'a> Program<'a> {
         let mut complete_action = false;
         while !complete_action {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, event);
+                let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, &event);
 
                 // Assume input is finished unless set by other actions
                 complete_action = true;
@@ -642,7 +642,7 @@ impl<'a> Program<'a> {
     fn run_normal_mode(&mut self) -> Result<(), String> {
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                let action = ui::process_normal_mode(&mut self.ui_state, event);
+                let action = ui::process_normal_mode(&mut self.ui_state, &event);
                 self.ui_state.process_action(action.clone());
                 let br = self.dispatch_normal(action)?;
                 if let CompleteType::Break = br {

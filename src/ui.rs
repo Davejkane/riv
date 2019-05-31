@@ -227,7 +227,7 @@ impl<'a> State<'a> {
 }
 
 /// Process SDL2 events while getting number of times to repeat action
-pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> MultiNormalAction<'a> {
+pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> MultiNormalAction<'a> {
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
 
@@ -269,14 +269,14 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Mul
             keymod: m,
             ..
         } => match (k, m) {
-            (k, Mod::LSHIFTMOD) | (k, Mod::RSHIFTMOD) => match k {
+            (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
                 Left => ProcessAction::new(Action::Pan(PanAction::Left), state.repeat).into(),
                 Right => ProcessAction::new(Action::Pan(PanAction::Right), state.repeat).into(),
                 Up => ProcessAction::new(Action::Pan(PanAction::Up), state.repeat).into(),
                 Down => ProcessAction::new(Action::Pan(PanAction::Down), state.repeat).into(),
                 _ => MultiNormalAction::Noop,
             },
-            (k, Mod::NOMOD) | (k, _) => match k {
+            (k, &Mod::NOMOD) | (k, _) => match k {
                 Delete => ProcessAction::new(Action::Delete, state.repeat).into(),
                 Escape => MultiNormalAction::Cancel,
                 PageUp => ProcessAction::new(Action::SkipForward, state.repeat).into(),
@@ -302,7 +302,7 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Mul
 }
 
 /// event_action returns which action should be performed in response to this event
-pub fn process_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Action<'a> {
+pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'a> {
     // Bring variants in function namespace for reduced typing.
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
@@ -359,14 +359,14 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: Event) -> Action<'a
             keymod: m,
             ..
         } => match (k, m) {
-            (k, Mod::LSHIFTMOD) | (k, Mod::RSHIFTMOD) => match k {
+            (k, &Mod::LSHIFTMOD) | (k,&Mod::RSHIFTMOD) => match k {
                 Left => Action::Pan(PanAction::Left),
                 Right => Action::Pan(PanAction::Right),
                 Up => Action::Pan(PanAction::Up),
                 Down => Action::Pan(PanAction::Down),
                 _ => Action::Noop,
             },
-            (k, Mod::NOMOD) | (k, _) => match k {
+            (k, &Mod::NOMOD) | (k, _) => match k {
                 Delete => Action::Delete,
                 F11 => Action::ToggleFullscreen,
                 Escape => Action::Quit,
