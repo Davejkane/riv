@@ -188,13 +188,13 @@ impl<'a> Program<'a> {
                 return;
             }
         };
-        let target_path = match self.paths.current_image_path() {
+        let target = match self.paths.current_image_path() {
             Some(path) => {
                 // Clone the path because the whole image set is going to be swapped out
-                path.clone()
+                Some(path.clone())
             }
             // Anything else, we are dealing with no images
-            None => return,
+            None => None,
         };
 
         self.paths.reload_images(new_images);
@@ -205,18 +205,22 @@ impl<'a> Program<'a> {
             self.paths.base_dir = base_dir;
         }
         self.sorter.sort(self.paths.images_as_mut_slice());
-
-        match self
-            .paths
-            .images()
-            .iter()
-            .position(|path| path == &target_path)
-        {
-            Some(new_index) => self.paths.set_index(new_index),
-            None => {
-                self.paths.set_index(0);
+        if let Some(target_path) = target {
+            if let Some(new_index) = self
+                .paths
+                .images()
+                .iter()
+                .position(|path| path == &target_path)
+            {
+                if let Some(max_i) = self.paths.max_viewable_index() {
+                    if new_index > max_i {
+                        self.paths.set_index(0);
+                    } else {
+                        self.paths.set_index(new_index);
+                    }
+                }
             }
-        };
+        }
 
         self.ui_state.mode = Mode::Success(format!(
             "found {} images in {}",

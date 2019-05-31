@@ -37,15 +37,12 @@ impl Text {
                     },
                     None => "No file selected".to_string(),
                 };
-                let mode = if paths.images().is_empty() {
-                    "No files in path".to_string()
-                } else {
-                    format!(
-                        "{} of {}",
-                        paths.current_image().unwrap(),
-                        paths.max_viewable().unwrap()
-                    )
+
+                let mode = match paths.current_image() {
+                    Some(current) => format!("{} of {}", current, paths.max_viewable().unwrap()),
+                    None => "No files in path".to_string(),
                 };
+
                 (mode, information)
             }
             Mode::MultiNormal => {

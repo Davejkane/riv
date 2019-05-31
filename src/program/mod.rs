@@ -476,7 +476,7 @@ impl<'a> Program<'a> {
                 Mode::Command(..) => {
                     self.run_command_mode()?;
                     // Force renders in order to remove "Command" and other info from bar
-                    self.render_screen(false)?;
+                    self.render_screen(true)?;
                 }
                 Mode::Error(..) => {
                     self.render_screen(false)?;

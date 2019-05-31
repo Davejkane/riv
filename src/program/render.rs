@@ -19,10 +19,10 @@ struct Colors {
 
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
-    /// rendered
+    /// rendered;
     pub fn render_screen(&mut self, force_render: bool) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
-        if self.paths.images().is_empty() {
+        if self.paths.current_image().is_none() {
             return self.render_blank();
         }
         self.screen.canvas.clear();
