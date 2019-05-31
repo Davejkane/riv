@@ -664,8 +664,8 @@ impl<'a> Program<'a> {
                     self.ui_state.mode = Mode::Normal;
                     return Ok(());
                 }
-                std::thread::sleep(Duration::from_millis(1000 / 60));
             }
+            std::thread::sleep(Duration::from_millis(1000 / 60));
         }
         Ok(())
     }
