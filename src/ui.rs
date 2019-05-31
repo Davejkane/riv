@@ -84,6 +84,12 @@ impl<'a> From<ProcessAction<'a>> for MultiNormalAction<'a> {
     }
 }
 
+impl<'a> From<Action<'a>> for MultiNormalAction<'a> {
+    fn from(item: Action<'a>) -> Self {
+        MultiNormalAction::Repeat(ProcessAction::new(item, 1))
+    }
+}
+
 /// Perform an Action `times` times
 #[derive(Clone, Debug)]
 pub struct ProcessAction<'a> {
@@ -246,20 +252,20 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Mu
                 state.repeat = new_count;
                 MultiNormalAction::MoreInput
             }
-            "c" => ProcessAction::new(Action::Copy, state.repeat).into(),
-            "d" => ProcessAction::new(Action::Delete, state.repeat).into(),
-            "H" => ProcessAction::new(Action::Pan(PanAction::Left), state.repeat).into(),
-            "i" => ProcessAction::new(Action::Zoom(ZoomAction::In), state.repeat).into(),
-            "j" => ProcessAction::new(Action::Next, state.repeat).into(),
-            "J" => ProcessAction::new(Action::Pan(PanAction::Down), state.repeat).into(),
-            "k" => ProcessAction::new(Action::Prev, state.repeat).into(),
-            "K" => ProcessAction::new(Action::Pan(PanAction::Up), state.repeat).into(),
-            "L" => ProcessAction::new(Action::Pan(PanAction::Right), state.repeat).into(),
-            "m" => ProcessAction::new(Action::Move, state.repeat).into(),
-            "o" => ProcessAction::new(Action::Zoom(ZoomAction::Out), state.repeat).into(),
+            "c" => Action::Copy.into(),
+            "d" => Action::Delete.into(),
+            "H" => Action::Pan(PanAction::Left).into(),
+            "i" => Action::Zoom(ZoomAction::In).into(),
+            "j" => Action::Next.into(),
+            "J" => Action::Pan(PanAction::Down).into(),
+            "k" => Action::Prev.into(),
+            "K" => Action::Pan(PanAction::Up).into(),
+            "L" => Action::Pan(PanAction::Right).into(),
+            "m" => Action::Move.into(),
+            "o" => Action::Zoom(ZoomAction::Out).into(),
             "q" => MultiNormalAction::Quit,
-            "w" => ProcessAction::new(Action::SkipForward, state.repeat).into(),
-            "b" => ProcessAction::new(Action::SkipBack, state.repeat).into(),
+            "w" => Action::SkipForward.into(),
+            "b" => Action::SkipBack.into(),
 
             _ => MultiNormalAction::Noop,
         },
@@ -270,23 +276,23 @@ pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Mu
             ..
         } => match (k, m) {
             (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
-                Left => ProcessAction::new(Action::Pan(PanAction::Left), state.repeat).into(),
-                Right => ProcessAction::new(Action::Pan(PanAction::Right), state.repeat).into(),
-                Up => ProcessAction::new(Action::Pan(PanAction::Up), state.repeat).into(),
-                Down => ProcessAction::new(Action::Pan(PanAction::Down), state.repeat).into(),
+                Left => Action::Pan(PanAction::Left).into(),
+                Right => Action::Pan(PanAction::Right).into(),
+                Up => Action::Pan(PanAction::Up).into(),
+                Down => Action::Pan(PanAction::Down).into(),
                 _ => MultiNormalAction::Noop,
             },
             (k, &Mod::NOMOD) | (k, _) => match k {
-                Delete => ProcessAction::new(Action::Delete, state.repeat).into(),
+                Delete => Action::Delete.into(),
                 Escape => MultiNormalAction::Cancel,
-                PageUp => ProcessAction::new(Action::SkipForward, state.repeat).into(),
-                PageDown => ProcessAction::new(Action::SkipBack, state.repeat).into(),
-                Period => ProcessAction::new(state.last_action.clone(), state.repeat).into(),
-                Right => ProcessAction::new(Action::Next, state.repeat).into(),
-                Left => ProcessAction::new(Action::Prev, state.repeat).into(),
-                Up => ProcessAction::new(Action::Zoom(ZoomAction::In), state.repeat).into(),
-                Down => ProcessAction::new(Action::Zoom(ZoomAction::Out), state.repeat).into(),
-                Backspace => ProcessAction::new(Action::Backspace, 1).into(),
+                PageUp => Action::SkipForward.into(),
+                PageDown => Action::SkipBack.into(),
+                Period => state.last_action.clone().into(),
+                Right => Action::Next.into(),
+                Left => Action::Prev.into(),
+                Up => Action::Zoom(ZoomAction::In).into(),
+                Down => Action::Zoom(ZoomAction::Out).into(),
+                Backspace => Action::Backspace.into(),
                 _ => MultiNormalAction::Noop,
             },
         },

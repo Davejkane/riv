@@ -644,17 +644,24 @@ impl<'a> Program<'a> {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
                 let action = ui::process_normal_mode(&mut self.ui_state, &event);
                 self.ui_state.process_action(action.clone());
-                let br = self.dispatch_normal(action)?;
-                if let CompleteType::Break = br {
+                let next_step = self.dispatch_normal(action)?;
+                if let CompleteType::Break = next_step {
                     break 'mainloop;
                 }
 
+                // Were we just in multiMode
                 if let Some(action) = self.register.cur_action.clone() {
-                    self.dispatch_normal(action)?;
+                    // Process the action we need to perform in bulk
+                    let next_step = self.dispatch_normal(action)?;
                     // Clear out stored action for next bulk action
                     self.register.cur_action = None;
                     // Reset repeat register to 1 after performing the action i bulk
                     self.ui_state.repeat = 1;
+
+                    // Switch modes if action needs to modify the UI
+                    if let CompleteType::Break = next_step {
+                        break 'mainloop;
+                    }
                 }
             }
 
