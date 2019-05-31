@@ -230,7 +230,7 @@ impl Paths {
     ///
     /// Panics if `index` tries to access past `self.images` bounds
     pub fn remove_image(&mut self, index: usize) {
-        let len =  match self.max_viewable() {
+        let len = match self.max_viewable() {
             Some(len) => len,
             // No images to remove
             None => return,
