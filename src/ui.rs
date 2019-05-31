@@ -233,7 +233,10 @@ impl<'a> State<'a> {
 }
 
 /// Process SDL2 events while getting number of times to repeat action
-pub fn process_multi_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> MultiNormalAction<'a> {
+pub fn process_multi_normal_mode<'a>(
+    state: &mut State<'a>,
+    event: &Event,
+) -> MultiNormalAction<'a> {
     use sdl2::event::WindowEvent::*;
     use sdl2::keyboard::Keycode::*;
 
@@ -365,7 +368,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> Action<'
             keymod: m,
             ..
         } => match (k, m) {
-            (k, &Mod::LSHIFTMOD) | (k,&Mod::RSHIFTMOD) => match k {
+            (k, &Mod::LSHIFTMOD) | (k, &Mod::RSHIFTMOD) => match k {
                 Left => Action::Pan(PanAction::Left),
                 Right => Action::Pan(PanAction::Right),
                 Up => Action::Pan(PanAction::Up),
