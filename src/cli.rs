@@ -5,6 +5,7 @@
 use crate::sort::SortOrder;
 use clap::{App, Arg};
 use glob::glob;
+use std::env::current_dir;
 use std::path::PathBuf;
 
 /// Args contains the arguments that have been successfully parsed by the clap cli app
@@ -21,6 +22,8 @@ pub struct Args {
     pub max_length: usize,
     /// Start in fullscreen mode
     pub fullscreen: bool,
+    /// New base directory defaults to std::env::current_dir
+    pub base_dir: PathBuf,
 }
 
 /// cli sets up the command line app and parses the arguments, using clap.
@@ -83,8 +86,17 @@ pub fn cli() -> Result<Args, String> {
         Some(v) => v,
         None => panic!("No value for paths!"),
     };
-    let path_glob = crate::convert_to_globable(path_glob)?;
-    let glob_matches = glob(&path_glob).map_err(|e| e.to_string())?;
+    // find current directory so glob provided can be relative
+    let mut base_dir = match current_dir() {
+        Ok(c) => c,
+        Err(_) => PathBuf::new(),
+    };
+    let path_glob = crate::path_to_glob(&base_dir, path_glob)?;
+    // find new base directory
+    if let Ok(new_base_dir) = crate::new_base_dir(&path_glob) {
+        base_dir = new_base_dir;
+    }
+    let glob_matches = glob(&path_glob.to_string_lossy()).map_err(|e| e.to_string())?;
     for path in glob_matches {
         match path {
             Ok(p) => push_image_path(&mut files, p),
@@ -117,6 +129,7 @@ pub fn cli() -> Result<Args, String> {
         reverse,
         max_length,
         fullscreen,
+        base_dir,
     })
 }
 

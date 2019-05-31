@@ -3,6 +3,7 @@
 use super::Program;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, HelpRender, Mode};
+use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -72,12 +73,11 @@ impl FromStr for Commands {
 
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
 /// path is unexpected
-fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
+fn glob_path(path: &PathBuf) -> Result<Vec<PathBuf>, String> {
     use crate::cli::push_image_path;
 
     let mut new_images: Vec<PathBuf> = Vec::new();
-    let globable_path = crate::convert_to_globable(path)?;
-    let path_matches = glob::glob(&globable_path).map_err(|e| e.to_string())?;
+    let path_matches = glob::glob(&path.to_string_lossy()).map_err(|e| e.to_string())?;
     for path in path_matches {
         match path {
             Ok(p) => {
@@ -89,10 +89,8 @@ fn glob_path(path: &str) -> Result<Vec<PathBuf>, String> {
             }
         }
     }
-    if path.find(' ').is_some() && new_images.is_empty() {
-        return Err("Newglob accepts only one argument, but more were provided".to_string());
-    } else if new_images.is_empty() {
-        let err_msg = format!("Path \"{}\" had no images", path);
+    if new_images.is_empty() {
+        let err_msg = format!("Path \"{}\" had no images", path.display());
         return Err(err_msg);
     }
     Ok(new_images)
@@ -118,28 +116,6 @@ fn parse_user_input(input: String) -> Result<(Commands, String), String> {
         }
     };
     Ok((command, arguments))
-}
-
-/// When provided a newglob set current_dir to the nearest directory
-fn find_new_base_dir(new_path: &str) -> Option<PathBuf> {
-    let expanded_path = match full(new_path) {
-        Ok(path) => path,
-        Err(_e) => {
-            return None;
-        }
-    };
-    let pathbuf = PathBuf::from(&expanded_path.to_string());
-    if pathbuf.is_dir() {
-        Some(pathbuf)
-    } else {
-        // Provided newglob is a path to an image or a glob
-        for parent in pathbuf.ancestors() {
-            if parent.is_dir() {
-                return Some(parent.to_path_buf());
-            }
-        }
-        None
-    }
 }
 
 impl<'a> Program<'a> {
@@ -180,8 +156,15 @@ impl<'a> Program<'a> {
 
     /// Takes a path to a directory or glob and adds these images to self.paths.images
     fn newglob(&mut self, path_to_newglob: &str) {
+        let path = match crate::path_to_glob(&self.paths.base_dir, path_to_newglob) {
+            Ok(path) => path,
+            Err(e) => {
+                self.ui_state.mode = Mode::Error(e.to_string());
+                return;
+            }
+        };
         let msg = path_to_newglob.to_owned();
-        let new_images = match glob_path(path_to_newglob) {
+        let new_images = match glob_path(&path) {
             Ok(new_images) => new_images,
             Err(e) => {
                 self.ui_state.mode = Mode::Error(e.to_string());
@@ -200,9 +183,9 @@ impl<'a> Program<'a> {
         self.paths.reload_images(new_images);
 
         // Set current directory to new one
-        let new_base_dir = find_new_base_dir(&path_to_newglob.replace("\\ ", " "));
-        if let Some(base_dir) = new_base_dir {
-            self.paths.base_dir = base_dir;
+        let new_base_dir = crate::new_base_dir(&path);
+        if let Ok(base_dir) = new_base_dir {
+            self.paths.base_dir = base_dir
         }
         self.sorter.sort(self.paths.images_as_mut_slice());
         if let Some(target_path) = target {
@@ -341,15 +324,24 @@ impl<'a> Program<'a> {
                 }
                 match full(&arguments) {
                     Ok(path) => {
-                        let p = PathBuf::from(path.to_string().replace("\\ ", " "));
-                        let success_msg = format!(
-                            "destination folder successfully set to {}",
-                            &p.to_str().unwrap().to_string()
-                        );
-                        self.paths.dest_folder = p;
+                        let mut path = path.to_string();
+                        if cfg!(unix) {
+                            lazy_static! {
+                                static ref REGEX_REMOVE_ESCAPED_CHARS: Regex =
+                                    match Regex::new(r"\\(.)") {
+                                        Ok(regex) => regex,
+                                        Err(e) => panic!("Logic Error: {}", e),
+                                    };
+                            }
+                            path = REGEX_REMOVE_ESCAPED_CHARS
+                                .replace_all(&path, "$1")
+                                .to_string();
+                        }
+                        let success_msg =
+                            format!("destination folder successfully set to {}", path);
+                        self.paths.dest_folder = PathBuf::from(path);
                         self.ui_state.mode = Mode::Success(success_msg);
                         self.ui_state.rerender_time = Some(Instant::now());
-                        return Ok(());
                     }
                     Err(e) => {
                         self.ui_state.mode =
