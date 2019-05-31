@@ -452,7 +452,6 @@ impl<'a> Program<'a> {
     /// Caps at artificial length or last image if index supplied is too large
     fn jump_to_image_index(&mut self, index: usize) -> Result<(), String> {
         self.paths.set_index_safe(index);
-        self.render_screen(false)?;
         Ok(())
     }
 
@@ -535,6 +534,7 @@ impl<'a> Program<'a> {
                                         self.ui_state.register.cur_action.times - 1;
                                     self.jump_to_image_index(requested_index)?;
                                     self.ui_state.mode = Mode::Normal;
+                                    self.render_screen(false)?;
                                 }
                                 (a, _) => {
                                     self.ui_state.register.cur_action.action = a;
