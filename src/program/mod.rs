@@ -492,8 +492,6 @@ impl<'a> Program<'a> {
                 }
                 Mode::MultiNormal => {
                     self.run_multi_normal_mode()?;
-                    // Keep image zoom and offset when going back to Normal mode
-                    self.render_screen(false)?;
                 }
                 Mode::Command(..) => {
                     self.run_command_mode()?;
@@ -530,6 +528,8 @@ impl<'a> Program<'a> {
                 match multi_action {
                     MultiNormalAction::MoreInput => {
                         complete_action = false;
+                        // Update infobar display on display
+                        self.render_screen(false)?;
                     }
                     MultiNormalAction::Cancel => {
                         self.ui_state.mode = Mode::Normal;
