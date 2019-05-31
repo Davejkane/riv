@@ -561,6 +561,8 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
+    /// Processes Normal Mode Actions
+    /// Ok result tells whether to continue or break out of the current Mode
     fn dispatch_normal(&mut self, action: Action) -> Result<CompleteType, String> {
         let repeat = self.ui_state.repeat;
 
