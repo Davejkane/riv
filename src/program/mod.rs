@@ -528,7 +528,7 @@ impl<'a> Program<'a> {
                 match multi_action {
                     MultiNormalAction::MoreInput => {
                         complete_action = false;
-                        // Update infobar display on display
+                        // Reflect new amount to repeat on display
                         self.render_screen(false)?;
                     }
                     MultiNormalAction::Cancel => {
