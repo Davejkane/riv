@@ -558,13 +558,11 @@ impl<'a> Program<'a> {
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));
         }
-        return Ok(());
+        Ok(())
     }
 
     fn dispatch_normal(&mut self, action: Action) -> Result<CompleteType, String> {
         let repeat = self.ui_state.repeat;
-        // Reset repeat register to 1 after grabbing the repeat amount
-        self.ui_state.repeat = 1;
 
         match action {
             Action::Quit => {
@@ -635,7 +633,8 @@ impl<'a> Program<'a> {
             Action::Noop => return Ok(CompleteType::Complete),
             _ => return Ok(CompleteType::Complete),
         }
-        return Ok(CompleteType::Complete);
+
+        Ok(CompleteType::Complete)
     }
 
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
@@ -652,16 +651,18 @@ impl<'a> Program<'a> {
 
                 if let Some(action) = self.register.cur_action.clone() {
                     self.dispatch_normal(action)?;
+                    // Clear out stored action for next bulk action
                     self.register.cur_action = None;
+                    // Reset repeat register to 1 after performing the action i bulk
+                    self.ui_state.repeat = 1;
                 }
+            }
 
-                if let Some(ts) = self.ui_state.rerender_time {
-                    if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
-                        self.ui_state.rerender_time = None;
-                        self.ui_state.mode = Mode::Normal;
-                        return Ok(());
-                        //self.render_screen(false)?;
-                    }
+            if let Some(ts) = self.ui_state.rerender_time {
+                if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
+                    self.ui_state.rerender_time = None;
+                    self.ui_state.mode = Mode::Normal;
+                    return Ok(());
                 }
                 std::thread::sleep(Duration::from_millis(1000 / 60));
             }
