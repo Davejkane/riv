@@ -100,6 +100,16 @@ impl Paths {
         self.images.as_mut_slice()
     }
 
+    /// Jumps to specific image
+    /// Caps at artificial length or last image if index supplied is too large
+    /// Does nothing if no images are present
+    pub fn set_index_safe(&mut self, index: usize) {
+        if let Some(max_i) = self.max_viewable_index() {
+            let new_index = std::cmp::min(index, max_i);
+            self.set_index(new_index);
+        }
+    }
+
     /// Sets which image index is the current image
     ///
     /// # Panics
@@ -318,6 +328,13 @@ mod tests {
     fn dummy_paths_builder(n: usize) -> PathsBuilder {
         let images = repeat(PathBuf::new()).take(n).collect::<Vec<PathBuf>>();
         PathsBuilder::new(images, "./keep".into(), ".".into())
+    }
+
+    #[test]
+    fn test_setting_index_with_safe_caps_index_at_end_or_artificial_len() {
+        let mut images = dummy_paths_builder(50).with_maximum_viewable(10).build();
+        images.set_index_safe(55);
+        assert_eq!(images.index, Some(9));
     }
 
     #[test]

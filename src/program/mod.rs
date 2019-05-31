@@ -465,6 +465,14 @@ impl<'a> Program<'a> {
         }
     }
 
+    /// Jumps to specific image
+    /// Caps at artificial length or last image if index supplied is too large
+    fn jump_to_image_index(&mut self, index: usize) -> Result<(), String> {
+        self.paths.set_index_safe(index);
+        self.render_screen(false)?;
+        Ok(())
+    }
+
     /// Toggles fullscreen state of app
     pub fn toggle_fullscreen(&mut self) {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
@@ -539,6 +547,11 @@ impl<'a> Program<'a> {
                                     complete_action = false;
                                     self.render_screen(false)?;
                                     continue;
+                                }
+                                (Action::Last, _) => {
+                                    let requested_index = self.ui_state.repeat - 1;
+                                    self.jump_to_image_index(requested_index)?;
+                                    self.ui_state.mode = Mode::Normal;
                                 }
                                 (a, _) => {
                                     self.register.cur_action = Some(a);
