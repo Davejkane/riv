@@ -42,7 +42,7 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 | i/o        | Up/Down                    | Zoom in/out                                         |
 | H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |
 | b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |
-| g/G        | Home/End                   | First/Last Image                                    |
+| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |
 | m          |                            | Move image to destination folder (default ./keep)   |
 | c          |                            | Copy image to destination folder (default ./keep)   |
 | d          | Delete                     | Delete image from it's location                     |
