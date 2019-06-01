@@ -171,43 +171,43 @@ impl<'a> Program<'a> {
                 return;
             }
         };
-        let target = if !self.paths.images.is_empty() {
-            Some(self.paths.images[self.paths.index].to_owned())
-        } else {
-            None
+        let target = match self.paths.current_image_path() {
+            Some(path) => {
+                // Clone the path because the whole image set is going to be swapped out
+                Some(path.clone())
+            }
+            // Anything else, we are dealing with no images
+            None => None,
         };
-        self.paths.images = new_images;
+
+        self.paths.reload_images(new_images);
+
         // Set current directory to new one
         let new_base_dir = crate::new_base_dir(&path);
         if let Ok(base_dir) = new_base_dir {
             self.paths.base_dir = base_dir
         }
-        self.sorter.sort(&mut self.paths.images);
-
+        self.sorter.sort(self.paths.images_as_mut_slice());
         if let Some(target_path) = target {
-            // find location of current image, if it exists in self.paths.images
-            match self
+            if let Some(new_index) = self
                 .paths
-                .images
+                .images()
                 .iter()
                 .position(|path| path == &target_path)
             {
-                Some(new_index) => self.paths.index = new_index,
-                None => {
-                    self.paths.index = 0;
+                if let Some(max_i) = self.paths.max_viewable_index() {
+                    if new_index > max_i {
+                        self.paths.set_index(0);
+                    } else {
+                        self.paths.set_index(new_index);
+                    }
                 }
             }
         }
-        self.paths.max_viewable = if self.paths.actual_max_viewable > 0
-            && self.paths.actual_max_viewable <= self.paths.images.len()
-        {
-            self.paths.actual_max_viewable
-        } else {
-            self.paths.images.len()
-        };
+
         self.ui_state.mode = Mode::Success(format!(
             "found {} images in {}",
-            self.paths.images.len(),
+            self.paths.images().len(),
             msg
         ));
         self.ui_state.rerender_time = Some(Instant::now());
@@ -219,7 +219,7 @@ impl<'a> Program<'a> {
     /// Additional argument changes the sorting method and sorts the images
     fn sort(&mut self, arguments: String) {
         if arguments.is_empty() {
-            self.sorter.sort(&mut self.paths.images);
+            self.sorter.sort(self.paths.images_as_mut_slice());
             return;
         }
         // get a SortOrder from the provided argument
@@ -232,54 +232,45 @@ impl<'a> Program<'a> {
             }
         };
         self.sorter.set_order(new_sort_order);
+
+        self.sorter.sort(self.paths.images_as_mut_slice());
+
         // the path to find in order to maintain that it is the current image
-        let target = if !self.paths.images.is_empty() {
-            Some(self.paths.images[self.paths.index].to_owned())
-        } else {
-            None
+        let (target_path, max_index) = match (
+            self.paths.current_image_path(),
+            self.paths.max_viewable_index(),
+        ) {
+            (Some(path), Some(index)) => (path, index),
+            // Anything else, we are dealing with no images
+            (_, _) => return,
         };
-        self.sorter.sort(&mut self.paths.images);
-        if let Some(target_path) = target {
-            // find location of current image, if it exists in self.paths.images
-            match self
-                .paths
-                .images
-                .iter()
-                .position(|path| path == &target_path)
-            {
-                Some(new_index) => {
-                    if new_index <= (self.paths.max_viewable - 1) {
-                        self.paths.index = new_index;
-                    } else {
-                        self.paths.index = 0;
-                    }
-                }
-                None => {
-                    self.paths.index = 0;
-                }
-            }
+
+        // We know there is at least 1 image present
+        let new_index = self
+            .paths
+            .images()
+            .iter()
+            .position(|path| path == target_path)
+            // Safe to unwrap as we just got the target path above
+            .unwrap();
+
+        if new_index <= max_index {
+            self.paths.set_index(new_index);
+        } else {
+            self.paths.set_index(0);
         }
     }
 
     /// sets the new maximum_viewable images
     fn maximum_viewable(&mut self, max: &str) {
-        self.paths.actual_max_viewable = match max.parse::<usize>() {
+        let new_actual_max = match max.parse::<usize>() {
             Ok(new_max) => new_max,
             Err(_e) => {
                 self.ui_state.mode = Mode::Error(format!("\"{}\" is not a positive integer", max));
                 return;
             }
         };
-        if self.paths.actual_max_viewable > self.paths.images.len()
-            || self.paths.actual_max_viewable == 0
-        {
-            self.paths.max_viewable = self.paths.images.len();
-        } else {
-            self.paths.max_viewable = self.paths.actual_max_viewable;
-        }
-        if self.paths.max_viewable <= self.paths.index {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
+        self.paths.set_actual_maximum(new_actual_max);
     }
 
     /// Enters command mode that gets user input and runs a set of possible commands based on user input.
@@ -322,8 +313,7 @@ impl<'a> Program<'a> {
                 self.ui_state.mode = Mode::Exit;
             }
             Commands::Reverse => {
-                self.paths.images.reverse();
-                self.paths.index = self.paths.max_viewable - self.paths.index - 1;
+                self.paths.reverse();
             }
             Commands::DestFolder => {
                 if arguments.is_empty() {

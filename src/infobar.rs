@@ -3,7 +3,7 @@
 //! Module InfoBar provides structures and functions for building and rendering an infobar
 
 use crate::paths::Paths;
-use crate::ui::Mode;
+use crate::ui::{Mode, State};
 
 /// Text contains the strings required to print the infobar.
 pub struct Text {
@@ -26,25 +26,28 @@ impl Text {
     /// Error Mode:
     ///     mode = "Error"
     ///     information = error message to display
-    pub fn update(current_mode: &Mode, paths: &Paths) -> Self {
+    pub fn update(current_mode: &Mode, paths: &Paths, state: &State) -> Self {
         let (mode, information) = match current_mode {
             Mode::Command(msg) => ("Command".to_string(), format!(":{}", msg)),
             Mode::Normal => {
-                let information: String;
-                let mode: String;
-                information = match paths.images.get(paths.index) {
+                let information = match paths.current_image_path() {
                     Some(path) => match path.to_str() {
                         Some(name) => name.to_string(),
                         None => "No file".to_string(),
                     },
                     None => "No file selected".to_string(),
                 };
-                mode = if paths.images.is_empty() {
-                    "No files in path".to_string()
-                } else {
-                    format!("{} of {}", paths.index + 1, paths.max_viewable)
+
+                let mode = match paths.current_image() {
+                    Some(current) => format!("{} of {}", current, paths.max_viewable().unwrap()),
+                    None => "No files in path".to_string(),
                 };
+
                 (mode, information)
+            }
+            Mode::MultiNormal => {
+                let times = state.register.cur_action.times;
+                (times.to_string(), " ".to_string())
             }
             Mode::Error(msg) => ("Error".to_string(), msg.to_string()),
             Mode::Success(msg) => ("Success".to_string(), msg.to_string()),

@@ -7,10 +7,10 @@ mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
-use crate::paths::Paths;
+use crate::paths::{Paths, PathsBuilder};
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action, Mode, PanAction, ZoomAction};
+use crate::ui::{self, Action, Mode, PanAction, ProcessAction, ZoomAction};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
@@ -54,11 +54,7 @@ impl<'a> Program<'a> {
         let max_length = args.max_length;
         let base_dir = args.base_dir;
 
-        let max_viewable = if max_length > 0 && max_length <= images.len() {
-            max_length
-        } else {
-            images.len()
-        };
+        let max_viewable = max_length;
 
         let sorter = Sorter::new(sort_order, reverse);
         sorter.sort(&mut images);
@@ -81,6 +77,10 @@ impl<'a> Program<'a> {
             Ok(f) => f,
             Err(e) => panic!("Failed to load font {}", e),
         };
+
+        let paths = PathsBuilder::new(images, dest_folder, base_dir)
+            .with_maximum_viewable(max_viewable)
+            .build();
         Ok(Program {
             screen: Screen {
                 sdl_context,
@@ -88,28 +88,14 @@ impl<'a> Program<'a> {
                 texture_creator,
                 font,
                 mono_font,
-                last_index: 0,
+                last_index: None,
                 last_texture: None,
                 dirty: false,
             },
-            paths: Paths {
-                images,
-                dest_folder,
-                index: 0,
-                base_dir,
-                max_viewable,
-                actual_max_viewable: max_length,
-            },
+            paths,
             ui_state: ui::State {
-                render_infobar: true,
-                render_help: ui::HelpRender::None,
                 fullscreen: args.fullscreen,
-                mode: Mode::Normal,
-                last_action: Action::Noop,
-                scale: 1.0,
-                pan_x: 0.0,
-                pan_y: 0.0,
-                rerender_time: None,
+                ..Default::default()
             },
             sorter,
         })
@@ -156,94 +142,73 @@ impl<'a> Program<'a> {
     }
 
     fn increment(&mut self, step: usize) -> Result<(), String> {
-        if self.paths.images.is_empty() || self.paths.max_viewable == 1 {
-            return Ok(());
-        }
-        if self.paths.index < self.paths.max_viewable - step {
-            self.paths.index += step;
-        }
-        // Cap index at last image
-        else {
-            self.paths.index = self.paths.max_viewable - 1;
-        }
+        self.paths.increment(step);
         self.render_screen(false)
     }
 
-    /// Removes an image from tracked images.
-    /// Upholds that the index should always be <= index of last image.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` tries to access past `self.images` bounds
-    fn remove_image(&mut self, index: usize) {
-        // Remove image
-        // Panics if index is past bounds of vec
-        self.paths.images.remove(index);
-        // Adjust index if past bounds
-        if index >= self.paths.max_viewable && self.paths.index != 0 {
-            self.paths.index -= 1;
-        }
-        // Decrease max viewable if another image won't take the deleted's place
-        if self.paths.images.len() <= self.paths.max_viewable {
-            self.paths.max_viewable -= 1;
-        }
-    }
-
+    /// Moves tracking current image down by `step`
     fn decrement(&mut self, step: usize) -> Result<(), String> {
-        if self.paths.index >= step {
-            self.paths.index -= step;
-        }
-        // Step sizes bigger than remaining index are set to first image.
-        else {
-            self.paths.index = 0;
-        }
+        self.paths.decrement(step);
         self.render_screen(false)
     }
 
     /// Skips forward by the default skip increment and renders the image
-    pub fn skip_forward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.paths.images);
-        self.increment(skip_size)
+    pub fn skip_forward(&mut self, times: usize) -> Result<(), String> {
+        let skip_size = compute_skip_size(self.paths.images());
+        self.increment(skip_size * times)
     }
 
     /// Skips backward by the default skip increment and renders the image
-    fn skip_backward(&mut self) -> Result<(), String> {
-        let skip_size = compute_skip_size(&self.paths.images);
-        self.decrement(skip_size)
+    fn skip_backward(&mut self, times: usize) -> Result<(), String> {
+        let skip_size = compute_skip_size(self.paths.images());
+        self.decrement(skip_size * times)
     }
 
     /// Go to and render first image in list
     fn first(&mut self) -> Result<(), String> {
-        self.paths.index = 0;
-        self.render_screen(false)
+        // If there is at least one image
+        match self.paths.index() {
+            Some(_) => {
+                // Set the current image to the first index
+                self.paths.set_index(0);
+                self.render_screen(false)
+            }
+            None => {
+                // Nothing to do
+                Ok(())
+            }
+        }
     }
 
     /// Go to and render last image in list
     fn last(&mut self) -> Result<(), String> {
-        if self.paths.images.is_empty() {
-            self.paths.index = 0;
+        // If there is at least one image
+        if let Some(last) = self.paths.max_viewable_index() {
+            // Set the current image to the last viewable index
+            self.paths.set_index(last);
+            self.render_screen(false)
         } else {
-            self.paths.index = self.paths.max_viewable - 1;
+            // No images means no last index
+            Ok(())
         }
-        self.render_screen(false)
     }
 
     /// Zooms in
-    fn zoom_in(&mut self) -> Result<(), String> {
-        self.ui_state.scale *= 1.1;
+    fn zoom_in(&mut self, times: usize) -> Result<(), String> {
+        self.ui_state.zoom_in(times);
         self.render_screen(false)
     }
 
     /// Zooms out
-    fn zoom_out(&mut self) -> Result<(), String> {
-        self.ui_state.scale *= 0.9;
+    fn zoom_out(&mut self, times: usize) -> Result<(), String> {
+        self.ui_state.zoom_out(times);
         self.render_screen(false)
     }
 
     /// Pans left
-    fn pan_left(&mut self) -> Result<(), String> {
+    fn pan_left(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_x_step();
-        self.ui_state.pan_x += step;
+        self.ui_state.pan_x += step * times as f32;
         if self.ui_state.pan_x > 1.0 {
             self.ui_state.pan_x = 1.0;
         }
@@ -251,9 +216,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans right
-    fn pan_right(&mut self) -> Result<(), String> {
+    fn pan_right(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_x_step();
-        self.ui_state.pan_x -= step;
+        self.ui_state.pan_x -= step * times as f32;
         if self.ui_state.pan_x < -1.0 {
             self.ui_state.pan_x = -1.0;
         }
@@ -261,9 +226,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans up
-    fn pan_up(&mut self) -> Result<(), String> {
+    fn pan_up(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_y_step();
-        self.ui_state.pan_y += step;
+        self.ui_state.pan_y += step * times as f32;
         if self.ui_state.pan_y > 1.0 {
             self.ui_state.pan_y = 1.0;
         }
@@ -271,9 +236,9 @@ impl<'a> Program<'a> {
     }
 
     /// Pans down
-    fn pan_down(&mut self) -> Result<(), String> {
+    fn pan_down(&mut self, times: usize) -> Result<(), String> {
         let step = self.calc_y_step();
-        self.ui_state.pan_y -= step;
+        self.ui_state.pan_y -= step * times as f32;
         if self.ui_state.pan_y < -1.0 {
             self.ui_state.pan_y = -1.0;
         }
@@ -319,117 +284,175 @@ impl<'a> Program<'a> {
         Ok(newname)
     }
 
-    /// Copies currently rendered image to dest directory
-    /// TODO: Handle when file already exists in dest directory
-    fn copy_image(&mut self) -> Result<String, String> {
-        // Check if there are any images
-        if self.paths.images.is_empty() {
-            return Err("No image to copy".to_string());
+    /// Copies the current image and (n-1) next images
+    /// Does nothing if supplied 0 for an amount
+    fn copy_images(&self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to copy".to_string());
         }
-        let opt = &fs_extra::file::CopyOptions::new();
-        let filepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to copy".to_string()),
+        };
+
+        let copy_range = current_index..=(current_index.saturating_add(amount - 1));
+        let paths = self.paths.get_range(&copy_range);
+        let paths = match paths {
+            Some(paths) => paths,
+            None => {
+                return Err(format!(
+                    "Image range {}..={} is out of range",
+                    copy_range.start(),
+                    copy_range.end()
+                ))
+            }
+        };
+
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        for imagepath in paths {
+            let newname = match self.construct_dest_filepath(imagepath) {
+                Ok(path) => path,
+                Err(e) => {
+                    eprintln!("{}", e);
+                    failures.push(e);
+                    continue;
+                }
+            };
+
+            let opt = &fs_extra::file::CopyOptions::new();
+            if let Err(e) = copy(imagepath, newname, opt).map_err(|e| e.to_string()) {
+                eprintln!("{}", e);
+                failures.push(e);
+                continue;
+            }
+        }
+        if failures.is_empty() {
+            Ok(format!(
+                "copied {} image(s) to {} succesfully",
+                paths.len(),
+                self.paths.dest_folder.to_str().unwrap(),
             ))
-        });
-        let newname = self.construct_dest_filepath(filepath)?;
-        copy(filepath, &newname, opt).map_err(|e| e.to_string())?;
-        Ok(format!(
-            "copied image to {} succesfully",
-            newname.to_str().unwrap()
-        ))
+        } else {
+            Err(format!(
+                "Failed to copy {} of {} images",
+                failures.len(),
+                paths.len()
+            ))
+        }
     }
 
-    /// Moves image currently being viewed to destination folder
-    fn move_image(&mut self) -> Result<String, String> {
-        // Check if there is an image to move
-        if self.paths.images.is_empty() {
-            return Err("no images to move".to_string());
+    /// Moves the current image and (n-1) next images
+    /// Does nothing if supplied 0 for an amount
+    fn move_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to move".to_string());
         }
-        // Retrieve current image
-        assert!(self.paths.index < self.paths.max_viewable);
-        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
-            ))
-        });
-        let success_msg = format!(
-            "moved {} succesfully to {}",
-            &current_imagepath.to_str().unwrap(),
-            self.paths.dest_folder.to_str().unwrap()
-        );
 
-        let newname = self.construct_dest_filepath(&current_imagepath)?;
-        let opt = &fs_extra::file::CopyOptions::new();
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to move".to_string()),
+        };
 
-        // Attempt to move image
-        if let Err(e) = move_file(&current_imagepath, newname, opt) {
-            return Err(format!(
-                "Failed to remove image `{:?}`: {}",
-                &current_imagepath,
-                e.to_string()
-            ));
-        }
-        // Only if successful, remove image from tracked images
-        self.remove_image(self.paths.index);
-        self.screen.dirty = true;
+        // Safe to unwrap as max_index is always present if index is present
+        let max_index = self.paths.max_viewable_index().unwrap();
 
-        // If index is greater than or equal to max_viewable set it to it - 1
-        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
-            self.paths.index = self.paths.max_viewable - 1;
+        // Compute actual number of images to remove
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_removes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        for _ in 0..total_removes {
+            let current_path = self.paths.current_image_path().unwrap();
+            let newname = self.construct_dest_filepath(current_path)?;
+            let opt = &fs_extra::file::CopyOptions::new();
+
+            // Attempt to move as many images as possible
+            if let Err(e) = move_file(current_path, &newname, opt) {
+                eprintln!("{}", e);
+                failures.push(e.to_string());
+                continue;
+            }
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
         }
 
         // Moving the image automatically advanced to next image
         // Adjust our view to reflect this
+        self.screen.dirty = true;
         self.render_screen(false)?;
-        Ok(success_msg)
+        if failures.is_empty() {
+            let success_msg = format!(
+                "moved {} image(s) succesfully to {}",
+                total_removes,
+                self.paths.dest_folder.to_str().unwrap()
+            );
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to move {} of {} images",
+                failures.len(),
+                total_removes,
+            ))
+        }
     }
 
     /// Deletes image currently being viewed
-    fn delete_image(&mut self) -> Result<String, String> {
-        // Check if there is an image to delete
-        if self.paths.images.is_empty() {
-            return Err("no images to delete".to_string());
+    /// Does nothing if supplied 0 for an amount
+    fn delete_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to delete".to_string());
         }
 
-        // Retrieve current image
-        assert!(self.paths.index < self.paths.max_viewable);
-        let current_imagepath = self.paths.images.get(self.paths.index).unwrap_or_else(|| {
-            panic!(format!(
-                "image index {} > max image index {}",
-                self.paths.index, self.paths.max_viewable
-            ))
-        });
-        let success_msg = format!(
-            "deleted {} successfully",
-            &current_imagepath.to_str().unwrap()
-        );
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to delete".to_string()),
+        };
 
-        // Attempt to remove image
-        if let Err(e) = remove(&current_imagepath) {
-            return Err(format!(
-                "Failed to remove image `{:?}`: {}",
-                current_imagepath,
-                e.to_string()
-            ));
-        }
-        // If we've reached past here, there was no error deleting the image
+        let max_index = self.paths.max_viewable_index().unwrap();
 
-        // Only if successful, remove image from tracked images
-        self.remove_image(self.paths.index);
-        self.screen.dirty = true;
+        // Compute actual number of images to remove
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_removes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
 
-        // If index is greater than or equal to max_viewable set it to it - 1
-        if self.paths.index >= self.paths.max_viewable && self.paths.max_viewable != 0 {
-            self.paths.index = self.paths.max_viewable - 1;
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        // Attempt to delete as many images as possible
+        for _ in 0..total_removes {
+            let current_path = self.paths.current_image_path().unwrap();
+            if let Err(e) = remove(current_path) {
+                eprintln!("{}", e);
+                failures.push(e.to_string());
+                continue;
+            }
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
         }
 
-        // Removing the image automatically advanced to next image
+        // Deletes the image automatically advanced to next image
         // Adjust our view to reflect this
+        self.screen.dirty = true;
         self.render_screen(false)?;
-        Ok(success_msg)
+        if failures.is_empty() {
+            let success_msg = format!("Deleted {} image(s)", total_removes);
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to delete {} of {} images",
+                failures.len(),
+                total_removes,
+            ))
+        }
+    }
+
+    /// Jumps to specific image
+    /// Caps at artificial length or last image if index supplied is too large
+    fn jump_to_image_index(&mut self, index: usize) -> Result<(), String> {
+        self.paths.set_index_safe(index);
+        Ok(())
     }
 
     /// Toggles fullscreen state of app
@@ -446,7 +469,11 @@ impl<'a> Program<'a> {
             match mode {
                 Mode::Normal => {
                     self.run_normal_mode()?;
-                    self.render_screen(true)?;
+                    // Don't reset image zoom and offset when changing modes
+                    self.render_screen(false)?;
+                }
+                Mode::MultiNormal => {
+                    self.run_multi_normal_mode()?;
                 }
                 Mode::Command(..) => {
                     self.run_command_mode()?;
@@ -467,87 +494,194 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
+    /// Mode to input how many times to repeat a normal mode action
+    /// Previous input from normal mode is in `self.ui_state.repeat`
+    fn run_multi_normal_mode(&mut self) -> Result<(), String> {
+        use ui::MultiNormalAction;
+
+        let mut complete_action = false;
+        while !complete_action {
+            for event in self.screen.sdl_context.event_pump()?.poll_iter() {
+                let multi_action = ui::process_multi_normal_mode(&mut self.ui_state, &event);
+                // Assume input is finished unless set by other actions
+                complete_action = true;
+
+                match multi_action {
+                    MultiNormalAction::MoreInput => {
+                        complete_action = false;
+                        // Reflect new amount to repeat on display
+                        self.render_screen(false)?;
+                    }
+                    MultiNormalAction::Cancel => {
+                        self.ui_state.mode = Mode::Normal;
+                    }
+                    MultiNormalAction::Repeat(process) => {
+                        self.ui_state.process_action(process.clone());
+                        match process {
+                            ProcessAction {
+                                action: a,
+                                times: n,
+                            } => match (a, n) {
+                                (Action::Backspace, _) => {
+                                    // Divide repeat by int 10 to remove last digit
+                                    self.ui_state.register.cur_action.times /= 10;
+                                    complete_action = false;
+                                    self.render_screen(false)?;
+                                    continue;
+                                }
+                                (Action::Last, _) => {
+                                    let requested_index =
+                                        self.ui_state.register.cur_action.times - 1;
+                                    self.jump_to_image_index(requested_index)?;
+                                    self.ui_state.mode = Mode::Normal;
+                                    self.render_screen(false)?;
+                                }
+                                (a, _) => {
+                                    self.ui_state.register.cur_action.action = a;
+                                    self.ui_state.mode = Mode::Normal;
+                                }
+                            },
+                        }
+                    }
+                    MultiNormalAction::SwitchBackNormalMode => {
+                        self.ui_state.mode = Mode::Normal;
+                    }
+                    MultiNormalAction::Quit => {
+                        self.ui_state.mode = Mode::Exit;
+                    }
+                    _ => {}
+                }
+            }
+            std::thread::sleep(Duration::from_millis(1000 / 60));
+        }
+        Ok(())
+    }
+
+    /// Processes Normal Mode Actions
+    /// Ok result tells whether to continue or break out of the current Mode
+    fn dispatch_normal(&mut self, process_action: ProcessAction) -> Result<CompleteType, String> {
+        //let action = self.ui_state.register.cur_action.action;
+        //let times = self.ui_state.register.cur_action.times;
+        match process_action {
+            ProcessAction { action, times } => match action {
+                Action::Quit => {
+                    self.ui_state.mode = Mode::Exit;
+                    return Ok(CompleteType::Break);
+                }
+                Action::ToggleFullscreen => {
+                    self.toggle_fullscreen();
+                    self.screen.update_fullscreen(self.ui_state.fullscreen)?;
+                    self.render_screen(false)?
+                }
+                Action::ReRender => self.render_screen(false)?,
+                Action::SwitchCommandMode => {
+                    self.ui_state.mode = Mode::Command(String::new());
+                    return Ok(CompleteType::Break);
+                }
+                Action::SwitchMultiNormalMode => {
+                    self.ui_state.mode = Mode::MultiNormal;
+                    return Ok(CompleteType::Break);
+                }
+                Action::ToggleFit => self.toggle_fit()?,
+                Action::CenterImage => self.center_image()?,
+                Action::Next => self.increment(times)?,
+                Action::Prev => self.decrement(times)?,
+                Action::First => self.first()?,
+                Action::Last => self.last()?,
+                Action::SkipForward => self.skip_forward(times)?,
+                Action::SkipBack => self.skip_backward(times)?,
+                Action::Zoom(ZoomAction::In) => self.zoom_in(times)?,
+                Action::Zoom(ZoomAction::Out) => self.zoom_out(times)?,
+                Action::Pan(PanAction::Left) => self.pan_left(times)?,
+                Action::Pan(PanAction::Right) => self.pan_right(times)?,
+                Action::Pan(PanAction::Up) => self.pan_up(times)?,
+                Action::Pan(PanAction::Down) => self.pan_down(times)?,
+                Action::Copy => match self.copy_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Move => match self.move_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Delete => match self.delete_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Noop => return Ok(CompleteType::Complete),
+                _ => return Ok(CompleteType::Complete),
+            },
+        }
+
+        Ok(CompleteType::Complete)
+    }
+
     /// run_normal_mode is the event loop that listens for input and delegates accordingly for
     /// normal mode
     fn run_normal_mode(&mut self) -> Result<(), String> {
         'mainloop: loop {
             for event in self.screen.sdl_context.event_pump()?.poll_iter() {
-                match ui::process_normal_mode(&mut self.ui_state, &event) {
-                    Action::Quit => {
-                        self.ui_state.mode = Mode::Exit;
-                        break 'mainloop;
+                let action = ui::process_normal_mode(&mut self.ui_state, &event);
+                self.ui_state.process_action(action.clone());
+                let next_step = self.dispatch_normal(action.clone())?;
+                if let CompleteType::Break = next_step {
+                    break 'mainloop;
+                }
+
+                // Were we just in multiMode
+                match self.ui_state.register.cur_action {
+                    ProcessAction {
+                        action: Action::Noop,
+                        ..
+                    } => {}
+                    _ => {
+                        // Process the action we need to perform in bulk
+                        let next_step =
+                            self.dispatch_normal(self.ui_state.register.cur_action.clone())?;
+                        // Clear out stored action for next bulk action
+                        self.ui_state.register.cur_action = ProcessAction::default();
+
+                        // Reset repeat register to 1 after performing the action i bulk
+                        //self.ui_state.register.cur_action.times = 1;
+
+                        // Switch modes if action needs to modify the UI
+                        if let CompleteType::Break = next_step {
+                            break 'mainloop;
+                        }
                     }
-                    Action::ToggleFullscreen => {
-                        self.toggle_fullscreen();
-                        self.screen.update_fullscreen(self.ui_state.fullscreen)?;
-                        self.render_screen(false)?
-                    }
-                    Action::ReRender => self.render_screen(false)?,
-                    Action::SwitchCommandMode => {
-                        self.ui_state.mode = Mode::Command(String::new());
-                        break 'mainloop;
-                    }
-                    Action::ToggleFit => self.toggle_fit()?,
-                    Action::CenterImage => self.center_image()?,
-                    Action::Next => self.increment(1)?,
-                    Action::Prev => self.decrement(1)?,
-                    Action::First => self.first()?,
-                    Action::Last => self.last()?,
-                    Action::SkipForward => self.skip_forward()?,
-                    Action::SkipBack => self.skip_backward()?,
-                    Action::Zoom(ZoomAction::In) => self.zoom_in()?,
-                    Action::Zoom(ZoomAction::Out) => self.zoom_out()?,
-                    Action::Pan(PanAction::Left) => self.pan_left()?,
-                    Action::Pan(PanAction::Right) => self.pan_right()?,
-                    Action::Pan(PanAction::Up) => self.pan_up()?,
-                    Action::Pan(PanAction::Down) => self.pan_down()?,
-                    Action::Copy => match self.copy_image() {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode = Mode::Error(format!("Failed to copy file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Move => match self.move_image() {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode = Mode::Error(format!("Failed to move file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Delete => match self.delete_image() {
-                        Ok(s) => {
-                            self.ui_state.mode = Mode::Success(s);
-                            self.ui_state.rerender_time = Some(Instant::now());
-                            return Ok(());
-                        }
-                        Err(e) => {
-                            self.ui_state.mode =
-                                Mode::Error(format!("Failed to delete file: {}", e));
-                            return Ok(());
-                        }
-                    },
-                    Action::Noop => {}
-                    _ => {}
                 }
             }
+
             if let Some(ts) = self.ui_state.rerender_time {
                 if Instant::now().duration_since(ts) > Duration::from_millis(1500) {
                     self.ui_state.rerender_time = None;
-                    self.render_screen(false)?;
+                    self.ui_state.mode = Mode::Normal;
+                    return Ok(());
                 }
             }
             std::thread::sleep(Duration::from_millis(1000 / 60));
         }
-
         Ok(())
     }
 }
@@ -572,4 +706,9 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 
     // Skip increment must be at least 1
     cmp::max(1usize, skip_size)
+}
+
+enum CompleteType {
+    Complete,
+    Break,
 }

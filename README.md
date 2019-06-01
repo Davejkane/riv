@@ -36,12 +36,13 @@ Set a sorting order with the `s` or `--sort` flag, case insensitive.
 
 | Key 1      | Key 2                      | Action                                              |
 |------------|----------------------------|-----------------------------------------------------|
+| 0-9 (many) | Key1 of action to perform  | Perform the specified action many times             |
 | q          | Esc                        | Quit                                                |
 | k/j        | Left/Right                 | Previous/Next Image                                 |
 | i/o        | Up/Down                    | Zoom in/out                                         |
 | H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |
 | b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |
-| g/G        | Home/End                   | First/Last Image                                    |
+| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |
 | m          |                            | Move image to destination folder (default ./keep)   |
 | c          |                            | Copy image to destination folder (default ./keep)   |
 | d          | Delete                     | Delete image from it's location                     |

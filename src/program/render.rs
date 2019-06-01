@@ -19,10 +19,10 @@ struct Colors {
 
 impl<'a> Program<'a> {
     /// render_screen is the main render function that delegates rendering every thing that needs be
-    /// rendered
+    /// rendered;
     pub fn render_screen(&mut self, force_render: bool) -> Result<(), String> {
         self.screen.canvas.set_draw_color(dark_grey());
-        if self.paths.images.is_empty() {
+        if self.paths.current_image().is_none() {
             return self.render_blank();
         }
         self.screen.canvas.clear();
@@ -60,21 +60,24 @@ impl<'a> Program<'a> {
         Ok(())
     }
 
+    /// Renders the image at the current index
     fn set_image_texture(&mut self, force_render: bool) -> Result<(), String> {
-        if self.paths.index == self.screen.last_index
+        if self.paths.index() == self.screen.last_index
             && self.screen.last_texture.is_some()
             && !self.screen.dirty
             && !force_render
         {
             return Ok(());
         }
-        let texture = match self
-            .screen
-            .texture_creator
-            .load_texture(&self.paths.images[self.paths.index])
-        {
+        let current_imagepath = match self.paths.current_image_path() {
+            Some(path) => path,
+            // No images were found, so no image to load
+            None => return Ok(()),
+        };
+
+        let texture = match self.screen.texture_creator.load_texture(current_imagepath) {
             Ok(t) => {
-                self.screen.last_index = self.paths.index;
+                self.screen.last_index = self.paths.index();
                 t
             }
             Err(e) => {
@@ -102,7 +105,7 @@ impl<'a> Program<'a> {
 
     fn render_infobar(&mut self) -> Result<(), String> {
         let text_color = mode_text_color(&self.ui_state.mode);
-        let text = infobar::Text::update(&self.ui_state.mode, &self.paths);
+        let text = infobar::Text::update(&self.ui_state.mode, &self.paths, &self.ui_state);
         // Load the filename texture
         let filename_surface = self
             .screen
@@ -274,7 +277,7 @@ impl<'a> Program<'a> {
 
 fn mode_colors(m: &Mode) -> Colors {
     match m {
-        Mode::Normal => Colors {
+        Mode::Normal | Mode::MultiNormal => Colors {
             primary: light_blue(),
             secondary: blue(),
             tertiary: grey(),
@@ -304,7 +307,9 @@ fn mode_colors(m: &Mode) -> Colors {
 
 fn mode_text_color(m: &Mode) -> Color {
     match m {
-        Mode::Normal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => dark_text_color(),
+        Mode::Normal | Mode::MultiNormal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => {
+            dark_text_color()
+        }
         Mode::Error(_) => light_text_color(),
     }
 }
@@ -366,12 +371,13 @@ fn normal_help_text() -> Vec<&'static str> {
         "+------------+----------------------------+-----------------------------------------------------+",
         "| Key 1      | Key 2                      | Action                                              |",
         "+------------+----------------------------+-----------------------------------------------------+",
+        "| 0-9 (many) | Key1 of action to perform  | Perform the specified action many times             |",
         "| q          | Esc                        | Quit                                                |",
         "| k/j        | Left/Right                 | Previous/Next Image                                 |",
         "| i/o        | Up/Down                    | Zoom in/out                                         |",
         "| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |",
         "| b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |",
-        "| g/G        | Home/End                   | First/Last Image                                    |",
+        "| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |",
         "| m          |                            | Move image to destination folder (default ./keep)   |",
         "| c          |                            | Copy image to destination folder (default ./keep)   |",
         "| d          | Delete                     | Delete image from it's location                     |",
