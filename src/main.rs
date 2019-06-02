@@ -31,7 +31,7 @@ fn main() -> Result<(), String> {
 
     let canvas = window
         .into_canvas()
-        .software()
+        .accelerated()
         .build()
         .map_err(|e| e.to_string())?;
 

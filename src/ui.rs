@@ -32,6 +32,10 @@ pub enum Action<'a> {
     ToggleFit,
     /// Centres the image
     CenterImage,
+    /// Flip the image horizontally
+    FlipHorizontal,
+    /// Flip the image vertically
+    FlipVertical,
     /// Next indicates the app should move to the next image in response to this event
     Next,
     /// Prev indicates the app should move to the previous image in response to this event
@@ -223,6 +227,10 @@ pub struct State<'a> {
     pub pan_x: f32,
     /// pan_y is the degree of pan in the y axis
     pub pan_y: f32,
+    /// Image is flipped horizontally from original state
+    pub flip_horizontal: bool,
+    /// Image is flipped vertically from original state
+    pub flip_vertical: bool,
     /// The time, from which to do a re-render will be base on.
     /// Use to clear infobar messages after inactivity
     pub rerender_time: Option<Instant>,
@@ -241,6 +249,8 @@ impl<'a> Default for State<'a> {
             scale: 1.0,
             pan_x: 0.0,
             pan_y: 0.0,
+            flip_horizontal: false,
+            flip_vertical: false,
             rerender_time: None,
             register: Register {
                 ..Default::default()
@@ -311,6 +321,7 @@ pub fn process_multi_normal_mode<'a>(
             "f" => (Action::ToggleFullscreen, times).into(),
             "g" => (Action::First, times).into(),
             "G" => (Action::Last, times).into(),
+            "h" => (Action::FlipHorizontal, times).into(),
             "?" => {
                 match state.render_help {
                     HelpRender::Normal => state.render_help = HelpRender::None,
@@ -332,6 +343,7 @@ pub fn process_multi_normal_mode<'a>(
                 state.render_infobar = !state.render_infobar;
                 (Action::ReRender, times).into()
             }
+            "v" => (Action::FlipVertical, times).into(),
             "w" => (Action::SkipForward, times).into(),
             "b" => (Action::SkipBack, times).into(),
             "z" => (Action::ToggleFit, times).into(),
@@ -404,6 +416,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> ProcessA
             "f" => Action::ToggleFullscreen.into(),
             "g" => Action::First.into(),
             "G" => Action::Last.into(),
+            "h" => Action::FlipHorizontal.into(),
             "?" => {
                 match state.render_help {
                     HelpRender::Normal => state.render_help = HelpRender::None,
@@ -425,6 +438,7 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> ProcessA
                 state.render_infobar = !state.render_infobar;
                 Action::ReRender.into()
             }
+            "v" => Action::FlipVertical.into(),
             "w" => Action::SkipForward.into(),
             "b" => Action::SkipBack.into(),
             "z" => Action::ToggleFit.into(),

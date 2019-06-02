@@ -16,4 +16,4 @@ regex = "1"
 [dependencies.sdl2]
 version = "0.32"
 default-features = false
-features = ["ttf","image"]
+features = ["image", "ttf"]

@@ -54,7 +54,15 @@ impl<'a> Program<'a> {
             self.ui_state.pan_x,
             self.ui_state.pan_y,
         );
-        if let Err(e) = self.screen.canvas.copy(&tex, None, dst) {
+        if let Err(e) = self.screen.canvas.copy_ex(
+            &tex,
+            None,
+            dst,
+            0.0,
+            None,
+            self.ui_state.flip_horizontal,
+            self.ui_state.flip_vertical,
+        ) {
             eprintln!("Failed to copy image to screen {}", e);
         }
         Ok(())
@@ -69,6 +77,11 @@ impl<'a> Program<'a> {
         {
             return Ok(());
         }
+
+        //reset horizontal and vertical flip on new image load
+        self.ui_state.flip_horizontal = false;
+        self.ui_state.flip_vertical = false;
+
         let current_imagepath = match self.paths.current_image_path() {
             Some(path) => path,
             // No images were found, so no image to load
@@ -376,6 +389,8 @@ fn normal_help_text() -> Vec<&'static str> {
         "| k/j        | Left/Right                 | Previous/Next Image                                 |",
         "| i/o        | Up/Down                    | Zoom in/out                                         |",
         "| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |",
+        "| h          |                            | Flip image horizontally                             |",
+        "| v          |                            | Flip image vertically                               |",
         "| b/w        | PageDown/PageUp            | Backward/Forward 10% of images                      |",
         "| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |",
         "| m          |                            | Move image to destination folder (default ./keep)   |",
