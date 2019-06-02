@@ -141,6 +141,20 @@ impl<'a> Program<'a> {
         }
     }
 
+    /// Flip image vertically
+    fn flip_vertical(&mut self) -> Result<(), String> {
+        self.ui_state.flip_vertical = !self.ui_state.flip_vertical;
+        self.render_screen(false)?;
+        Ok(())
+    }
+
+    /// Flip image horizontally
+    fn flip_horizontal(&mut self) -> Result<(), String> {
+        self.ui_state.flip_horizontal = !self.ui_state.flip_horizontal;
+        self.render_screen(false)?;
+        Ok(())
+    }
+
     fn increment(&mut self, step: usize) -> Result<(), String> {
         self.paths.increment(step);
         self.render_screen(false)
@@ -583,6 +597,8 @@ impl<'a> Program<'a> {
                     return Ok(CompleteType::Break);
                 }
                 Action::ToggleFit => self.toggle_fit()?,
+                Action::FlipHorizontal => self.flip_horizontal()?,
+                Action::FlipVertical => self.flip_vertical()?,
                 Action::CenterImage => self.center_image()?,
                 Action::Next => self.increment(times)?,
                 Action::Prev => self.decrement(times)?,
