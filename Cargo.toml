@@ -13,6 +13,9 @@ shellexpand = "1.0"
 lazy_static = "1.3.0"
 regex = "1"
 
+[dependencies.trash]
+path = "trash"
+
 [dependencies.sdl2]
 version = "0.32"
 default-features = false

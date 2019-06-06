@@ -1,0 +1,4 @@
+[submodule "trash"]
+	path = trash
+	url = https://github.com/gurgalex/trash
+	branch = master
