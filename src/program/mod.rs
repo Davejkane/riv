@@ -21,6 +21,7 @@ use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
+
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -409,6 +410,62 @@ impl<'a> Program<'a> {
                 "Failed to move {} of {} images",
                 failures.len(),
                 total_removes,
+            ))
+        }
+    }
+
+    /// Trashes image currently being viewed
+    /// Does nothing if supplied 0 for an amount
+    fn trash_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to trash".to_string());
+        }
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to trash".to_string()),
+        };
+
+        let max_index = self.paths.max_viewable_index().unwrap();
+
+        // Compute actual number of images to trash
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_trashes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+
+        // Store errors for possible future use
+        let mut failures: Vec<String> = Vec::new();
+        // Attempt to trash as many images as possible
+        let mut trash_result;
+        for _ in 0..total_trashes {
+            let current_path = self.paths.current_image_path().unwrap();
+            if cfg!(linux) {
+                trash_result = trash::move_to_trash(&current_path);
+            } else {
+                return Err("Trash support for OS not supported".to_string());
+            }
+
+            if let Err(e) = trash_result {
+                eprintln!("{}", e);
+                failures.push(e.to_string());
+                continue;
+            }
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
+        }
+
+        // Deletes the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.screen.dirty = true;
+        self.render_screen(false)?;
+        if failures.is_empty() {
+            let success_msg = format!("Deleted {} image(s)", total_trashes);
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to delete {} of {} images",
+                failures.len(),
+                total_trashes,
             ))
         }
     }

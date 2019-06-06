@@ -58,6 +58,8 @@ pub enum Action<'a> {
     Move,
     /// Delete indicates the app should delete the image in response to this event
     Delete,
+    /// Trash indicates the app should move the image to a trash folder
+    Trash,
     /// Noop indicates the app should not respond to this event
     Noop,
 }
@@ -317,7 +319,8 @@ pub fn process_multi_normal_mode<'a>(
                 MultiNormalAction::MoreInput
             }
             "c" => (Action::Copy, times).into(),
-            "d" => (Action::Delete, times).into(),
+            "d" => (Action::Trash, times).into(),
+            "D" => (Action::Delete, times).into(),
             "f" => (Action::ToggleFullscreen, times).into(),
             "g" => (Action::First, times).into(),
             "G" => (Action::Last, times).into(),
@@ -412,7 +415,8 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> ProcessA
                 Action::SwitchMultiNormalMode.into()
             }
             "c" => Action::Copy.into(),
-            "d" => Action::Delete.into(),
+            "d" => Action::Trash.into(),
+            "D" => Action::Delete.into(),
             "f" => Action::ToggleFullscreen.into(),
             "g" => Action::First.into(),
             "G" => Action::Last.into(),
