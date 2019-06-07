@@ -26,8 +26,6 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
-use std::ffi::OsStr;
-
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
@@ -441,13 +439,13 @@ impl<'a> Program<'a> {
         for _ in 0..total_trashes {
             let current_path = self.paths.current_image_path().unwrap();
 
-            #[cfg(linux)]
-            fn linux_trash(path: &std::path::Path) -> Result<(), std::io::Error> {
-                use trash;
+            #[cfg(target_os = "linux")]
+            fn linux_trash(path: &std::path::Path) -> Result<(), Box<std::error::Error>> {
                 trash::move_to_trash(&path)?;
                 Ok(())
             }
-            #[cfg(windows)]
+
+            #[cfg(target_os = "windows")]
             fn win_trash(path: &std::path::Path) -> Result<(), i32> {
                 // Convert to msdos path to work with `move_to_trash_win`
                 // Unsure why UNC paths don't work.
@@ -455,12 +453,15 @@ impl<'a> Program<'a> {
                 move_to_trash_win(&msdos_path)?;
                 Ok(())
             }
-            #[cfg(windows)]
+
+            #[cfg(target_os = "windows")]
             let trash_result = win_trash(&current_path.canonicalize().unwrap());
-            #[cfg(linux)]
+            #[cfg(target_os = "linux")]
             let trash_result = linux_trash(&current_path);
-            #[cfg(not(any(linux, windows)))]
+
+            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
             return Err("Trash support for OS not supported".to_string());
+
             if let Err(e) = trash_result {
                 eprintln!("{}", e);
                 failures.push(e.to_string());
@@ -813,9 +814,10 @@ enum CompleteType {
     Break,
 }
 
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 /// Moves a file to the trash on Windows
 fn move_to_trash_win<S: AsRef<OsStr>>(file: S) -> Result<i32, i32> {
+    use std::ffi::OsStr;
     use std::iter::repeat;
     use std::os::windows::ffi::OsStrExt;
     use winapi::um::shellapi::{SHFileOperationW, SHFILEOPSTRUCTW};
