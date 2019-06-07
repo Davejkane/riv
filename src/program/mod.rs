@@ -437,16 +437,30 @@ impl<'a> Program<'a> {
 
         // Store errors for possible future use
         let mut failures: Vec<String> = Vec::new();
-        // Attempt to trash as many images as possible
-        let mut trash_result;
+        // Attempt to trash as many images as possible;
         for _ in 0..total_trashes {
             let current_path = self.paths.current_image_path().unwrap();
-            if cfg!(linux) {
-                trash_result = trash::move_to_trash(&current_path);
-            } else {
-                return Err("Trash support for OS not supported".to_string());
-            }
 
+            #[cfg(linux)]
+            fn linux_trash(path: &std::path::Path) -> Result<(), std::io::Error> {
+                use trash;
+                trash::move_to_trash(&path)?;
+                Ok(())
+            }
+            #[cfg(windows)]
+            fn win_trash(path: &std::path::Path) -> Result<(), i32> {
+                // Convert to msdos path to work with `move_to_trash_win`
+                // Unsure why UNC paths don't work.
+                let msdos_path = dunce::canonicalize(&path).unwrap();
+                move_to_trash_win(&msdos_path)?;
+                Ok(())
+            }
+            #[cfg(windows)]
+            let trash_result = win_trash(&current_path.canonicalize().unwrap());
+            #[cfg(linux)]
+            let trash_result = linux_trash(&current_path);
+            #[cfg(not(any(linux, windows)))]
+            return Err("Trash support for OS not supported".to_string());
             if let Err(e) = trash_result {
                 eprintln!("{}", e);
                 failures.push(e.to_string());
@@ -694,6 +708,17 @@ impl<'a> Program<'a> {
                     }
                 },
                 Action::Delete => match self.delete_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
+                Action::Trash => match self.trash_images(times) {
                     Ok(s) => {
                         self.ui_state.mode = Mode::Success(s);
                         self.ui_state.rerender_time = Some(Instant::now());
