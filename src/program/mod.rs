@@ -26,6 +26,8 @@ use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use std::ffi::OsStr;
+
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
@@ -784,4 +786,41 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 enum CompleteType {
     Complete,
     Break,
+}
+
+#[cfg(windows)]
+/// Moves a file to the trash on Windows
+fn move_to_trash_win<S: AsRef<OsStr>>(file: S) -> Result<i32, i32> {
+    use std::iter::repeat;
+    use std::os::windows::ffi::OsStrExt;
+    use winapi::um::shellapi::{SHFileOperationW, SHFILEOPSTRUCTW};
+
+    use std::ptr::{null, null_mut};
+    use winapi::um::shellapi;
+
+    // Encode the file as wide or UTF-16.
+    // Double null terminate end of filename for PCZZSTR type
+    let wide: Vec<u16> = OsStr::new(file.as_ref())
+        .encode_wide()
+        .chain(repeat(0).take(2))
+        .collect();
+
+    let mut trashed = SHFILEOPSTRUCTW {
+        hwnd: null_mut(),
+        wFunc: u32::from(shellapi::FO_DELETE),
+        fFlags: shellapi::FOF_ALLOWUNDO | shellapi::FOF_NO_UI,
+        fAnyOperationsAborted: 0,
+        pFrom: wide.as_ptr(),
+        pTo: null(),
+        hNameMappings: null_mut(),
+        lpszProgressTitle: null_mut(),
+    };
+
+    let ret = unsafe { SHFileOperationW(&mut trashed) };
+    // 0 return code is success. Anything else is an error
+    if ret == 0 {
+        Ok(ret)
+    } else {
+        Err(ret)
+    }
 }
