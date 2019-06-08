@@ -406,7 +406,7 @@ fn normal_help_text() -> Vec<&'static str> {
         "| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |",
         "| m          |                            | Move image to destination folder (default ./keep)   |",
         "| c          |                            | Copy image to destination folder (default ./keep)   |",
-        "| d          | Delete                     | Delete image from it's location                     |",
+        "| d          | Delete                     | Delete image from its location                      |",
         "| t          |                            | Toggle information bar                              |",
         "| f          | F11                        | Toggle fullscreen mode                              |",
         "| ?          |                            | Toggle help box                                     |",
