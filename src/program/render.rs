@@ -398,6 +398,7 @@ fn normal_help_text() -> Vec<&'static str> {
         "| q          | Esc                        | Quit                                                |",
         "| k/j        | Left/Right                 | Previous/Next Image                                 |",
         "| i/o        | Up/Down                    | Zoom in/out                                         |",
+        "| r/R        |                            | Rotate image clockwise/counterclockwise             |",
         "| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |",
         "| h          |                            | Flip image horizontally                             |",
         "| v          |                            | Flip image vertically                               |",
