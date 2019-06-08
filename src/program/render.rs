@@ -1,6 +1,6 @@
 use crate::infobar;
 use crate::program::{make_dst, Program};
-use crate::ui::{HelpRender, Mode};
+use crate::ui::{HelpRender, Mode, RotAngle};
 use sdl2::image::LoadTexture;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -54,11 +54,18 @@ impl<'a> Program<'a> {
             self.ui_state.pan_x,
             self.ui_state.pan_y,
         );
+
+        let angle = match self.ui_state.rot_angle {
+            RotAngle::Up => 0.0,
+            RotAngle::Right => 90.0,
+            RotAngle::Down => 180.0,
+            RotAngle::Left => 270.0,
+        };
         if let Err(e) = self.screen.canvas.copy_ex(
             &tex,
             None,
             dst,
-            0.0,
+            angle,
             None,
             self.ui_state.flip_horizontal,
             self.ui_state.flip_vertical,
@@ -100,12 +107,15 @@ impl<'a> Program<'a> {
         };
 
         // Set the default state for viewing of the image
-
         self.screen.last_texture = Some(texture);
         self.screen.dirty = false;
+        // fit to screen
         self.ui_state.scale = self.calculate_scale_for_fit();
+        // no offsets
         self.ui_state.pan_x = 0.0;
         self.ui_state.pan_y = 0.0;
+        // 0 degree rotation
+        self.ui_state.rot_angle = RotAngle::Up;
         Ok(())
     }
 
@@ -388,6 +398,7 @@ fn normal_help_text() -> Vec<&'static str> {
         "| q          | Esc                        | Quit                                                |",
         "| k/j        | Left/Right                 | Previous/Next Image                                 |",
         "| i/o        | Up/Down                    | Zoom in/out                                         |",
+        "| r/R        |                            | Rotate image clockwise/counterclockwise             |",
         "| H, J, K, L | Shift + Up/Down/Left/Right | Pan left/down/up/right                              |",
         "| h          |                            | Flip image horizontally                             |",
         "| v          |                            | Flip image vertically                               |",
@@ -395,7 +406,7 @@ fn normal_help_text() -> Vec<&'static str> {
         "| g/G        | Home/End                   | First/Last Image (55G jumps to the 55th image)      |",
         "| m          |                            | Move image to destination folder (default ./keep)   |",
         "| c          |                            | Copy image to destination folder (default ./keep)   |",
-        "| d          | Delete                     | Delete image from it's location                     |",
+        "| d          | Delete                     | Delete image from its location                      |",
         "| t          |                            | Toggle information bar                              |",
         "| f          | F11                        | Toggle fullscreen mode                              |",
         "| ?          |                            | Toggle help box                                     |",
