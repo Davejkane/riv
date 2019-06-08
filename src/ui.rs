@@ -308,26 +308,6 @@ impl<'a> Default for State<'a> {
 }
 
 impl<'a> State<'a> {
-    /*
-        /// Current rotation angle of image
-        pub fn rot_angle(&self) -> u16 {
-            self.rot_angle
-        }
-
-        /// Advance image rotation setting clockwise by `angle` degrees
-        pub fn rotate_clockwise(&mut self, angle: u16) {
-            self.rot_angle = (self.rot_angle + angle) % 360;
-        }
-
-        /// Decrease image rotation by `angle` degrees
-        pub fn rotate_counterclockwise(&mut self, angle: u16) {
-            self.rot_angle = match self.rot_angle.checked_sub(angle) {
-                Some(angle) => angle,
-                None => 360 - (angle % 360),
-            }
-        }
-    */
-
     /// Increases zoom scale. Does not render image
     pub fn zoom_in(&mut self, times: usize) {
         let zoom_factor: f32 = 1.1;
