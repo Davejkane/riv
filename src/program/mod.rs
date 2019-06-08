@@ -573,6 +573,9 @@ impl<'a> Program<'a> {
 
     /// Processes Normal Mode Actions
     /// Ok result tells whether to continue or break out of the current Mode
+    // Allow cognitive complexity lint since we need to match every Action
+    // Note: complexity could be simplified by splittng out Command mode and Normal mode actions
+    #[allow(clippy::cognitive_complexity)]
     fn dispatch_normal(&mut self, process_action: ProcessAction) -> Result<CompleteType, String> {
         match process_action {
             ProcessAction { action, times } => match action {
