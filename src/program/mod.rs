@@ -434,39 +434,52 @@ impl<'a> Program<'a> {
             std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
 
         // Store errors for possible future use
+
         let mut failures: Vec<String> = Vec::new();
         // Attempt to trash as many images as possible;
         for _ in 0..total_trashes {
             let current_path = self.paths.current_image_path().unwrap();
 
-            #[cfg(target_os = "linux")]
-            fn linux_trash(path: &std::path::Path) -> Result<(), Box<std::error::Error>> {
-                trash::move_to_trash(&path)?;
-                Ok(())
-            }
-
             #[cfg(target_os = "windows")]
-            fn win_trash(path: &std::path::Path) -> Result<(), i32> {
+            {
                 // Convert to msdos path to work with `move_to_trash_win`
                 // Unsure why UNC paths don't work.
                 let msdos_path = dunce::canonicalize(&path).unwrap();
-                move_to_trash_win(&msdos_path)?;
-                Ok(())
+                let trash_result = move_to_trash_win(&msdos_path);
+
+                if let Err(e) = trash_result {
+                    eprintln!("{}", e);
+                    failures.push(e.to_string());
+                    continue;
+                }
             }
-
-            #[cfg(target_os = "windows")]
-            let trash_result = win_trash(&current_path.canonicalize().unwrap());
             #[cfg(target_os = "linux")]
-            let trash_result = linux_trash(&current_path);
-
-            #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+            {
+                let trash_result = trash::move_to_trash(&path);
+                if let Err(e) = trash_result {
+                    eprintln!("{}", e);
+                    failures.push(e.to_string());
+                    continue;
+                }
+            }
+            #[cfg(target_os = "macos")]
+            {
+                // use homebrew `trash -F` command for OSX trash support
+                use std::process::Command;
+                let output = Command::new("trash")
+                    .arg("-F")
+                    .arg(&current_path)
+                    .output()
+                    .expect("Failed to spawn trash program");
+                if !output.status.success() {
+                    eprintln!("{:?}", &output);
+                    failures.push(format!("{:?}: {:?}", output.status, output.stderr));
+                    continue;
+                }
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
             return Err("Trash support for OS not supported".to_string());
 
-            if let Err(e) = trash_result {
-                eprintln!("{}", e);
-                failures.push(e.to_string());
-                continue;
-            }
             // Only if successful, remove image from tracked images
             self.paths.remove_current_image();
         }
