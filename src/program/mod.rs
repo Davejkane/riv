@@ -484,16 +484,16 @@ impl<'a> Program<'a> {
             self.paths.remove_current_image();
         }
 
-        // Deletes the image automatically advanced to next image
+        // Trashing the image automatically advanced to next image
         // Adjust our view to reflect this
         self.screen.dirty = true;
         self.render_screen(false)?;
         if failures.is_empty() {
-            let success_msg = format!("Deleted {} image(s)", total_trashes);
+            let success_msg = format!("Trashed {} image(s)", total_trashes);
             Ok(success_msg)
         } else {
             Err(format!(
-                "Failed to delete {} of {} images",
+                "Failed to trash {} of {} images",
                 failures.len(),
                 total_trashes,
             ))
