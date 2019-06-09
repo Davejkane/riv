@@ -50,6 +50,8 @@ pub enum Action<'a> {
     SkipBack,
     /// Zoom zooms in or out depending on the ZoomAction variant
     Zoom(ZoomAction),
+    /// Which direction to rotate image
+    Rotate(RotationDirection),
     /// Pan pans the picture in the direction of the PanAction variant
     Pan(PanAction),
     /// Copy indicates the app should copy the image in response to this event
@@ -62,6 +64,15 @@ pub enum Action<'a> {
     Trash,
     /// Noop indicates the app should not respond to this event
     Noop,
+}
+
+/// Direction to rotate image
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RotationDirection {
+    /// Instruct to rotate image clockwise
+    Clockwise,
+    /// Instruct to rotate image counterclockwise
+    CounterClockwise,
 }
 
 impl<'a> Default for Action<'a> {
@@ -233,11 +244,47 @@ pub struct State<'a> {
     pub flip_horizontal: bool,
     /// Image is flipped vertically from original state
     pub flip_vertical: bool,
+    /// Angle to rotate original image at
+    /// Only supports 90 degree increments specified in `RotAngle` enum
+    pub rot_angle: RotAngle,
     /// The time, from which to do a re-render will be base on.
     /// Use to clear infobar messages after inactivity
     pub rerender_time: Option<Instant>,
     /// Store
     pub register: Register<'a>,
+}
+
+/// Rotation angle for image
+pub enum RotAngle {
+    /// 0 degree rotation
+    Up,
+    /// 90 degree rotation
+    Right,
+    /// 180 degree rotation
+    Down,
+    /// 270 degree rotation
+    Left,
+}
+
+impl RotAngle {
+    /// Next state of rotation when rotated clockwise
+    pub fn rot_clockwise(&self) -> RotAngle {
+        match self {
+            RotAngle::Up => RotAngle::Right,
+            RotAngle::Right => RotAngle::Down,
+            RotAngle::Down => RotAngle::Left,
+            RotAngle::Left => RotAngle::Up,
+        }
+    }
+    /// Next state of rotation when rotated counterclockwise
+    pub fn rot_clockclockwise(&self) -> RotAngle {
+        match self {
+            RotAngle::Up => RotAngle::Left,
+            RotAngle::Left => RotAngle::Down,
+            RotAngle::Down => RotAngle::Right,
+            RotAngle::Right => RotAngle::Up,
+        }
+    }
 }
 
 impl<'a> Default for State<'a> {
@@ -253,6 +300,7 @@ impl<'a> Default for State<'a> {
             pan_y: 0.0,
             flip_horizontal: false,
             flip_vertical: false,
+            rot_angle: RotAngle::Up,
             rerender_time: None,
             register: Register {
                 ..Default::default()
@@ -342,6 +390,9 @@ pub fn process_multi_normal_mode<'a>(
             "m" => (Action::Move, times).into(),
             "o" => (Action::Zoom(ZoomAction::Out), times).into(),
             "q" => MultiNormalAction::Quit,
+            "r" => (Action::Rotate(RotationDirection::Clockwise), times).into(),
+            "R" => (Action::Rotate(RotationDirection::CounterClockwise), times).into(),
+
             "t" => {
                 state.render_infobar = !state.render_infobar;
                 (Action::ReRender, times).into()
@@ -438,6 +489,8 @@ pub fn process_normal_mode<'a>(state: &mut State<'a>, event: &Event) -> ProcessA
             "m" => Action::Move.into(),
             "o" => Action::Zoom(ZoomAction::Out).into(),
             "q" => Action::Quit.into(),
+            "r" => Action::Rotate(RotationDirection::Clockwise).into(),
+            "R" => Action::Rotate(RotationDirection::CounterClockwise).into(),
             "t" => {
                 state.render_infobar = !state.render_infobar;
                 Action::ReRender.into()

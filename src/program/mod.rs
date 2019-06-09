@@ -10,7 +10,7 @@ use crate::cli;
 use crate::paths::{Paths, PathsBuilder};
 use crate::screen::Screen;
 use crate::sort::Sorter;
-use crate::ui::{self, Action, Mode, PanAction, ProcessAction, ZoomAction};
+use crate::ui::{self, Action, Mode, PanAction, ProcessAction, RotationDirection, ZoomAction};
 use core::cmp;
 use fs_extra::file::copy;
 use fs_extra::file::move_file;
@@ -660,9 +660,10 @@ impl<'a> Program<'a> {
 
     /// Processes Normal Mode Actions
     /// Ok result tells whether to continue or break out of the current Mode
+    // Allow cognitive complexity lint since we need to match every Action
+    // Note: complexity could be simplified by splittng out Command mode and Normal mode actions
+    #[allow(clippy::cognitive_complexity)]
     fn dispatch_normal(&mut self, process_action: ProcessAction) -> Result<CompleteType, String> {
-        //let action = self.ui_state.register.cur_action.action;
-        //let times = self.ui_state.register.cur_action.times;
         match process_action {
             ProcessAction { action, times } => match action {
                 Action::Quit => {
@@ -695,6 +696,14 @@ impl<'a> Program<'a> {
                 Action::SkipBack => self.skip_backward(times)?,
                 Action::Zoom(ZoomAction::In) => self.zoom_in(times)?,
                 Action::Zoom(ZoomAction::Out) => self.zoom_out(times)?,
+                Action::Rotate(RotationDirection::Clockwise) => {
+                    self.ui_state.rot_angle = self.ui_state.rot_angle.rot_clockwise();
+                    self.render_screen(false)?;
+                }
+                Action::Rotate(RotationDirection::CounterClockwise) => {
+                    self.ui_state.rot_angle = self.ui_state.rot_angle.rot_clockclockwise();
+                    self.render_screen(false)?;
+                }
                 Action::Pan(PanAction::Left) => self.pan_left(times)?,
                 Action::Pan(PanAction::Right) => self.pan_right(times)?,
                 Action::Pan(PanAction::Up) => self.pan_up(times)?,
