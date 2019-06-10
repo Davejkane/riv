@@ -21,6 +21,9 @@ use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
+
+#[cfg(target_os = "windows")]
+use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -413,6 +416,101 @@ impl<'a> Program<'a> {
         }
     }
 
+    /// Trashes image currently being viewed
+    /// Does nothing if supplied 0 for an amount
+    fn trash_images(&mut self, amount: usize) -> Result<String, String> {
+        if amount == 0 {
+            return Ok("0 images asked to trash".to_string());
+        }
+
+        let current_index = match self.paths.index() {
+            Some(i) => i,
+            None => return Err("no images to trash".to_string()),
+        };
+
+        let max_index = self.paths.max_viewable_index().unwrap();
+
+        // Compute actual number of images to trash
+        // Cap at max index. Add 1 incase max index == current_index
+        let total_trashes =
+            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+
+        // Store errors for possible future use
+
+        let mut failures: Vec<String> = Vec::new();
+        // Attempt to trash as many images as possible;
+        for _ in 0..total_trashes {
+            let current_path = self.paths.current_image_path().unwrap();
+
+            #[cfg(target_os = "windows")]
+            {
+                // Convert to msdos path to work with `move_to_trash_win`
+                // Unsure why UNC paths don't work.
+                let msdos_path = dunce::canonicalize(&current_path).unwrap();
+                let trash_result = move_to_trash_win(&msdos_path);
+
+                if let Err(e) = trash_result {
+                    eprintln!("{}", e);
+                    failures.push(e.to_string());
+                    continue;
+                }
+            }
+            #[cfg(target_os = "linux")]
+            {
+                let trash_result = trash::move_to_trash(&current_path);
+                if let Err(e) = trash_result {
+                    eprintln!("{}", e);
+                    failures.push(e.to_string());
+                    continue;
+                }
+            }
+            #[cfg(target_os = "macos")]
+            {
+                // use homebrew `trash -F` command for OSX trash support
+                use std::process::Command;
+                let output = Command::new("trash").arg("-F").arg(&current_path).output();
+                let output =
+                    match output {
+                        Ok(o) => o,
+                        Err(e) => match e.kind() {
+                            ErrorKind::NotFound => return Err(
+                                "Could not find 'trash' binary. To fix, run 'brew install trash' in your terminal."
+                                    .to_string(),
+                            ),
+                            // Something else is wrong that we can't control
+                            _ => return Err(e.to_string()),
+                        },
+                    };
+
+                if !output.status.success() {
+                    eprintln!("{:?}", &output);
+                    failures.push(format!("{:?}: {:?}", output.status, output.stderr));
+                    continue;
+                }
+            }
+            #[cfg(not(any(target_os = "macos", target_os = "linux", target_os = "windows")))]
+            return Err("Trash support for OS not supported".to_string());
+
+            // Only if successful, remove image from tracked images
+            self.paths.remove_current_image();
+        }
+
+        // Trashing the image automatically advanced to next image
+        // Adjust our view to reflect this
+        self.screen.dirty = true;
+        self.render_screen(false)?;
+        if failures.is_empty() {
+            let success_msg = format!("Trashed {} image(s)", total_trashes);
+            Ok(success_msg)
+        } else {
+            Err(format!(
+                "Failed to trash {} of {} images",
+                failures.len(),
+                total_trashes,
+            ))
+        }
+    }
+
     /// Deletes image currently being viewed
     /// Does nothing if supplied 0 for an amount
     fn delete_images(&mut self, amount: usize) -> Result<String, String> {
@@ -654,6 +752,17 @@ impl<'a> Program<'a> {
                         return Ok(CompleteType::Break);
                     }
                 },
+                Action::Trash => match self.trash_images(times) {
+                    Ok(s) => {
+                        self.ui_state.mode = Mode::Success(s);
+                        self.ui_state.rerender_time = Some(Instant::now());
+                        return Ok(CompleteType::Break);
+                    }
+                    Err(e) => {
+                        self.ui_state.mode = Mode::Error(format!("Failed to delete file: {}", e));
+                        return Ok(CompleteType::Break);
+                    }
+                },
                 Action::Noop => return Ok(CompleteType::Complete),
                 _ => return Ok(CompleteType::Complete),
             },
@@ -736,4 +845,41 @@ fn compute_skip_size(images: &[PathBuf]) -> usize {
 enum CompleteType {
     Complete,
     Break,
+}
+
+#[cfg(target_os = "windows")]
+/// Moves a file to the trash on Windows
+fn move_to_trash_win<S: AsRef<OsStr>>(file: S) -> Result<i32, i32> {
+    use std::iter::repeat;
+    use std::os::windows::ffi::OsStrExt;
+    use winapi::um::shellapi::{SHFileOperationW, SHFILEOPSTRUCTW};
+
+    use std::ptr::{null, null_mut};
+    use winapi::um::shellapi;
+
+    // Encode the file as wide or UTF-16.
+    // Double null terminate end of filename for PCZZSTR type
+    let wide: Vec<u16> = OsStr::new(file.as_ref())
+        .encode_wide()
+        .chain(repeat(0).take(2))
+        .collect();
+
+    let mut trashed = SHFILEOPSTRUCTW {
+        hwnd: null_mut(),
+        wFunc: u32::from(shellapi::FO_DELETE),
+        fFlags: shellapi::FOF_ALLOWUNDO | shellapi::FOF_NO_UI,
+        fAnyOperationsAborted: 0,
+        pFrom: wide.as_ptr(),
+        pTo: null(),
+        hNameMappings: null_mut(),
+        lpszProgressTitle: null_mut(),
+    };
+
+    let ret = unsafe { SHFileOperationW(&mut trashed) };
+    // 0 return code is success. Anything else is an error
+    if ret == 0 {
+        Ok(ret)
+    } else {
+        Err(ret)
+    }
 }
