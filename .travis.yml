@@ -1,14 +1,6 @@
 language: rust
 rust:
   - stable
-# Need to cache the whole `.cargo` directory to keep .crates.toml for
-# # cargo-update to work
-cache:
-    directories:
-        - /home/travis/.cargo
-# But don't cache the cargo registry
-before_cache:
-    - rm -rf /home/travis/.cargo/registry
 addons:
   apt:
     packages:
@@ -25,8 +17,6 @@ addons:
 script:
   - rustup component add rustfmt
   - rustup component add clippy
-  - cargo install cargo-update
-  - cargo install-update -a
   - cargo fmt --all -- --check
   - cargo build --verbose --all
   - cargo test --verbose --all
