@@ -455,7 +455,7 @@ impl<'a> Program<'a> {
             }
             #[cfg(target_os = "linux")]
             {
-                let trash_result = trash::move_to_trash(&path);
+                let trash_result = trash::move_to_trash(&current_path);
                 if let Err(e) = trash_result {
                     eprintln!("{}", e);
                     failures.push(e.to_string());
