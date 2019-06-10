@@ -468,11 +468,19 @@ impl<'a> Program<'a> {
             {
                 // use homebrew `trash -F` command for OSX trash support
                 use std::process::Command;
-                let output = Command::new("trash")
-                    .arg("-F")
-                    .arg(&current_path)
-                    .output()
-                    .expect("Failed to spawn trash program");
+                let output = Command::new("trash").arg("-F").arg(&current_path).output();
+                let output =
+                    match output {
+                        Ok(o) => o,
+                        Err(e) => match e.kind() {
+                            ErrorKind::NotFound => return Err(
+                                "Could not find 'trash' binary. To fix, run 'brew install trash' in your terminal."
+                                    .to_string(),
+                            ),
+                            _ => return Err(e.to_string()),
+                        },
+                    };
+
                 if !output.status.success() {
                     eprintln!("{:?}", &output);
                     failures.push(format!("{:?}: {:?}", output.status, output.stderr));
