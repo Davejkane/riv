@@ -22,6 +22,8 @@ use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 
+#[cfg(target_os = "windows")]
+use std::ffi::OsStr;
 use std::io::ErrorKind;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
@@ -444,7 +446,7 @@ impl<'a> Program<'a> {
             {
                 // Convert to msdos path to work with `move_to_trash_win`
                 // Unsure why UNC paths don't work.
-                let msdos_path = dunce::canonicalize(&path).unwrap();
+                let msdos_path = dunce::canonicalize(&current_path).unwrap();
                 let trash_result = move_to_trash_win(&msdos_path);
 
                 if let Err(e) = trash_result {
@@ -839,7 +841,6 @@ enum CompleteType {
 #[cfg(target_os = "windows")]
 /// Moves a file to the trash on Windows
 fn move_to_trash_win<S: AsRef<OsStr>>(file: S) -> Result<i32, i32> {
-    use std::ffi::OsStr;
     use std::iter::repeat;
     use std::os::windows::ffi::OsStrExt;
     use winapi::um::shellapi::{SHFileOperationW, SHFILEOPSTRUCTW};
