@@ -436,7 +436,6 @@ impl<'a> Program<'a> {
             std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
 
         // Store errors for possible future use
-
         let mut failures: Vec<String> = Vec::new();
         // Attempt to trash as many images as possible;
         for _ in 0..total_trashes {
