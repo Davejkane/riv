@@ -477,6 +477,7 @@ impl<'a> Program<'a> {
                                 "Could not find 'trash' binary. To fix, run 'brew install trash' in your terminal."
                                     .to_string(),
                             ),
+                            // Something else is wrong that we can't control
                             _ => return Err(e.to_string()),
                         },
                     };
