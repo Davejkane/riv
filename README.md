@@ -106,7 +106,7 @@ You will also need sdl2_image and sdl2_ttf
 
 #### Mac
 
-The `trash` program is required for sending images to the trash..
+The `trash` program is required for sending images to the trash.
 
 `brew install trash sdl sdl2_image sdl2_ttf`
 
