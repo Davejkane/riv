@@ -10,8 +10,8 @@ use std::path::PathBuf;
 
 /// Args contains the arguments that have been successfully parsed by the clap cli app
 pub struct Args {
-    /// files is the vector of image file paths that match the supplied or default glob
-    pub files: Vec<PathBuf>,
+    /// Parsed glob to scan for images over
+    pub glob: glob::Paths,
     /// dest_folder is the supplied or default folder for moving files
     pub dest_folder: PathBuf,
     /// provides the SortOrder specified by the user
@@ -28,7 +28,6 @@ pub struct Args {
 
 /// cli sets up the command line app and parses the arguments, using clap.
 pub fn cli() -> Result<Args, String> {
-    let mut files = Vec::new();
     let matches = App::new("riv")
         .version("0.3.0")
         .about("The command line image viewer")
@@ -96,13 +95,7 @@ pub fn cli() -> Result<Args, String> {
     if let Ok(new_base_dir) = crate::new_base_dir(&path_glob) {
         base_dir = new_base_dir;
     }
-    let glob_matches = glob(&path_glob.to_string_lossy()).map_err(|e| e.to_string())?;
-    for path in glob_matches {
-        match path {
-            Ok(p) => push_image_path(&mut files, p),
-            Err(e) => eprintln!("Path not processable {}", e),
-        }
-    }
+    let glob = glob(&path_glob.to_string_lossy()).map_err(|e| e.to_string())?;
 
     let sort_order = match value_t!(matches, "sort-order", SortOrder) {
         Ok(order) => order,
@@ -123,7 +116,7 @@ pub fn cli() -> Result<Args, String> {
     let fullscreen = matches.is_present("fullscreen");
 
     Ok(Args {
-        files,
+        glob,
         dest_folder,
         sort_order,
         reverse,

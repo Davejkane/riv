@@ -7,7 +7,7 @@ mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
-use crate::paths::{Paths, PathsBuilder};
+use crate::paths::{incremental_glob, Paths, PathsBuilder, SendStatus};
 use crate::screen::Screen;
 use crate::sort::Sorter;
 use crate::ui::{self, Action, Mode, PanAction, ProcessAction, RotationDirection, ZoomAction};
@@ -21,6 +21,9 @@ use sdl2::rwops::RWops;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
+
+use crossbeam_channel::bounded;
+use crossbeam_utils::thread;
 
 #[cfg(target_os = "windows")]
 use std::ffi::OsStr;
@@ -50,7 +53,35 @@ impl<'a> Program<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
         args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let mut images = args.files;
+        let (tx, rx) = bounded(5);
+        let mut images = Vec::new();
+
+        let glob = args.glob;
+        thread::scope(|scope| {
+            scope.spawn(|_| incremental_glob(glob, &tx, &mut images));
+            // loop till scan is complete
+            loop {
+                match rx.recv() {
+                    Ok(SendStatus::Progress(n)) => {
+                        println!("# images = {}", n);
+                    }
+                    Ok(SendStatus::Complete(n)) => {
+                        println!("Complete: processed {:?} images", n);
+                        break;
+                    }
+                    Ok(s) => {
+                        dbg!(s);
+                    }
+                    Err(e) => {
+                        dbg!(e);
+                    }
+                }
+            }
+        })
+        .unwrap();
+        println!("{}", images.len());
+        let mut images: Vec<_> = images.into_iter().map(Result::unwrap).collect();
+
         let dest_folder = args.dest_folder;
         let reverse = args.reverse;
         let sort_order = args.sort_order;

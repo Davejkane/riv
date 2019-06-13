@@ -1,9 +1,74 @@
 //! Paths contains the Paths struct which contains all path related information required for the
 //! running of the program.
 
+use crossbeam_channel::bounded;
+use glob::GlobError;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
 use std::slice::SliceIndex;
+use std::time::Duration;
+
+/// Events related to progress in scanning images
+#[derive(Debug, Clone)]
+pub enum SendStatus {
+    /// Scanning for images has started
+    Started,
+    /// Request to update progress on number of images globbed
+    UpdateProgress,
+    /// How many images have been collected so far
+    Progress(usize),
+    /// Complete amount of images scanned
+    Complete(usize),
+    //Error,
+}
+
+/// Scans a glob
+pub fn incremental_glob(
+    glob: glob::Paths,
+    sender: &crossbeam_channel::Sender<SendStatus>,
+    results: &mut Vec<Result<PathBuf, GlobError>>,
+) {
+    /*
+    sketch of design
+
+    Set infobar text to indicate that glob (image) scanning has started
+    Every 0.5 seconds update the progress bar with count of scanned images so far.
+    However, in the event the image scan finished, update the progress bar
+    with the complete image count (progress or complete get there first perhaps)
+
+    However, the completion message should update the UI immediately, regardless of how far
+    along the periodic progress indicator is.
+
+    The problem to solve is how to efficiently pause iteration every 0.5 seconds?
+
+    Would constantly sending the progress count to a bounded channel of capacity 1 be too slow?
+    The complete message would overwrite the progress message, so that'd be ideal.
+    It still doesn't solve immediate update on receipt of completion message.
+    */
+    let (internal_sender, internal_receiver) = bounded(5);
+
+    sender.send(SendStatus::Started).unwrap();
+
+    // Spawn a timer to request progress of scanning until scanning completes
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_millis(500));
+        if internal_sender.send(SendStatus::UpdateProgress).is_err() {
+            // Internal sending channel closed (likely completed scanning)
+            // Kill the timer thread
+            break;
+        }
+    });
+
+    for path in glob {
+        // Send a progress update if requested
+        if let Ok(SendStatus::UpdateProgress) = internal_receiver.try_recv() {
+            sender.send(SendStatus::Progress(results.len())).unwrap();
+        }
+
+        results.push(path);
+    }
+    sender.send(SendStatus::Complete(results.len())).unwrap();
+}
 
 /// Builds a new Paths
 #[derive(Debug)]
@@ -379,8 +444,6 @@ mod tests {
         let images = dummy_paths_builder(10).build();
         let slice = images.get(5);
         let multi_slice = images.get(1..=5);
-        dbg!(slice);
-        dbg!(multi_slice);
         assert_eq!(slice, Some(&PathBuf::from("")));
         assert_eq!(multi_slice.unwrap().len(), 5);
     }
