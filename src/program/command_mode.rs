@@ -80,7 +80,6 @@ impl FromStr for Commands {
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
 /// path is unexpected
 fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String> {
-
     let glob = glob::glob(&path.to_string_lossy()).map_err(|e| e.to_string())?;
     let (tx, rx) = bounded(5);
     let mut new_images = Vec::new();
@@ -98,9 +97,7 @@ fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String
                         child_1: " ".to_string(),
                         child_2: "Starting to scan images".to_string(),
                     };
-                    screen
-                        .render_infobar(text, text_color, &theme)
-                        .unwrap();
+                    screen.render_infobar(text, text_color, &theme).unwrap();
                     screen.canvas.present()
                 }
                 Ok(SendStatus::Progress(n)) => {
@@ -108,9 +105,7 @@ fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String
                         child_1: "In progress".to_string(),
                         child_2: format!("matched {} images", n),
                     };
-                    screen
-                        .render_infobar(text, text_color, &theme)
-                        .unwrap();
+                    screen.render_infobar(text, text_color, &theme).unwrap();
                     screen.canvas.present();
                 }
                 Ok(SendStatus::Complete(_)) => {
@@ -122,7 +117,7 @@ fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String
             }
         }
     })
-        .unwrap();
+    .unwrap();
     if new_images.is_empty() {
         let err_msg = format!("Path \"{}\" had no images", path.display());
         return Err(err_msg);
@@ -199,7 +194,6 @@ impl<'a> Program<'a> {
         };
         let msg = path_to_newglob.to_owned();
 
-
         let new_images = match glob_path(&mut self.screen, &path) {
             Ok(new_images) => new_images,
             Err(e) => {
@@ -207,9 +201,6 @@ impl<'a> Program<'a> {
                 return;
             }
         };
-
-        //let new_images = populate_images(&mut self.screen, glob);
-
 
         let target = match self.paths.current_image_path() {
             Some(path) => {
@@ -244,7 +235,6 @@ impl<'a> Program<'a> {
                 }
             }
         }
-
         self.ui_state.mode = Mode::Success(format!(
             "found {} images in {}",
             self.paths.images().len(),
