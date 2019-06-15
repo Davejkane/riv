@@ -2,7 +2,6 @@
 //! running of the program.
 
 use crossbeam_channel::bounded;
-use glob::GlobError;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
 use std::slice::SliceIndex;
@@ -23,7 +22,7 @@ pub enum SendStatus {
 pub fn incremental_glob(
     glob: glob::Paths,
     sender: &crossbeam_channel::Sender<SendStatus>,
-    results: &mut Vec<Result<PathBuf, GlobError>>,
+    results: &mut Vec<PathBuf>,
 ) {
     /*
     sketch of design
@@ -66,13 +65,13 @@ pub fn incremental_glob(
         }
     });
 
-    for path in glob {
+    for path in glob.filter_map(Result::ok) {
         // Send a progress update if requested
         if let Ok(InternalSendStatus::UpdateProgress) = internal_receiver.try_recv() {
             sender.send(SendStatus::Progress(results.len())).unwrap();
         }
-
-        results.push(path);
+        use crate::cli::push_image_path;
+        push_image_path(results, path);
     }
     sender.send(SendStatus::Complete(results.len())).unwrap();
 }

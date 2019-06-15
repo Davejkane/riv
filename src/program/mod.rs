@@ -45,7 +45,7 @@ pub struct Program<'a> {
 }
 
 /// Populate images from glob with progress
-fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
+pub fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
     let (tx, rx) = bounded(5);
     let mut images = Vec::new();
 
@@ -92,8 +92,7 @@ fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
         }
     })
     .unwrap();
-    // Discard images that had errors globbing
-    images.into_iter().map(Result::unwrap).collect()
+    images
 }
 
 impl<'a> Program<'a> {

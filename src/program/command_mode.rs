@@ -1,8 +1,14 @@
 //! File that contains Command mode functionality, command mode is a mode that allows verbose input
 //! from the user to perform tasks or edit stored data in the application during runtime
-use super::Program;
+use crate::infobar::Text;
+use crate::paths::{incremental_glob, SendStatus};
+use crate::program::{mode_colors, mode_text_color, Program};
+use crate::screen::Screen;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, HelpRender, Mode};
+use crossbeam_channel::bounded;
+use crossbeam_utils::thread;
+
 use regex::Regex;
 use shellexpand::full;
 use std::path::PathBuf;
@@ -73,22 +79,50 @@ impl FromStr for Commands {
 
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
 /// path is unexpected
-fn glob_path(path: &PathBuf) -> Result<Vec<PathBuf>, String> {
-    use crate::cli::push_image_path;
+fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String> {
 
-    let mut new_images: Vec<PathBuf> = Vec::new();
-    let path_matches = glob::glob(&path.to_string_lossy()).map_err(|e| e.to_string())?;
-    for path in path_matches {
-        match path {
-            Ok(p) => {
-                push_image_path(&mut new_images, p);
-            }
-            Err(e) => {
-                let err_msg = format!("Unexpected path {}", e);
-                return Err(err_msg);
+    let glob = glob::glob(&path.to_string_lossy()).map_err(|e| e.to_string())?;
+    let (tx, rx) = bounded(5);
+    let mut new_images = Vec::new();
+
+    let theme = mode_colors(&Mode::Command("".to_string()));
+    let text_color = mode_text_color(&Mode::Command("".to_string()));
+
+    thread::scope(|scope| {
+        scope.spawn(|_| incremental_glob(glob, &tx, &mut new_images));
+        // loop till scan is complete
+        loop {
+            match rx.recv() {
+                Ok(SendStatus::Started) => {
+                    let text = Text {
+                        child_1: " ".to_string(),
+                        child_2: "Starting to scan images".to_string(),
+                    };
+                    screen
+                        .render_infobar(text, text_color, &theme)
+                        .unwrap();
+                    screen.canvas.present()
+                }
+                Ok(SendStatus::Progress(n)) => {
+                    let text = Text {
+                        child_1: "In progress".to_string(),
+                        child_2: format!("matched {} images", n),
+                    };
+                    screen
+                        .render_infobar(text, text_color, &theme)
+                        .unwrap();
+                    screen.canvas.present();
+                }
+                Ok(SendStatus::Complete(_)) => {
+                    break;
+                }
+                Err(e) => {
+                    dbg!(e);
+                }
             }
         }
-    }
+    })
+        .unwrap();
     if new_images.is_empty() {
         let err_msg = format!("Path \"{}\" had no images", path.display());
         return Err(err_msg);
@@ -164,13 +198,19 @@ impl<'a> Program<'a> {
             }
         };
         let msg = path_to_newglob.to_owned();
-        let new_images = match glob_path(&path) {
+
+
+        let new_images = match glob_path(&mut self.screen, &path) {
             Ok(new_images) => new_images,
             Err(e) => {
                 self.ui_state.mode = Mode::Error(e.to_string());
                 return;
             }
         };
+
+        //let new_images = populate_images(&mut self.screen, glob);
+
+
         let target = match self.paths.current_image_path() {
             Some(path) => {
                 // Clone the path because the whole image set is going to be swapped out
