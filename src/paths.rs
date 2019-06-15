@@ -27,19 +27,12 @@ pub fn incremental_glob(
     /*
     sketch of design
 
-    Set infobar text to indicate that glob (image) scanning has started
-    Every 0.5 seconds update the progress bar with count of scanned images so far.
-    However, in the event the image scan finished, update the progress bar
-    with the complete image count (progress or complete get there first perhaps)
+    Send a message saying that globbing has started.
+    Every 0.5 seconds send a progress update on how many images matched the glob.
+    A completion message with total images matched is sent when the glob is finished.
 
-    However, the completion message should update the UI immediately, regardless of how far
-    along the periodic progress indicator is.
-
-    The problem to solve is how to efficiently pause iteration every 0.5 seconds?
-
-    Would constantly sending the progress count to a bounded channel of capacity 1 be too slow?
-    The complete message would overwrite the progress message, so that'd be ideal.
-    It still doesn't solve immediate update on receipt of completion message.
+    The timer will exit when it tries to send another completion message, thus
+    all threads are cleaned up.
     */
 
     /// Internal messages for child thread communication
