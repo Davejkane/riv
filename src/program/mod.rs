@@ -25,6 +25,8 @@ use sdl2::Sdl;
 use crossbeam_channel::bounded;
 use crossbeam_utils::thread;
 
+use crate::infobar::Text;
+use crate::program::mode_text_color;
 #[cfg(target_os = "windows")]
 use std::ffi::OsStr;
 use std::io::ErrorKind;
@@ -42,6 +44,58 @@ pub struct Program<'a> {
     sorter: Sorter,
 }
 
+/// Populate images from glob with progress
+fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
+    let (tx, rx) = bounded(5);
+    let mut images = Vec::new();
+
+    let theme = mode_colors(&Mode::Command("".to_string()));
+    let text_color = mode_text_color(&Mode::Command("".to_string()));
+
+    thread::scope(|scope| {
+        scope.spawn(|_| incremental_glob(glob, &tx, &mut images));
+        // loop till scan is complete
+        loop {
+            match rx.recv() {
+                Ok(SendStatus::Started) => {
+                    let text = Text {
+                        child_1: " ".to_string(),
+                        child_2: "Starting to scan images".to_string(),
+                    };
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present()
+                }
+                Ok(SendStatus::Progress(n)) => {
+                    let text = Text {
+                        child_1: "In progress".to_string(),
+                        child_2: format!("matched {} images", n),
+                    };
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present();
+                }
+                Ok(SendStatus::Complete(n)) => {
+                    let theme = mode_colors(&Mode::Success("".to_string()));
+                    let text_color = mode_text_color(&Mode::Success("".to_string()));
+                    let text = Text {
+                        child_1: "Complete".to_string(),
+                        child_2: format!("{} image(s) matched", n),
+                    };
+
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present();
+                    break;
+                }
+                Err(e) => {
+                    dbg!(e);
+                }
+            }
+        }
+    })
+    .unwrap();
+    // Discard images that had errors globbing
+    images.into_iter().map(Result::unwrap).collect()
+}
+
 impl<'a> Program<'a> {
     /// init scaffolds the program, by making a call to the cli module to parse the command line
     /// arguments, sets up the sdl context, creates the window, the canvas and the texture
@@ -53,35 +107,6 @@ impl<'a> Program<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
         args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let (tx, rx) = bounded(5);
-        let mut images = Vec::new();
-
-        let glob = args.glob;
-        thread::scope(|scope| {
-            scope.spawn(|_| incremental_glob(glob, &tx, &mut images));
-            // loop till scan is complete
-            loop {
-                match rx.recv() {
-                    Ok(SendStatus::Progress(n)) => {
-                        println!("# images = {}", n);
-                    }
-                    Ok(SendStatus::Complete(n)) => {
-                        println!("Complete: processed {:?} images", n);
-                        break;
-                    }
-                    Ok(s) => {
-                        dbg!(s);
-                    }
-                    Err(e) => {
-                        dbg!(e);
-                    }
-                }
-            }
-        })
-        .unwrap();
-        println!("{}", images.len());
-        let mut images: Vec<_> = images.into_iter().map(Result::unwrap).collect();
-
         let dest_folder = args.dest_folder;
         let reverse = args.reverse;
         let sort_order = args.sort_order;
@@ -89,9 +114,6 @@ impl<'a> Program<'a> {
         let base_dir = args.base_dir;
 
         let max_viewable = max_length;
-
-        let sorter = Sorter::new(sort_order, reverse);
-        sorter.sort(&mut images);
 
         let font_bytes = include_bytes!("../../resources/Roboto-Medium.ttf");
         let font_bytes = match RWops::from_bytes(font_bytes) {
@@ -112,20 +134,28 @@ impl<'a> Program<'a> {
             Err(e) => panic!("Failed to load font {}", e),
         };
 
+        let mut screen = Screen {
+            sdl_context,
+            canvas,
+            texture_creator,
+            font,
+            mono_font,
+            last_index: None,
+            last_texture: None,
+            dirty: false,
+        };
+
+        // Prepare loading screen
+        let mut images = populate_images(&mut screen, args.glob);
+
+        let sorter = Sorter::new(sort_order, reverse);
+        sorter.sort(&mut images);
+
         let paths = PathsBuilder::new(images, dest_folder, base_dir)
             .with_maximum_viewable(max_viewable)
             .build();
         Ok(Program {
-            screen: Screen {
-                sdl_context,
-                canvas,
-                texture_creator,
-                font,
-                mono_font,
-                last_index: None,
-                last_texture: None,
-                dirty: false,
-            },
+            screen,
             paths,
             ui_state: ui::State {
                 fullscreen: args.fullscreen,

@@ -7,12 +7,12 @@ use crate::ui::{Mode, State};
 
 /// Text contains the strings required to print the infobar.
 pub struct Text {
-    /// Either displays the name of the current image or the current command the user is typing in
-    /// command mode
-    pub information: String,
     /// In normal mode this is the string represention of the index, in command mode this is
     /// "Command"
-    pub mode: String,
+    pub child_1: String,
+    /// Either displays the name of the current image or the current command the user is typing in
+    /// command mode
+    pub child_2: String,
 }
 
 impl Text {
@@ -53,6 +53,9 @@ impl Text {
             Mode::Success(msg) => ("Success".to_string(), msg.to_string()),
             Mode::Exit => ("Exit".to_string(), "Exiting... Goodbye".to_string()),
         };
-        Text { information, mode }
+        Text {
+            child_1: mode,
+            child_2: information,
+        }
     }
 }

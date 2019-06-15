@@ -13,13 +13,10 @@ use std::time::Duration;
 pub enum SendStatus {
     /// Scanning for images has started
     Started,
-    /// Request to update progress on number of images globbed
-    UpdateProgress,
     /// How many images have been collected so far
     Progress(usize),
     /// Complete amount of images scanned
     Complete(usize),
-    //Error,
 }
 
 /// Scans a glob
@@ -45,6 +42,13 @@ pub fn incremental_glob(
     The complete message would overwrite the progress message, so that'd be ideal.
     It still doesn't solve immediate update on receipt of completion message.
     */
+
+    /// Internal messages for child thread communication
+    enum InternalSendStatus {
+        /// Request to update progress on number of images globbed
+        UpdateProgress,
+    }
+
     let (internal_sender, internal_receiver) = bounded(5);
 
     sender.send(SendStatus::Started).unwrap();
@@ -52,7 +56,10 @@ pub fn incremental_glob(
     // Spawn a timer to request progress of scanning until scanning completes
     std::thread::spawn(move || loop {
         std::thread::sleep(Duration::from_millis(500));
-        if internal_sender.send(SendStatus::UpdateProgress).is_err() {
+        if internal_sender
+            .send(InternalSendStatus::UpdateProgress)
+            .is_err()
+        {
             // Internal sending channel closed (likely completed scanning)
             // Kill the timer thread
             break;
@@ -61,7 +68,7 @@ pub fn incremental_glob(
 
     for path in glob {
         // Send a progress update if requested
-        if let Ok(SendStatus::UpdateProgress) = internal_receiver.try_recv() {
+        if let Ok(InternalSendStatus::UpdateProgress) = internal_receiver.try_recv() {
             sender.send(SendStatus::Progress(results.len())).unwrap();
         }
 
