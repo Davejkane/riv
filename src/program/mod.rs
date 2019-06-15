@@ -144,7 +144,10 @@ impl<'a> Program<'a> {
             dirty: false,
         };
 
-        // Prepare loading screen
+        // Prepare loading screen by setting background color
+        screen.canvas.set_draw_color(dark_grey());
+        screen.canvas.clear();
+        // Load first set of images
         let mut images = populate_images(&mut screen, args.glob);
 
         let sorter = Sorter::new(sort_order, reverse);
