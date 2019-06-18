@@ -161,6 +161,7 @@ impl<'a> Program<'a> {
             paths,
             ui_state: ui::State {
                 fullscreen: args.fullscreen,
+                mode: Mode::Loading,
                 ..Default::default()
             },
             sorter,
@@ -642,6 +643,10 @@ impl<'a> Program<'a> {
         'main_loop: loop {
             let mode = &self.ui_state.mode.clone();
             match mode {
+                Mode::Loading => {
+                    self.render_screen(false)?;
+                    self.ui_state.mode = Mode::Normal;
+                }
                 Mode::Normal => {
                     self.run_normal_mode()?;
                     // Don't reset image zoom and offset when changing modes

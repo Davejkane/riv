@@ -239,7 +239,7 @@ pub fn mode_colors(m: &Mode) -> Colors {
             bg_rect_2: green(),
             bg_rest: grey(),
         },
-        Mode::Command(_) => Colors {
+        Mode::Command(_) | Mode::Loading => Colors {
             bg_rect_left: light_yellow(),
             bg_rect_2: yellow(),
             bg_rest: grey(),
@@ -255,9 +255,12 @@ pub fn mode_colors(m: &Mode) -> Colors {
 /// Text color theme
 pub fn mode_text_color(m: &Mode) -> Color {
     match m {
-        Mode::Normal | Mode::MultiNormal | Mode::Exit | Mode::Command(_) | Mode::Success(_) => {
-            dark_text_color()
-        }
+        Mode::Loading
+        | Mode::Normal
+        | Mode::MultiNormal
+        | Mode::Exit
+        | Mode::Command(_)
+        | Mode::Success(_) => dark_text_color(),
         Mode::Error(_) => light_text_color(),
     }
 }

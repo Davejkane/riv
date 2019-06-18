@@ -193,6 +193,8 @@ pub enum Mode {
     Error(String),
     /// Mode that is used to display success messages
     Success(String),
+    /// Loading screen
+    Loading,
     /// Terminate condition, if this mode is set the program will stop execution
     Exit,
 }
@@ -212,12 +214,15 @@ pub enum HelpRender {
 pub struct Register<'a> {
     /// Current action to perform later
     pub cur_action: ProcessAction<'a>,
+    /// Glob iterator for loading screen
+    pub loading_glob: Option<glob::Paths>,
 }
 
 impl<'a> Default for Register<'a> {
     fn default() -> Self {
         Self {
             cur_action: ProcessAction::new(Action::Noop, 1),
+            loading_glob: None,
         }
     }
 }
