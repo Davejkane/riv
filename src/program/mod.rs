@@ -148,15 +148,14 @@ impl<'a> Program<'a> {
         screen.canvas.set_draw_color(dark_grey());
         screen.canvas.clear();
         // Load first set of images
-        let mut images = populate_images(&mut screen, args.glob);
-
+        let images = Vec::new();
         let sorter = Sorter::new(sort_order, reverse);
-        sorter.sort(&mut images);
+        //sorter.sort(&mut images);
 
         let paths = PathsBuilder::new(images, dest_folder, base_dir)
             .with_maximum_viewable(max_viewable)
             .build();
-        Ok(Program {
+        let mut program = Program {
             screen,
             paths,
             ui_state: ui::State {
@@ -165,7 +164,9 @@ impl<'a> Program<'a> {
                 ..Default::default()
             },
             sorter,
-        })
+        };
+        program.ui_state.register.loading_glob = Some(args.glob);
+        Ok(program)
     }
 
     /// Toggle whether actual size or scaled image is rendered.
@@ -636,6 +637,18 @@ impl<'a> Program<'a> {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
     }
 
+    fn run_loading_mode(&mut self) -> Result<(), String> {
+        // Swallow events so that the window will show on first launch from cli
+        for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
+            let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
+            let mut images = populate_images(&mut self.screen, glob.unwrap());
+            self.sorter.sort(images.as_mut_slice());
+            self.paths.reload_images(images);
+            self.ui_state.mode = Mode::Normal;
+        }
+        Ok(())
+    }
+
     /// Central run function that starts by default in Normal mode
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
@@ -645,7 +658,7 @@ impl<'a> Program<'a> {
             match mode {
                 Mode::Loading => {
                     self.render_screen(false)?;
-                    self.ui_state.mode = Mode::Normal;
+                    self.run_loading_mode()?;
                 }
                 Mode::Normal => {
                     self.run_normal_mode()?;
