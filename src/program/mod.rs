@@ -640,17 +640,15 @@ impl<'a> Program<'a> {
 
     fn run_loading_mode(&mut self) -> Result<(), String> {
         // Swallow events so that the window will show on first launch from cli
-        for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
-            // Load and sort the images
-            let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
-            let mut images = populate_images(&mut self.screen, glob.unwrap());
-            self.sorter.sort(images.as_mut_slice());
-            self.paths.reload_images(images);
-            // We are only in loading mode to load images, not process
-            // any events.
-            self.ui_state.mode = Mode::Normal;
-            break;
-        }
+        let _first_event = self.screen.sdl_context.event_pump()?.poll_iter().next();
+        // Load and sort the images
+        let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
+        let mut images = populate_images(&mut self.screen, glob.unwrap());
+        self.sorter.sort(images.as_mut_slice());
+        self.paths.reload_images(images);
+        // We are only in loading mode to load images, not process
+        // any events.
+        self.ui_state.mode = Mode::Normal;
         Ok(())
     }
 
