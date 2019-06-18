@@ -133,7 +133,7 @@ impl<'a> Program<'a> {
             Err(e) => panic!("Failed to load font {}", e),
         };
 
-        let mut screen = Screen {
+        let screen = Screen {
             sdl_context,
             canvas,
             texture_creator,
@@ -144,14 +144,12 @@ impl<'a> Program<'a> {
             dirty: false,
         };
 
-        // Prepare loading screen by setting background color
-        screen.canvas.set_draw_color(dark_grey());
-        screen.canvas.clear();
-        // Load first set of images
+        // Prepare loading images
+        // Start out initially with no images
         let images = Vec::new();
         let sorter = Sorter::new(sort_order, reverse);
-        //sorter.sort(&mut images);
 
+        // Prefill initial max viewable
         let paths = PathsBuilder::new(images, dest_folder, base_dir)
             .with_maximum_viewable(max_viewable)
             .build();
@@ -640,11 +638,15 @@ impl<'a> Program<'a> {
     fn run_loading_mode(&mut self) -> Result<(), String> {
         // Swallow events so that the window will show on first launch from cli
         for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
+            // Load and sort the images
             let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
             let mut images = populate_images(&mut self.screen, glob.unwrap());
             self.sorter.sort(images.as_mut_slice());
             self.paths.reload_images(images);
+            // We are only in loading mode to load images, not process
+            // any events.
             self.ui_state.mode = Mode::Normal;
+            break;
         }
         Ok(())
     }
