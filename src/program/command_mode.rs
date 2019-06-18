@@ -108,6 +108,9 @@ fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String
                     screen.render_infobar(text, text_color, &theme).unwrap();
                     screen.canvas.present();
                 }
+                Ok(SendStatus::ReadError(e)) => {
+                    eprintln!("Path not processable: {}", e);
+                }
                 Ok(SendStatus::Complete(_)) => {
                     break;
                 }

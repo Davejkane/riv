@@ -8,7 +8,7 @@ use std::slice::SliceIndex;
 use std::time::Duration;
 
 /// Events related to progress in scanning images
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum SendStatus {
     /// Scanning for images has started
     Started,
@@ -16,6 +16,8 @@ pub enum SendStatus {
     Progress(usize),
     /// Complete amount of images scanned
     Complete(usize),
+    /// Error reading path
+    ReadError(glob::GlobError),
 }
 
 /// Scans a glob
@@ -58,7 +60,14 @@ pub fn incremental_glob(
         }
     });
 
-    for path in glob.filter_map(Result::ok) {
+    for res in glob {
+        let path = match res {
+            Ok(p) => p,
+            Err(e) => {
+                sender.send(SendStatus::ReadError(e)).unwrap();
+                continue;
+            }
+        };
         // Send a progress update if requested
         if let Ok(InternalSendStatus::UpdateProgress) = internal_receiver.try_recv() {
             sender.send(SendStatus::Progress(results.len())).unwrap();

@@ -73,6 +73,9 @@ pub fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
                     screen.render_infobar(text, text_color, &theme).unwrap();
                     screen.canvas.present();
                 }
+                Ok(SendStatus::ReadError(e)) => {
+                    eprintln!("Path not processable: {}", e);
+                }
                 Ok(SendStatus::Complete(n)) => {
                     let theme = mode_colors(&Mode::Success("".to_string()));
                     let text_color = mode_text_color(&Mode::Success("".to_string()));
