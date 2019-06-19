@@ -130,10 +130,7 @@ impl<'a> Program<'a> {
         let dest_folder = args.dest_folder;
         let reverse = args.reverse;
         let sort_order = args.sort_order;
-        let max_length = args.max_length;
         let base_dir = args.base_dir;
-
-        let max_viewable = max_length;
 
         let font_bytes = include_bytes!("../../resources/Roboto-Medium.ttf");
         let font_bytes = match RWops::from_bytes(font_bytes) {
@@ -171,9 +168,7 @@ impl<'a> Program<'a> {
         let sorter = Sorter::new(sort_order, reverse);
 
         // Prefill initial max viewable
-        let paths = PathsBuilder::new(images, dest_folder, base_dir)
-            .with_maximum_viewable(max_viewable.unwrap_or(0))
-            .build();
+        let paths = PathsBuilder::new(images, dest_folder, base_dir).build();
         let mut config = Config::new();
         config.max_collect = args.max_length;
         let mut program = Program {
