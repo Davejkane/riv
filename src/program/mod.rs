@@ -163,7 +163,13 @@ impl<'a> Program<'a> {
         };
 
         // Prepare loading images
+        // Grab one event to get the window to sppear on Mac OS
+        let _ = screen.sdl_context.event_pump()?.poll_iter().next();
+        // Delay on Mac OS to give the window a chance to show?
+        #[cfg(target_os = "macos")]
+            std::thread::sleep(std::time::Duration::from_millis(100));
         // Start out initially with no images
+
         let images = Vec::new();
         let sorter = Sorter::new(sort_order, reverse);
 
@@ -655,16 +661,23 @@ impl<'a> Program<'a> {
     }
 
     fn run_loading_mode(&mut self) -> Result<(), String> {
-        // Swallow events so that the window will show on first launch from cli
-        let _first_event = self.screen.sdl_context.event_pump()?.poll_iter().next();
-        // Load and sort the images
-        let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
-        let mut images = populate_images(&mut self.screen, glob.unwrap(), &self.config);
-        self.sorter.sort(images.as_mut_slice());
-        self.paths.reload_images(images);
-        // We are only in loading mode to load images, not process
-        // any events.
-        self.ui_state.mode = Mode::Normal;
+
+        // Allow never loop for mac os window showing
+        #[allow(clippy::never_loop)]
+        for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
+            self.screen.canvas.set_draw_color(dark_grey());
+            self.screen.canvas.clear();
+            self.screen.canvas.present();
+            // Load and sort the images
+            let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
+            let mut images = populate_images(&mut self.screen, glob.unwrap(), &self.config);
+            self.sorter.sort(images.as_mut_slice());
+            self.paths.reload_images(images);
+            // We are only in loading mode to load images, not processing
+            // any events.
+            self.ui_state.mode = Mode::Normal;
+            break;
+        }
         Ok(())
     }
 
