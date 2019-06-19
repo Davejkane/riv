@@ -167,7 +167,7 @@ impl<'a> Program<'a> {
         let _ = screen.sdl_context.event_pump()?.poll_iter().next();
         // Delay on Mac OS to give the window a chance to show?
         #[cfg(target_os = "macos")]
-            std::thread::sleep(std::time::Duration::from_millis(100));
+        std::thread::sleep(std::time::Duration::from_millis(100));
         // Start out initially with no images
 
         let images = Vec::new();
@@ -661,7 +661,6 @@ impl<'a> Program<'a> {
     }
 
     fn run_loading_mode(&mut self) -> Result<(), String> {
-
         // Allow never loop for mac os window showing
         #[allow(clippy::never_loop)]
         for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
