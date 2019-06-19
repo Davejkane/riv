@@ -307,7 +307,8 @@ impl<'a> Program<'a> {
             }
         };
         self.config.max_collect = new_actual_max;
-        self.paths.set_actual_maximum(new_actual_max.unwrap_or(std::usize::MAX));
+        self.paths
+            .set_actual_maximum(new_actual_max.unwrap_or(std::usize::MAX));
     }
 
     /// Enters command mode that gets user input and runs a set of possible commands based on user input.
