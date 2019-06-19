@@ -25,6 +25,7 @@ pub fn incremental_glob(
     glob: glob::Paths,
     sender: &crossbeam_channel::Sender<SendStatus>,
     results: &mut Vec<PathBuf>,
+    max_images: Option<usize>,
 ) {
     /*
     sketch of design
@@ -60,6 +61,10 @@ pub fn incremental_glob(
         }
     });
 
+    // Limit amount of images collected. usize max is unlimited since
+    // the vec cannot store more elements than that.
+    let cap = max_images.unwrap_or(std::usize::MAX);
+
     for res in glob {
         let path = match res {
             Ok(p) => p,
@@ -72,8 +77,15 @@ pub fn incremental_glob(
         if let Ok(InternalSendStatus::UpdateProgress) = internal_receiver.try_recv() {
             sender.send(SendStatus::Progress(results.len())).unwrap();
         }
+
+        // filter based on supported image formats
         use crate::cli::push_image_path;
-        push_image_path(results, path);
+        if results.len() < cap {
+            // filter based on supported image formats
+            push_image_path(results, path);
+        } else {
+            break;
+        }
     }
     sender.send(SendStatus::Complete(results.len())).unwrap();
 }

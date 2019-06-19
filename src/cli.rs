@@ -12,14 +12,14 @@ use std::path::PathBuf;
 pub struct Args {
     /// Parsed glob to scan for images over
     pub glob: glob::Paths,
-    /// dest_folder is the supplied or default folder for moving files
+    /// dest_folder is the supplied or default folder for moving files to
     pub dest_folder: PathBuf,
     /// provides the SortOrder specified by the user
     pub sort_order: SortOrder,
     /// whether or not to reverse sorting
     pub reverse: bool,
-    /// maximum length of files to display
-    pub max_length: usize,
+    /// maximum number of images to collect
+    pub max_length: Option<usize>,
     /// Start in fullscreen mode
     pub fullscreen: bool,
     /// New base directory defaults to std::env::current_dir
@@ -113,6 +113,11 @@ pub fn cli() -> Result<Args, String> {
     let reverse = matches.is_present("reverse");
 
     let max_length = value_t!(matches, "max-number-images", usize).unwrap_or(0);
+    // Case for 0 is unlimited images to match
+    let max_length = match max_length {
+        0 => None,
+        _ => Some(max_length),
+    };
     let fullscreen = matches.is_present("fullscreen");
 
     Ok(Args {

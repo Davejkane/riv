@@ -2,7 +2,7 @@
 //! from the user to perform tasks or edit stored data in the application during runtime
 use crate::infobar::Text;
 use crate::paths::{incremental_glob, SendStatus};
-use crate::program::{mode_colors, mode_text_color, Program};
+use crate::program::{mode_colors, mode_text_color, Config, Program};
 use crate::screen::Screen;
 use crate::sort::SortOrder;
 use crate::ui::{process_command_mode, Action, HelpRender, Mode};
@@ -79,7 +79,7 @@ impl FromStr for Commands {
 
 /// Globs the passed path, returning an error if no images are in that path, glob::glob fails, or
 /// path is unexpected
-fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String> {
+fn glob_path(screen: &mut Screen, path: &PathBuf, config: &Config) -> Result<Vec<PathBuf>, String> {
     let glob = glob::glob(&path.to_string_lossy()).map_err(|e| e.to_string())?;
     let (tx, rx) = bounded(5);
     let mut new_images = Vec::new();
@@ -88,7 +88,7 @@ fn glob_path(screen: &mut Screen, path: &PathBuf) -> Result<Vec<PathBuf>, String
     let text_color = mode_text_color(&Mode::Command("".to_string()));
 
     thread::scope(|scope| {
-        scope.spawn(|_| incremental_glob(glob, &tx, &mut new_images));
+        scope.spawn(|_| incremental_glob(glob, &tx, &mut new_images, config.max_collect));
         // loop till scan is complete
         loop {
             match rx.recv() {
@@ -197,7 +197,7 @@ impl<'a> Program<'a> {
         };
         let msg = path_to_newglob.to_owned();
 
-        let new_images = match glob_path(&mut self.screen, &path) {
+        let new_images = match glob_path(&mut self.screen, &path, &self.config) {
             Ok(new_images) => new_images,
             Err(e) => {
                 self.ui_state.mode = Mode::Error(e.to_string());
@@ -297,13 +297,17 @@ impl<'a> Program<'a> {
     /// sets the new maximum_viewable images
     fn maximum_viewable(&mut self, max: &str) {
         let new_actual_max = match max.parse::<usize>() {
-            Ok(new_max) => new_max,
+            Ok(new_max) => match new_max {
+                0 => None,
+                _ => Some(new_max),
+            },
             Err(_e) => {
                 self.ui_state.mode = Mode::Error(format!("\"{}\" is not a positive integer", max));
                 return;
             }
         };
-        self.paths.set_actual_maximum(new_actual_max);
+        self.config.max_collect = new_actual_max;
+        self.paths.set_actual_maximum(new_actual_max.unwrap_or(0));
     }
 
     /// Enters command mode that gets user input and runs a set of possible commands based on user input.

@@ -36,16 +36,34 @@ use std::time::{Duration, Instant};
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
+/// Config settings for Program
+pub struct Config {
+    /// Maximum images to collect
+    pub max_collect: Option<usize>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config { max_collect: None }
+    }
+}
+impl Config {
+    fn new() -> Self {
+        Config::default()
+    }
+}
+
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State<'a>,
     sorter: Sorter,
+    config: Config,
 }
 
 /// Populate images from glob with progress
-pub fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
+pub fn populate_images(screen: &mut Screen, glob: glob::Paths, config: &Config) -> Vec<PathBuf> {
     let (tx, rx) = bounded(5);
     let mut images = Vec::new();
 
@@ -53,7 +71,7 @@ pub fn populate_images(screen: &mut Screen, glob: glob::Paths) -> Vec<PathBuf> {
     let text_color = mode_text_color(&Mode::Command("".to_string()));
 
     thread::scope(|scope| {
-        scope.spawn(|_| incremental_glob(glob, &tx, &mut images));
+        scope.spawn(|_| incremental_glob(glob, &tx, &mut images, config.max_collect));
         // loop till scan is complete
         loop {
             match rx.recv() {
@@ -154,8 +172,10 @@ impl<'a> Program<'a> {
 
         // Prefill initial max viewable
         let paths = PathsBuilder::new(images, dest_folder, base_dir)
-            .with_maximum_viewable(max_viewable)
+            .with_maximum_viewable(max_viewable.unwrap_or(0))
             .build();
+        let mut config = Config::new();
+        config.max_collect = args.max_length;
         let mut program = Program {
             screen,
             paths,
@@ -165,6 +185,7 @@ impl<'a> Program<'a> {
                 ..Default::default()
             },
             sorter,
+            config,
         };
         program.ui_state.register.loading_glob = Some(args.glob);
         Ok(program)
@@ -643,7 +664,7 @@ impl<'a> Program<'a> {
         let _first_event = self.screen.sdl_context.event_pump()?.poll_iter().next();
         // Load and sort the images
         let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
-        let mut images = populate_images(&mut self.screen, glob.unwrap());
+        let mut images = populate_images(&mut self.screen, glob.unwrap(), &self.config);
         self.sorter.sort(images.as_mut_slice());
         self.paths.reload_images(images);
         // We are only in loading mode to load images, not process
