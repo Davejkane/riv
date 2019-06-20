@@ -683,12 +683,10 @@ impl<'a> Program<'a> {
     /// Central run function that starts by default in Normal mode
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
-        self.render_screen(false)?;
         'main_loop: loop {
             let mode = &self.ui_state.mode.clone();
             match mode {
                 Mode::Loading => {
-                    self.render_screen(false)?;
                     self.run_loading_mode()?;
                 }
                 Mode::Normal => {
