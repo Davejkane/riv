@@ -10,16 +10,16 @@ use std::path::PathBuf;
 
 /// Args contains the arguments that have been successfully parsed by the clap cli app
 pub struct Args {
-    /// files is the vector of image file paths that match the supplied or default glob
-    pub files: Vec<PathBuf>,
-    /// dest_folder is the supplied or default folder for moving files
+    /// Parsed glob to scan for images over
+    pub glob: glob::Paths,
+    /// dest_folder is the supplied or default folder for moving files to
     pub dest_folder: PathBuf,
     /// provides the SortOrder specified by the user
     pub sort_order: SortOrder,
     /// whether or not to reverse sorting
     pub reverse: bool,
-    /// maximum length of files to display
-    pub max_length: usize,
+    /// maximum number of images to collect
+    pub max_length: Option<usize>,
     /// Start in fullscreen mode
     pub fullscreen: bool,
     /// New base directory defaults to std::env::current_dir
@@ -28,7 +28,6 @@ pub struct Args {
 
 /// cli sets up the command line app and parses the arguments, using clap.
 pub fn cli() -> Result<Args, String> {
-    let mut files = Vec::new();
     let matches = App::new("riv")
         .version("0.3.0")
         .about("The command line image viewer")
@@ -96,13 +95,7 @@ pub fn cli() -> Result<Args, String> {
     if let Ok(new_base_dir) = crate::new_base_dir(&path_glob) {
         base_dir = new_base_dir;
     }
-    let glob_matches = glob(&path_glob.to_string_lossy()).map_err(|e| e.to_string())?;
-    for path in glob_matches {
-        match path {
-            Ok(p) => push_image_path(&mut files, p),
-            Err(e) => eprintln!("Path not processable {}", e),
-        }
-    }
+    let glob = glob(&path_glob.to_string_lossy()).map_err(|e| e.to_string())?;
 
     let sort_order = match value_t!(matches, "sort-order", SortOrder) {
         Ok(order) => order,
@@ -120,10 +113,15 @@ pub fn cli() -> Result<Args, String> {
     let reverse = matches.is_present("reverse");
 
     let max_length = value_t!(matches, "max-number-images", usize).unwrap_or(0);
+    // Case for 0 is unlimited images to match
+    let max_length = match max_length {
+        0 => None,
+        _ => Some(max_length),
+    };
     let fullscreen = matches.is_present("fullscreen");
 
     Ok(Args {
-        files,
+        glob,
         dest_folder,
         sort_order,
         reverse,

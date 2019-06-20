@@ -1,9 +1,94 @@
 //! Paths contains the Paths struct which contains all path related information required for the
 //! running of the program.
 
+use crossbeam_channel::bounded;
 use std::ops::RangeInclusive;
 use std::path::PathBuf;
 use std::slice::SliceIndex;
+use std::time::Duration;
+
+/// Events related to progress in scanning images
+#[derive(Debug)]
+pub enum SendStatus {
+    /// Scanning for images has started
+    Started,
+    /// How many images have been collected so far
+    Progress(usize),
+    /// Complete amount of images scanned
+    Complete(usize),
+    /// Error reading path
+    ReadError(glob::GlobError),
+}
+
+/// Scans a glob
+pub fn incremental_glob(
+    glob: glob::Paths,
+    sender: &crossbeam_channel::Sender<SendStatus>,
+    results: &mut Vec<PathBuf>,
+    max_images: Option<usize>,
+) {
+    /*
+    sketch of design
+
+    Send a message saying that globbing has started.
+    Every 0.5 seconds send a progress update on how many images matched the glob.
+    A completion message with total images matched is sent when the glob is finished.
+
+    The timer will exit when it tries to send another completion message, thus
+    all threads are cleaned up.
+    */
+
+    /// Internal messages for child thread communication
+    enum InternalSendStatus {
+        /// Request to update progress on number of images globbed
+        UpdateProgress,
+    }
+
+    let (internal_sender, internal_receiver) = bounded(5);
+
+    sender.send(SendStatus::Started).unwrap();
+
+    // Spawn a timer to request progress of scanning until scanning completes
+    std::thread::spawn(move || loop {
+        std::thread::sleep(Duration::from_millis(500));
+        if internal_sender
+            .send(InternalSendStatus::UpdateProgress)
+            .is_err()
+        {
+            // Internal sending channel closed (likely completed scanning)
+            // Kill the timer thread
+            break;
+        }
+    });
+
+    // Limit amount of images collected. usize max is unlimited since
+    // the vec cannot store more elements than that.
+    let cap = max_images.unwrap_or(std::usize::MAX);
+
+    for res in glob {
+        let path = match res {
+            Ok(p) => p,
+            Err(e) => {
+                sender.send(SendStatus::ReadError(e)).unwrap();
+                continue;
+            }
+        };
+        // Send a progress update if requested
+        if let Ok(InternalSendStatus::UpdateProgress) = internal_receiver.try_recv() {
+            sender.send(SendStatus::Progress(results.len())).unwrap();
+        }
+
+        // filter based on supported image formats
+        use crate::cli::push_image_path;
+        if results.len() < cap {
+            // filter based on supported image formats
+            push_image_path(results, path);
+        } else {
+            break;
+        }
+    }
+    sender.send(SendStatus::Complete(results.len())).unwrap();
+}
 
 /// Builds a new Paths
 #[derive(Debug)]
@@ -16,10 +101,6 @@ pub struct PathsBuilder {
     base_dir: PathBuf,
     /// index is the index of the images vector of the current image to be displayed.
     index: Option<usize>,
-    /// Artificial user facing length of images limited by max cli argument
-    art_len: usize,
-    /// Original Artificial length of the vector
-    art_len_orig: Option<usize>,
 }
 
 impl PathsBuilder {
@@ -30,32 +111,13 @@ impl PathsBuilder {
             // Default index is first image
             _ => Some(0),
         };
-        let art_len = images.len();
-        let art_len_orig = None;
 
         Self {
             images,
             dest_folder,
             base_dir,
             index,
-            art_len,
-            art_len_orig,
         }
-    }
-
-    /// Caps maximum images viewable even if the glob found more
-    pub fn with_maximum_viewable(mut self, cap: usize) -> Self {
-        match cap {
-            0 => {
-                self.art_len = self.images.len();
-                self.art_len_orig = None;
-            }
-            _ => {
-                self.art_len = std::cmp::min(cap, self.images.len());
-                self.art_len_orig = Some(cap);
-            }
-        };
-        self
     }
 
     /// Build the Paths struct
@@ -65,8 +127,6 @@ impl PathsBuilder {
             dest_folder: self.dest_folder,
             base_dir: self.base_dir,
             index: self.index,
-            art_len: self.art_len,
-            art_len_orig: self.art_len_orig,
         }
     }
 }
@@ -82,10 +142,6 @@ pub struct Paths {
     pub base_dir: PathBuf,
     /// index is the index of the images vector of the current image to be displayed.
     index: Option<usize>,
-    /// Artificial user facing length of images limited by max cli argument
-    art_len: usize,
-    /// Original Artificial length of the vector
-    art_len_orig: Option<usize>,
 }
 
 impl Paths {
@@ -172,14 +228,9 @@ impl Paths {
         match self.images.len() {
             0 => {
                 self.index = None;
-                self.art_len = 0;
             }
             _ => {
                 self.index = Some(0);
-                self.art_len = match self.art_len_orig {
-                    Some(orig_art_len) => std::cmp::min(orig_art_len, self.images.len()),
-                    None => self.images.len(),
-                };
             }
         }
     }
@@ -226,10 +277,11 @@ impl Paths {
     /// The image number of the last image viewable
     /// Returns None if no image are present
     pub fn max_viewable(&self) -> Option<usize> {
-        if self.art_len == 0 {
+        let len = self.images.len();
+        if len == 0 {
             None
         } else {
-            Some(self.art_len)
+            Some(len)
         }
     }
 
@@ -249,8 +301,6 @@ impl Paths {
         assert!(index < len);
         // Remove image
         self.images.remove(index);
-        // Decrease artificial length
-        self.art_len = self.art_len.saturating_sub(1);
 
         let new_len = len - 1;
         // Set index to None if no images left
@@ -304,14 +354,7 @@ impl Paths {
     /// Update at runtime the maximum images to display at once
     /// Updates index to `actual_max_viewable` if index is too large
     pub fn set_actual_maximum(&mut self, art_max: usize) {
-        if art_max == 0 {
-            self.art_len_orig = None;
-            self.art_len = self.images.len();
-            return;
-        }
-        self.art_len_orig = Some(art_max);
-        self.art_len = std::cmp::min(art_max, self.images.len());
-
+        self.images.truncate(art_max);
         // Cap index if new max is smaller
         if self.index > self.max_viewable_index() {
             self.index = self.max_viewable_index();
@@ -331,34 +374,32 @@ mod tests {
     }
 
     #[test]
-    fn test_setting_index_with_safe_caps_index_at_end_or_artificial_len() {
-        let mut images = dummy_paths_builder(50).with_maximum_viewable(10).build();
+    fn test_setting_index_with_safe_caps_index_at_last_image() {
+        let mut images = dummy_paths_builder(50).build();
         images.set_index_safe(55);
-        assert_eq!(images.index, Some(9));
+        assert_eq!(images.index, Some(49));
     }
 
     #[test]
-    fn test_no_artificial_cap_reload_with_no_existing_and_new_images() {
+    fn test_reload_with_no_existing_and_new_images() {
         let mut images = dummy_paths_builder(0).build();
         let less_images = dummy_paths_builder(0).build();
         images.reload_images(less_images.images);
-        assert_eq!(images.art_len, 0);
         assert_eq!(images.index, None);
         assert_eq!(images.max_viewable(), None);
     }
 
     #[test]
-    fn test_no_artificial_cap_reload_with_no_existing_and_some_new_images() {
+    fn test_reload_with_no_existing_and_some_new_images() {
         let mut images = dummy_paths_builder(0).build();
         let more_images = dummy_paths_builder(100).build();
         images.reload_images(more_images.images);
-        assert_eq!(images.art_len, 100);
         assert_eq!(images.index, Some(0));
         assert_eq!(images.max_viewable(), Some(100));
     }
     #[test]
-    fn test_removing_all_images_with_art_len_and_spare_has_no_index_or_max_viewable() {
-        let mut images = dummy_paths_builder(10).with_maximum_viewable(2).build();
+    fn test_removing_all_images_has_no_index_or_max_viewable() {
+        let mut images = dummy_paths_builder(2).build();
         images.increment(3);
         images.remove_current_image();
         images.remove_current_image();
@@ -367,20 +408,10 @@ mod tests {
     }
 
     #[test]
-    fn test_current_image_number_when_remove_last_image_with_one_left_with_artificial_len() {
-        let mut images = dummy_paths_builder(10).with_maximum_viewable(2).build();
-        images.increment(3);
-        images.remove_current_image();
-        assert_eq!(images.current_image(), Some(1));
-    }
-
-    #[test]
     fn test_get_indexes() {
         let images = dummy_paths_builder(10).build();
         let slice = images.get(5);
         let multi_slice = images.get(1..=5);
-        dbg!(slice);
-        dbg!(multi_slice);
         assert_eq!(slice, Some(&PathBuf::from("")));
         assert_eq!(multi_slice.unwrap().len(), 5);
     }
@@ -437,7 +468,7 @@ mod tests {
     }
 
     #[test]
-    fn test_max_viewable_with_lower_artificial_len_gives_lower_len() {
+    fn test_setting_lower_max_viewable_gives_lower_len() {
         let max_images = 50;
         let mut images = dummy_paths_builder(max_images).build();
         images.increment(max_images);
@@ -447,42 +478,24 @@ mod tests {
 
     #[test]
     fn test_setting_new_actual_maximum_and_maximum_also_updates_index() {
-        let mut images = dummy_paths_builder(50).with_maximum_viewable(50).build();
+        let mut images = dummy_paths_builder(50).build();
         images.increment(50);
         images.set_actual_maximum(20);
         assert_eq!(images.index(), Some(19));
     }
 
     #[test]
-    fn test_setting_zero_actual_maximum_removes_sets_art_len_to_all_images_no_index_disturb() {
-        let mut images = dummy_paths_builder(100).with_maximum_viewable(20).build();
+    fn test_setting_zero_actual_maximum_removes_all_images_updates_index() {
+        let mut images = dummy_paths_builder(100).build();
         images.increment(50);
-        assert_eq!(images.index(), Some(19));
+        assert_eq!(images.index(), Some(50));
         images.set_actual_maximum(0);
         images.increment(50);
-        assert_eq!(images.index(), Some(69));
-        // Still capped at last image
-        images.increment(999);
-        assert_eq!(images.index(), Some(99));
+        assert_eq!(images.index(), None);
     }
 
     #[test]
-    fn test_artificial_len_maximum_view() {
-        let mut images = dummy_paths_builder(50).with_maximum_viewable(10).build();
-        images.increment(20);
-        assert_eq!(images.index, images.max_viewable_index());
-    }
-
-    #[test]
-    fn test_artificial_maximum_limits_current_glob_on_image_delete() {
-        let mut images = dummy_paths_builder(50).with_maximum_viewable(2).build();
-        images.increment(99);
-        images.remove_current_image();
-        assert_eq!(images.max_viewable_index(), Some(0));
-    }
-
-    #[test]
-    fn test_artificial_len_after_delete_at_end() {
+    fn test_delete_at_end() {
         let mut images = dummy_paths_builder(50).build();
         images.increment(99);
         images.remove_current_image();
@@ -496,7 +509,6 @@ mod tests {
         images.increment(1);
         assert_eq!(images.index(), Some(1));
         assert_eq!(images.max_viewable(), Some(50));
-        assert_eq!(images.art_len_orig, None);
     }
 
     #[test]
@@ -508,15 +520,5 @@ mod tests {
         images.reload_images(less_images.images);
         assert_eq!(images.index(), Some(0));
         assert_eq!(images.max_viewable_index(), Some(9));
-    }
-
-    #[test]
-    fn test_removing_and_replacing_images_updates_artificial_len_to_higher_user_set() {
-        let mut images = dummy_paths_builder(50).with_maximum_viewable(1).build();
-        images.remove_current_image();
-        let less_images = dummy_paths_builder(10).build();
-        images.set_actual_maximum(10);
-        images.reload_images(less_images.images);
-        assert_eq!(images.max_viewable(), Some(10));
     }
 }

@@ -7,7 +7,7 @@ mod command_mode;
 mod render;
 pub use self::render::*;
 use crate::cli;
-use crate::paths::{Paths, PathsBuilder};
+use crate::paths::{incremental_glob, Paths, PathsBuilder, SendStatus};
 use crate::screen::Screen;
 use crate::sort::Sorter;
 use crate::ui::{self, Action, Mode, PanAction, ProcessAction, RotationDirection, ZoomAction};
@@ -22,6 +22,11 @@ use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::{Window, WindowContext};
 use sdl2::Sdl;
 
+use crossbeam_channel::bounded;
+use crossbeam_utils::thread;
+
+use crate::infobar::Text;
+use crate::program::mode_text_color;
 #[cfg(target_os = "windows")]
 use std::ffi::OsStr;
 use std::io::ErrorKind;
@@ -31,12 +36,84 @@ use std::time::{Duration, Instant};
 const FONT_SIZE: u16 = 18;
 const PAN_PIXELS: f32 = 50.0;
 
+/// Config settings for Program
+pub struct Config {
+    /// Maximum images to collect
+    pub max_collect: Option<usize>,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config { max_collect: None }
+    }
+}
+impl Config {
+    fn new() -> Self {
+        Config::default()
+    }
+}
+
 /// Program contains all information needed to run the event loop and render the images to screen
 pub struct Program<'a> {
     screen: Screen<'a>,
     paths: Paths,
     ui_state: ui::State<'a>,
     sorter: Sorter,
+    config: Config,
+}
+
+/// Populate images from glob with progress
+pub fn populate_images(screen: &mut Screen, glob: glob::Paths, config: &Config) -> Vec<PathBuf> {
+    let (tx, rx) = bounded(5);
+    let mut images = Vec::new();
+
+    let theme = mode_colors(&Mode::Command("".to_string()));
+    let text_color = mode_text_color(&Mode::Command("".to_string()));
+
+    thread::scope(|scope| {
+        scope.spawn(|_| incremental_glob(glob, &tx, &mut images, config.max_collect));
+        // loop till scan is complete
+        loop {
+            match rx.recv() {
+                Ok(SendStatus::Started) => {
+                    let text = Text {
+                        child_1: " ".to_string(),
+                        child_2: "Starting to scan images".to_string(),
+                    };
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present()
+                }
+                Ok(SendStatus::Progress(n)) => {
+                    let text = Text {
+                        child_1: "In progress".to_string(),
+                        child_2: format!("matched {} images", n),
+                    };
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present();
+                }
+                Ok(SendStatus::ReadError(e)) => {
+                    eprintln!("Path not processable: {}", e);
+                }
+                Ok(SendStatus::Complete(n)) => {
+                    let theme = mode_colors(&Mode::Success("".to_string()));
+                    let text_color = mode_text_color(&Mode::Success("".to_string()));
+                    let text = Text {
+                        child_1: "Complete".to_string(),
+                        child_2: format!("{} image(s) matched", n),
+                    };
+
+                    screen.render_infobar(text, text_color, &theme).unwrap();
+                    screen.canvas.present();
+                    break;
+                }
+                Err(e) => {
+                    dbg!(e);
+                }
+            }
+        }
+    })
+    .unwrap();
+    images
 }
 
 impl<'a> Program<'a> {
@@ -50,17 +127,10 @@ impl<'a> Program<'a> {
         texture_creator: &'a TextureCreator<WindowContext>,
         args: cli::Args,
     ) -> Result<Program<'a>, String> {
-        let mut images = args.files;
         let dest_folder = args.dest_folder;
         let reverse = args.reverse;
         let sort_order = args.sort_order;
-        let max_length = args.max_length;
         let base_dir = args.base_dir;
-
-        let max_viewable = max_length;
-
-        let sorter = Sorter::new(sort_order, reverse);
-        sorter.sort(&mut images);
 
         let font_bytes = include_bytes!("../../resources/Roboto-Medium.ttf");
         let font_bytes = match RWops::from_bytes(font_bytes) {
@@ -81,27 +151,45 @@ impl<'a> Program<'a> {
             Err(e) => panic!("Failed to load font {}", e),
         };
 
-        let paths = PathsBuilder::new(images, dest_folder, base_dir)
-            .with_maximum_viewable(max_viewable)
-            .build();
-        Ok(Program {
-            screen: Screen {
-                sdl_context,
-                canvas,
-                texture_creator,
-                font,
-                mono_font,
-                last_index: None,
-                last_texture: None,
-                dirty: false,
-            },
+        let screen = Screen {
+            sdl_context,
+            canvas,
+            texture_creator,
+            font,
+            mono_font,
+            last_index: None,
+            last_texture: None,
+            dirty: false,
+        };
+
+        // Prepare loading images
+        // Grab one event to get the window to sppear on Mac OS
+        let _ = screen.sdl_context.event_pump()?.poll_iter().next();
+        // Delay on Mac OS to give the window a chance to show?
+        #[cfg(target_os = "macos")]
+        std::thread::sleep(std::time::Duration::from_millis(100));
+        // Start out initially with no images
+
+        let images = Vec::new();
+        let sorter = Sorter::new(sort_order, reverse);
+
+        // Prefill initial max viewable
+        let paths = PathsBuilder::new(images, dest_folder, base_dir).build();
+        let mut config = Config::new();
+        config.max_collect = args.max_length;
+        let mut program = Program {
+            screen,
             paths,
             ui_state: ui::State {
                 fullscreen: args.fullscreen,
+                mode: Mode::Loading,
                 ..Default::default()
             },
             sorter,
-        })
+            config,
+        };
+        program.ui_state.register.loading_glob = Some(args.glob);
+        Ok(program)
     }
 
     /// Toggle whether actual size or scaled image is rendered.
@@ -572,13 +660,35 @@ impl<'a> Program<'a> {
         self.ui_state.fullscreen = !self.ui_state.fullscreen;
     }
 
+    fn run_loading_mode(&mut self) -> Result<(), String> {
+        // Allow never loop for mac os window showing
+        #[allow(clippy::never_loop)]
+        for _ in self.screen.sdl_context.event_pump()?.poll_iter() {
+            self.screen.canvas.set_draw_color(dark_grey());
+            self.screen.canvas.clear();
+            self.screen.canvas.present();
+            // Load and sort the images
+            let glob = std::mem::replace(&mut self.ui_state.register.loading_glob, None);
+            let mut images = populate_images(&mut self.screen, glob.unwrap(), &self.config);
+            self.sorter.sort(images.as_mut_slice());
+            self.paths.reload_images(images);
+            // We are only in loading mode to load images, not processing
+            // any events.
+            self.ui_state.mode = Mode::Normal;
+            break;
+        }
+        Ok(())
+    }
+
     /// Central run function that starts by default in Normal mode
     /// Switches modes allowing events to be interpreted in different ways
     pub fn run(&mut self) -> Result<(), String> {
-        self.render_screen(false)?;
         'main_loop: loop {
             let mode = &self.ui_state.mode.clone();
             match mode {
+                Mode::Loading => {
+                    self.run_loading_mode()?;
+                }
                 Mode::Normal => {
                     self.run_normal_mode()?;
                     // Don't reset image zoom and offset when changing modes
