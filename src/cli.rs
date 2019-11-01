@@ -141,7 +141,7 @@ pub(crate) fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
                 "jpg" | "jpeg" | "png" | "bmp" | "webp" | "gif" | "lbm" | "pcx" | "pnm" | "svg"
                 | "tga" | "tiff" | "xcf" | "xpm" | "xv" => v.push(p),
                 _ => {
-                    println!("{} is not a supported image format", low);
+                    eprintln!("{} is not a supported image format", low);
                 }
             }
         }
