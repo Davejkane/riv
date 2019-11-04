@@ -10,19 +10,19 @@ pub struct Text {
     /// Either displays the name of the current image or the current command the user is typing in
     /// command mode
     pub information: String,
-    /// In normal mode this is the string represention of the index, in command mode this is
+    /// In normal mode this is the string representation of the index, in command mode this is
     /// "Command"
     pub mode: String,
 }
 
 impl Text {
-    /// Updates the infobar based on the current mode of the applicaiton
+    /// Updates the infobar based on the current mode of the application
     /// Normal Mode:
     ///     mode = index of current image
     ///     information = path to current image
     /// Command Mode:
     ///     mode = "Command"
-    ///     information = curerntly entered user string
+    ///     information = currently entered user string
     /// Error Mode:
     ///     mode = "Error"
     ///     information = error message to display

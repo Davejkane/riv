@@ -19,7 +19,7 @@ pub enum Action<'a> {
     ReRender,
     /// Switches modes from normal to command mode to enter queries such as "newglob"/"ng"
     SwitchCommandMode,
-    /// Indicates user hit the backspace, program input should be truncated accordinly
+    /// Indicates user hit the backspace, program input should be truncated accordingly
     Backspace,
     /// User entered input from the keyboard
     KeyboardInput(&'a str),

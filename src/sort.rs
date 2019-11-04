@@ -13,7 +13,7 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 
 /// A structure that takes the SortOrder from command line arguments
-/// and reverse and sorts pathes based on original criteria
+/// and reverse and sorts paths based on original criteria
 // Chosen over functions, due to it being more adaptable in the future
 pub struct Sorter {
     /// Order to sort the files
