@@ -42,7 +42,7 @@ pub fn cli() -> Result<Args, String> {
                 .default_value("./keep")
                 .short("f")
                 .long("dest-folder")
-                .help("Desintation folder for moving files to")
+                .help("Destination folder for moving files to")
                 .takes_value(true),
         )
         .arg(
@@ -114,7 +114,7 @@ pub fn cli() -> Result<Args, String> {
 
     let dest_folder = match matches.value_of("dest-folder") {
         Some(f) => PathBuf::from(f),
-        None => return Err("failed to determine destintation folder".to_string()),
+        None => return Err("failed to determine destination folder".to_string()),
     };
 
     let reverse = matches.is_present("reverse");
