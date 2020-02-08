@@ -137,8 +137,12 @@ pub(crate) fn push_image_path(v: &mut Vec<PathBuf>, p: PathBuf) {
     if let Some(ext) = p.extension() {
         if let Some(ext_str) = ext.to_str() {
             let low = ext_str.to_string().to_lowercase();
-            if low == "jpg" || low == "jpeg" || low == "png" || low == "bmp" || low == "webp" {
-                v.push(p)
+            match low.as_ref() {
+                "jpg" | "jpeg" | "png" | "bmp" | "webp" | "gif" | "lbm" | "pcx" | "pnm" | "svg"
+                | "tga" | "tiff" | "xcf" | "xpm" | "xv" => v.push(p),
+                _ => {
+                    eprintln!("{} is not a supported image format", low);
+                }
             }
         }
     }
