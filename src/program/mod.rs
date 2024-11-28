@@ -5,7 +5,6 @@
 
 mod command_mode;
 mod render;
-pub use self::render::*;
 use crate::cli;
 use crate::paths::{Paths, PathsBuilder};
 use crate::screen::Screen;
@@ -377,8 +376,7 @@ impl<'a> Program<'a> {
 
         // Compute actual number of images to remove
         // Cap at max index. Add 1 incase max index == current_index
-        let total_removes =
-            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+        let total_removes = cmp::min(current_index + amount - 1, max_index) - current_index + 1;
         // Store errors for possible future use
         let mut failures: Vec<String> = Vec::new();
         for _ in 0..total_removes {
@@ -432,8 +430,7 @@ impl<'a> Program<'a> {
 
         // Compute actual number of images to trash
         // Cap at max index. Add 1 incase max index == current_index
-        let total_trashes =
-            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+        let total_trashes = cmp::min(current_index + amount - 1, max_index) - current_index + 1;
 
         // Store errors for possible future use
 
@@ -527,8 +524,7 @@ impl<'a> Program<'a> {
 
         // Compute actual number of images to remove
         // Cap at max index. Add 1 incase max index == current_index
-        let total_removes =
-            std::cmp::min(current_index + amount - 1, max_index) - current_index + 1;
+        let total_removes = cmp::min(current_index + amount - 1, max_index) - current_index + 1;
 
         // Store errors for possible future use
         let mut failures: Vec<String> = Vec::new();
